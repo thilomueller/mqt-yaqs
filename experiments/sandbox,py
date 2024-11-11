@@ -1,0 +1,6 @@
+from yaqs.data_structures.MPO import IsingMPO
+
+test = IsingMPO(3, 2, 1, 0.5)
+
+for tensor in test.tensors:
+    print(tensor.shape)

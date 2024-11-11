@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yaqs"
+version = "0.0.0"
+description = "Tensor network library for quantum simulations"
+readme = "README.rst"
+authors = [{ name = "Aaron Sander", email = "aaron.sander@tum.de" }]
+license = { text = "" }
+requires-python = ""
+dependencies = []
+dynamic = ["optional-dependencies"]
