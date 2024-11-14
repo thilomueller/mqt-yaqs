@@ -1,6 +1,17 @@
-from yaqs.data_structures.MPO import IsingMPO
+from yaqs.data_structures.MPO import MPO
+from yaqs.data_structures.MPS import MPS
+from yaqs.methods.dynamic_TDVP import dynamic_TDVP
 
-test = IsingMPO(3, 2, 1, 0.5)
 
-for tensor in test.tensors:
-    print(tensor.shape)
+L = 10
+d = 2
+J = 1
+g = 0.5
+dt = 0.1
+
+psi = MPS(L)
+
+H_0 = MPO()
+H_0.init_Ising(L, d, J, g)
+
+dynamic_TDVP(psi, H_0, dt, max_bond_dim=16)

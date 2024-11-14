@@ -1,9 +1,9 @@
 import numpy as np
 import opt_einsum as oe
 
-# Convention (chi_l-1, sigma, chi_l)
+# Convention (sigma, chi_l-1, chi_l)
 class MPS:
-    def __init__(self, length: int, physical_dimensions: list=[], form: str='B'):
+    def __init__(self, length: int, physical_dimensions: list=[], state: str='zeros'):
         self.tensors = []
         self.length = length
         self.physical_dimensions = physical_dimensions
@@ -16,13 +16,28 @@ class MPS:
         # Create d-level |0> state
         for d in physical_dimensions:
             vector = np.zeros(d)
-            vector[0] = 1
+            if state == 'zeros':
+                vector[0] = 1
+            elif state == 'ones':
+                vector[1] = 1
+            else:
+                raise ValueError("Invalid state string")
+
             tensor = np.expand_dims(vector, axis=(0, 1))
 
-            tensor = np.transpose(tensor, (0, 2, 1))
+            tensor = np.transpose(tensor, (2, 0, 1))
             self.tensors.append(tensor)
         self.flipped = False
         self.orthogonality_center = 0
+
+    def read_max_bond_dim(self) -> int:
+        global_max = 0
+        for tensor in self.tensors:
+            local_max = max(tensor.shape[0], tensor.shape[2])
+            if local_max > global_max:
+                global_max = local_max
+
+        return global_max
 
     def flip_network(self):
         """ Flips the bond dimensions in the network so that we can do operations
@@ -36,7 +51,7 @@ class MPS:
         """
         new_tensors = []
         for tensor in self.tensors:
-            new_tensor = np.transpose(tensor, (2, 1, 0))
+            new_tensor = np.transpose(tensor, (0, 2, 1))
             new_tensors.append(new_tensor)
 
         new_tensors.reverse()
@@ -64,7 +79,7 @@ class MPS:
 
         # If normalizing, we just throw away the R
         if current_orthogonality_center+1 < self.length:
-            self.tensors[current_orthogonality_center+1] = oe.contract('ij, jbc->ibc', R, self.tensors[current_orthogonality_center+1])
+            self.tensors[current_orthogonality_center+1] = oe.contract('ij, ajc->aic', R, self.tensors[current_orthogonality_center+1])
 
     def set_canonical_form(self, orthogonality_center: int):
         """ Left and right normalizes an MPS around a selected site
@@ -116,7 +131,7 @@ class MPS:
             A_truth.append(np.allclose(M, test_identity))
 
         for i in range(len(A)):
-            M = oe.contract('ijk, ajk->ia', B[i], A[i])
+            M = oe.contract('ijk, ibk->jb', B[i], A[i])
             M[M < epsilon] = 0
             test_identity = np.eye(M.shape[0], dtype=complex)
             B_truth.append(np.allclose(M, test_identity))

@@ -2,9 +2,9 @@ import numpy as np
 
 from yaqs.library.tensor_library import TensorLibrary
 
-# Convention (sigma, chi_l, sigma', chi_l+1)
-class IsingMPO:
-    def __init__(self, length: int, physical_dimension: int, J: int, g: int):
+# Convention (sigma, sigma', chi_l,  chi_l+1)
+class MPO:
+    def init_Ising(self, length: int, physical_dimension: int, J: float, g: float):
         zero = np.zeros((physical_dimension, physical_dimension))
         identity = np.identity(physical_dimension)
         X = getattr(TensorLibrary, "x")().matrix
@@ -23,8 +23,10 @@ class IsingMPO:
         self.tensors = [left_bound] + [inner]*(length-2) + [right_bound]
         for i, tensor in enumerate(self.tensors):
             # left, right, sigma, sigma'
-            self.tensors[i] = np.transpose(tensor, (2, 0, 3, 1))
+            self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
 
-class customMPO:
-    def __init__(self, length:int, left_bound: np.ndarray, inner: np.ndarray, right_bound: np.ndarray):
+        self.length = length
+        self.physical_dimension = physical_dimension
+
+    def init_custom(self, length:int, left_bound: np.ndarray, inner: np.ndarray, right_bound: np.ndarray):
         self.tensors = [left_bound] + [inner]*(length-2) + [right_bound]
