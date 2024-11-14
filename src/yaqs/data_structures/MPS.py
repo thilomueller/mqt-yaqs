@@ -1,6 +1,9 @@
 import numpy as np
 import opt_einsum as oe
 
+from yaqs.library.tensor_library import TensorLibrary
+from yaqs.operations.operations import local_expval, scalar_product
+
 # Convention (sigma, chi_l-1, chi_l)
 class MPS:
     def __init__(self, length: int, physical_dimensions: list=[], state: str='zeros'):
@@ -111,6 +114,14 @@ class MPS:
 
         if form == 'B':
             self.flip_network()
+
+
+    def measure_observable(self, name: str, site: int):
+        assert site in range(0, self.length), "State is shorter than selected site for expectation value."
+        return local_expval(self, getattr(TensorLibrary, name)().matrix, site)
+
+    def norm(self):
+        return np.abs(scalar_product(self, self))
 
     def _check_canonical_form(self):
         """ Checks what canonical form an MPS is in if any

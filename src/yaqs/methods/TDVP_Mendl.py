@@ -65,7 +65,6 @@ def single_site_TDVP(H: 'MPO', state: 'MPS', dt, numsteps: int, numiter_lanczos:
         for i in range(L - 1):
             # evolve psi.A[i] forward in time by half a time step
             state.tensors[i] = _local_hamiltonian_step(BL[i], BR[i], H.tensors[i], state.tensors[i], 0.5*dt, numiter_lanczos)
-
             # left-orthonormalize current psi.A[i]
             s = state.tensors[i].shape
             Q, C = np.linalg.qr(state.tensors[i].reshape((s[0]*s[1], s[2])))
@@ -312,10 +311,10 @@ def _expm_krylov(Afunc, v, dt, numiter, hermitian=False):
         alpha, beta, V = _lanczos_iteration(Afunc, v, numiter)
         # diagonalize Hessenberg matrix
         w_hess, u_hess = eigh_tridiagonal(alpha, beta)
-        return V @ (u_hess @ (np.linalg.norm(v) * np.exp(dt*w_hess) * u_hess[0]))
+        return V @ (u_hess @ (np.linalg.norm(v) * np.exp(-1j*dt*w_hess) * u_hess[0]))
     else:
         H, V = _arnoldi_iteration(Afunc, v, numiter)
-        return V @ (np.linalg.norm(v) * expm(dt*H)[:, 0])
+        return V @ (np.linalg.norm(v) * expm(-1j*dt*H)[:, 0])
 
 
 def _apply_local_hamiltonian(L: np.ndarray, R: np.ndarray, W: np.ndarray, A: np.ndarray):
