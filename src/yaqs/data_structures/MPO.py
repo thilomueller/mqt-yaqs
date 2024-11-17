@@ -30,3 +30,13 @@ class MPO:
 
     def init_custom(self, length:int, left_bound: np.ndarray, inner: np.ndarray, right_bound: np.ndarray):
         self.tensors = [left_bound] + [inner]*(length-2) + [right_bound]
+
+    def write_tensor_shapes(self):
+        for tensor in self.tensors:
+            print(tensor.shape)
+
+    def check_if_valid_MPS(self):
+        right_bond = self.tensors[0].shape[3]
+        for tensor in self.tensors[1::]:
+            assert tensor.shape[2] == right_bond
+            right_bond = tensor.shape[3]
