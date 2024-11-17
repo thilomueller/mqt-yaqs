@@ -1,4 +1,5 @@
 import numpy as np
+import opt_einsum as oe
 from scipy.linalg import eigh_tridiagonal, expm
 
 from typing import TYPE_CHECKING
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 __all__ = ['integrate_local_singlesite', 'integrate_local_twosite']
 
 
-def single_site_TDVP(H: 'MPO', state: 'MPS', dt, numsteps: int, numiter_lanczos: int = 25):
+def single_site_TDVP(state: 'MPS', H: 'MPO',  dt, numsteps: int, numiter_lanczos: int = 25):
     """
     Symmetric single-site TDVP integration.
     `psi` is overwritten in-place with the time-evolved state.
@@ -79,7 +80,7 @@ def single_site_TDVP(H: 'MPO', state: 'MPS', dt, numsteps: int, numiter_lanczos:
             # evolve C backward in time by half a time step
             C = _local_bond_step(BL[i+1], BR[i], C, -0.5*dt, numiter_lanczos)
             # update psi.A[i+1] tensor: multiply with C from left
-            state.tensors[i+1] = np.einsum(state.tensors[i+1], (0, 3, 2), C, (1, 3), (0, 1, 2), optimize=True)
+            state.tensors[i+1] = oe.contract(state.tensors[i+1], (0, 3, 2), C, (1, 3), (0, 1, 2))
 
         # evolve psi.A[L-1] forward in time by a full time step
         i = L - 1
@@ -104,9 +105,153 @@ def single_site_TDVP(H: 'MPO', state: 'MPS', dt, numsteps: int, numiter_lanczos:
             C = np.transpose(C)
             C = _local_bond_step(BL[i], BR[i-1], C, -0.5*dt, numiter_lanczos)
             # update psi.A[i-1] tensor: multiply with C from right
-            state.tensors[i-1] = np.einsum(state.tensors[i-1], (0, 1, 3), C, (3, 2), (0, 1, 2), optimize=True)
+            state.tensors[i-1] = oe.contract(state.tensors[i-1], (0, 1, 3), C, (3, 2), (0, 1, 2))
             # evolve psi.A[i-1] forward in time by half a time step
             state.tensors[i-1] = _local_hamiltonian_step(BL[i-1], BR[i-1], H.tensors[i-1], state.tensors[i-1], 0.5*dt, numiter_lanczos)
+
+
+def two_site_TDVP(state: 'MPS', H: 'MPO', dt, numsteps: int, numiter_lanczos: int = 25, tol_split = 0):
+    """
+    Symmetric two-site TDVP integration.
+    `psi` is overwritten in-place with the time-evolved state.
+
+    Args:
+        H: Hamiltonian as MPO
+        psi: initial state as MPS
+        dt: time step; for real-time evolution, use purely imaginary dt
+        numsteps: number of time steps
+        numiter_lanczos: number of Lanczos iterations for each site-local step
+        tol_split: tolerance for SVD-splitting of neighboring MPS tensors
+
+    Returns:
+        float: norm of initial psi
+
+    Reference:
+        J. Haegeman, C. Lubich, I. Oseledets, B. Vandereycken, F. Verstraete
+        Unifying time evolution and optimization with matrix product states
+        Phys. Rev. B 94, 165116 (2016) (arXiv:1408.5056)
+    """
+
+    # number of lattice sites
+    L = H.length
+    assert L == state.length
+    assert L >= 2
+
+    # right-normalize input matrix product state
+    state.normalize()
+
+    # left and right operator blocks
+    # initialize leftmost block by 1x1x1 identity
+    BR = _compute_right_operator_blocks(state, H)
+    BL = [None for _ in range(L)]
+    BL[0] = np.array([[[1]]], dtype=BR[0].dtype)
+
+    # consistency check
+    # for i in range(len(BR)):
+    #     assert is_qsparse(BR[i], [psi.qD[i+1], H.qD[i+1], -psi.qD[i+1]]), \
+    #         'sparsity pattern of operator blocks must match quantum numbers'
+
+    for n in range(numsteps):
+        # sweep from left to right
+        for i in range(L - 2):
+            # merge neighboring tensors
+            Am = _merge_mps_tensor_pair(state.tensors[i], state.tensors[i+1])
+            Hm = _merge_mpo_tensor_pair(H.tensors[i], H.tensors[i+1])
+            # evolve Am forward in time by half a time step
+            Am = _local_hamiltonian_step(BL[i], BR[i+1], Hm, Am, 0.5*dt, numiter_lanczos)
+            # split Am
+            state.tensors[i], state.tensors[i+1] = _split_mps_tensor(Am, 'right', tol=tol_split)
+
+            # update the left blocks
+            BL[i+1] = _contraction_operator_step_left(state.tensors[i], state.tensors[i], H.tensors[i], BL[i])
+            # evolve psi.A[i+1] backward in time by half a time step
+            state.tensors[i+1] = _local_hamiltonian_step(BL[i+1], BR[i+1], H.tensors[i+1], state.tensors[i+1], -0.5*dt, numiter_lanczos)
+
+        # rightmost tensor pair
+        i = L - 2
+        # merge neighboring tensors
+        Am = _merge_mps_tensor_pair(state.tensors[i], state.tensors[i+1])
+        Hm = _merge_mpo_tensor_pair(H.tensors[i], H.tensors[i+1])
+        # # evolve Am forward in time by a full time step
+        Am = _local_hamiltonian_step(BL[i], BR[i+1], Hm, Am, dt, numiter_lanczos)
+        # # split Am
+        state.tensors[i], state.tensors[i+1] = _split_mps_tensor(Am, 'left', tol=tol_split)
+        # # update the right blocks
+        BR[i] = _contraction_operator_step_right(state.tensors[i+1], state.tensors[i+1], H.tensors[i+1], BR[i+1])
+
+        # sweep from right to left
+        for i in reversed(range(L - 2)):
+            # evolve psi.A[i+1] backward in time by half a time step
+            state.tensors[i+1] = _local_hamiltonian_step(BL[i+1], BR[i+1], H.tensors[i+1], state.tensors[i+1], -0.5*dt, numiter_lanczos)
+            # merge neighboring tensors
+            Am = _merge_mps_tensor_pair(state.tensors[i], state.tensors[i+1])
+            Hm = _merge_mpo_tensor_pair(H.tensors[i], H.tensors[i+1])
+            # evolve Am forward in time by half a time step
+            Am = _local_hamiltonian_step(BL[i], BR[i+1], Hm, Am, 0.5*dt, numiter_lanczos)
+            # split Am
+            state.tensors[i], state.tensors[i+1] = _split_mps_tensor(Am, 'left', tol=tol_split)
+            # update the right blocks
+            BR[i] = _contraction_operator_step_right(state.tensors[i+1], state.tensors[i+1], H.tensors[i+1], BR[i+1])
+
+
+def _split_mps_tensor(A: np.ndarray, svd_distr: str, tol=0):
+    """
+    Split a MPS tensor with dimension `d0*d1 x D0 x D2` into two MPS tensors
+    with dimensions `d0 x D0 x D1` and `d1 x D1 x D2`, respectively.
+    """
+    # assert A.ndim == 3
+    # # d0 = len(qd0)
+    # # d1 = len(qd1)
+    # # assert d0 * d1 == A.shape[0], 'physical dimension of MPS tensor must be equal to d0 * d1'
+    # # reshape as matrix and split by SVD
+    # TODO: Generalize to mixed dimensional systems
+    A = A.reshape((A.shape[0]//2, A.shape[0]//2, A.shape[1], A.shape[2])).transpose((0, 2, 1, 3))
+    s = A.shape
+    # # q0 = qnumber_flatten([ qd0, qD[0]])
+    # # q1 = qnumber_flatten([-qd1, qD[1]])
+    # # A0, sigma, A1, qbond = split_matrix_svd(A.reshape((s[0]*s[1], s[2]*s[3])), q0, q1, tol)
+    A0, sigma, A1 = np.linalg.svd(A.reshape((s[0]*s[1], s[2]*s[3])), full_matrices=False)
+    # A0 = np.reshape(A0, (s[0], s[1], len(sigma)))
+    # A1 = np.reshape(A1, (len(sigma), s[2], s[3]))
+
+    A0.shape = (s[0], s[1], len(sigma))
+    A1.shape = (len(sigma), s[2], s[3])
+    # # use broadcasting to distribute singular values
+    if svd_distr == 'left':
+        A0 = A0 * sigma
+    elif svd_distr == 'right':
+        A1 = A1 * sigma[:, None, None]
+    elif svd_distr == 'sqrt':
+        s = np.sqrt(sigma)
+        A0 = A0 * s
+        A1 = A1 * s[:, None, None]
+    else:
+        raise ValueError('svd_distr parameter must be "left", "right" or "sqrt".')
+    # # move physical dimension to the front
+    A1 = A1.transpose((1, 0, 2))
+
+    return (A0, A1)
+
+
+def _merge_mps_tensor_pair(A0: np.ndarray, A1: np.ndarray) -> np.ndarray:
+    """
+    Merge two neighboring MPS tensors.
+    """
+    A = oe.contract(A0, (0, 2, 3), A1, (1, 3, 4), (0, 1, 2, 4))
+    # combine original physical dimensions
+    A = A.reshape((A.shape[0]*A.shape[1], A.shape[2], A.shape[3]))
+    return A
+
+
+def _merge_mpo_tensor_pair(A0: np.ndarray, A1: np.ndarray) -> np.ndarray:
+    """
+    Merge two neighboring MPO tensors.
+    """
+    A = oe.contract(A0, (0, 2, 4, 6), A1, (1, 3, 6, 5), (0, 1, 2, 3, 4, 5), optimize=True)
+    # combine original physical dimensions
+    s = A.shape
+    A = A.reshape((s[0]*s[1], s[2]*s[3], s[4], s[5]))
+    return A
 
 
 def _contraction_operator_step_right(A: np.ndarray, B: np.ndarray, W: np.ndarray, R: np.ndarray):
