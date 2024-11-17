@@ -19,7 +19,9 @@ def scalar_product(A: 'MPS', B: 'MPS', site: int=-1):
     Returns:
         result: Frobenius norm of A and B <A|B>
     """
-    A.tensors = np.conj(A.tensors)
+    for i, tensor in enumerate(A.tensors):
+        A.tensors[i] = np.conj(tensor)
+
     # Contract all sites
     if site == -1:
         for site in range(A.length):
@@ -51,7 +53,6 @@ def local_expval(state: 'MPS', operator: np.ndarray, site: int):
     Returns:
         E.real: real portion of calculated expectation value
     """
-
     # TODO: Could be more memory-efficient by not copying state
     temp_state = copy.deepcopy(state)
     temp_state.tensors[site] = oe.contract('ab, bcd->acd', operator, temp_state.tensors[site])
