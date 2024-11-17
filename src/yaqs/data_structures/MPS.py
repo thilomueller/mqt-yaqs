@@ -33,7 +33,7 @@ class MPS:
         self.flipped = False
         self.orthogonality_center = 0
 
-    def read_max_bond_dim(self) -> int:
+    def write_max_bond_dim(self) -> int:
         global_max = 0
         for tensor in self.tensors:
             local_max = max(tensor.shape[0], tensor.shape[2])
@@ -122,6 +122,16 @@ class MPS:
 
     def norm(self):
         return np.abs(scalar_product(self, self))
+
+    def write_tensor_shapes(self):
+        for tensor in self.tensors:
+            print(tensor.shape)
+
+    def check_if_valid_MPS(self):
+        right_bond = self.tensors[0].shape[2]
+        for tensor in self.tensors[1::]:
+            assert tensor.shape[1] == right_bond
+            right_bond = tensor.shape[2]
 
     def _check_canonical_form(self):
         """ Checks what canonical form an MPS is in if any
