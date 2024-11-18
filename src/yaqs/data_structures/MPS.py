@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import opt_einsum as oe
 
@@ -31,7 +32,6 @@ class MPS:
             tensor = np.transpose(tensor, (2, 0, 1))
             self.tensors.append(tensor)
         self.flipped = False
-        self.orthogonality_center = 0
 
     def write_max_bond_dim(self) -> int:
         global_max = 0
@@ -78,8 +78,6 @@ class MPS:
         Q = np.reshape(Q, (old_dims[0], old_dims[1], old_dims[2]))
         self.tensors[current_orthogonality_center] = Q
 
-        self.orthogonality_center = current_orthogonality_center+1
-
         # If normalizing, we just throw away the R
         if current_orthogonality_center+1 < self.length:
             self.tensors[current_orthogonality_center+1] = oe.contract('ij, ajc->aic', R, self.tensors[current_orthogonality_center+1])
@@ -103,7 +101,6 @@ class MPS:
         flipped_orthogonality_center = self.length-1-orthogonality_center
         sweep_decomposition(flipped_orthogonality_center)
         self.flip_network()
-        self.orthogonality_center=orthogonality_center
 
     def normalize(self, form: str='A'):
         if form == 'B':
@@ -121,7 +118,7 @@ class MPS:
         return local_expval(self, getattr(TensorLibrary, name)().matrix, site)
 
     def norm(self):
-        return np.abs(scalar_product(self, self))
+        return scalar_product(self, self)
 
     def write_tensor_shapes(self):
         for tensor in self.tensors:
@@ -139,7 +136,9 @@ class MPS:
         Args:
             MPS: list of rank-3 tensors with a physical dimension d^2
         """
-        A = np.conj(self.tensors)
+        A = copy.deepcopy(self.tensors)
+        for i, tensor in enumerate(self.tensors):
+            A[i] = np.conj(tensor)
         B = self.tensors
 
         A_truth = []
@@ -159,7 +158,7 @@ class MPS:
 
         if all(A_truth):
             print("MPS is left (A) canonical.")
-            print("MPS is site canonical at site % d" % (len(MPS)-1))
+            print("MPS is site canonical at site % d" % (self.length-1))
 
         elif all(B_truth):
             print("MPS is right (B) canonical.")
