@@ -19,13 +19,15 @@ def scalar_product(A: 'MPS', B: 'MPS', site: int=-1):
     Returns:
         result: Frobenius norm of A and B <A|B>
     """
-    for i, tensor in enumerate(A.tensors):
-        A.tensors[i] = np.conj(tensor)
+    A_copy = copy.deepcopy(A)
+    B_copy = copy.deepcopy(B)
+    for i, tensor in enumerate(A_copy.tensors):
+        A_copy.tensors[i] = np.conj(tensor)
 
     # Contract all sites
     if site == -1:
         for site in range(A.length):
-            tensor = oe.contract('abc, ade->bdce', A.tensors[site], B.tensors[site])
+            tensor = oe.contract('abc, ade->bdce', A_copy.tensors[site], B_copy.tensors[site])
             # tensor = oe.contract('ijk, abk->iajb', A[site], B[site])
             if site == 0:
                 result = tensor
@@ -37,7 +39,7 @@ def scalar_product(A: 'MPS', B: 'MPS', site: int=-1):
     # Used for ignoring other tensors if MPS is in canonical form
     else:
         # Single site operators
-        result = oe.contract('ijk, ijk', A[site], B[site])
+        result = oe.contract('ijk, ijk', A_copy[site], B_copy[site])
 
     return result
 
