@@ -5,7 +5,7 @@ from scipy.linalg import expm
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from yaqs.data_structures.MPS import MPS
-    from yaqs.data_structures.Noise_Model import NoiseModel
+    from yaqs.data_structures.noise_model import NoiseModel
 
 
 # TODO: Assumes noise is same at all sites
@@ -19,3 +19,5 @@ def apply_dissipation(state: 'MPS', noise_model: 'NoiseModel', dt: float):
 
     for i, tensor in enumerate(state.tensors):
         state.tensors[i] = oe.contract('ab, bcd->acd', dissipative_operator, tensor)
+        if i < state.length-1:
+            state.shift_orthogonality_center_right(current_orthogonality_center=i)
