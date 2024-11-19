@@ -8,14 +8,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from yaqs.data_structures.MPS import MPS
     from yaqs.data_structures.noise_model import NoiseModel
-    from yaqs.data_structures.simulation_parameters import SimulationParams
 
 # TODO: Can be reduced to a single tensor contraction
 def calculate_stochastic_factor(state: 'MPS') -> float:
     return 1 - scalar_product(state, state)
 
 # TODO: Can be reduced to a single tensor contraction
-def create_probability_distribution(state: 'MPS', noise_model: 'NoiseModel', dt: float) -> dict:
+def create_probability_distribution(state: 'MPS', noise_model: 'NoiseModel', dt: float) -> dict[np.ndarray, float, int, float]:
         # Ordered as [Jump 0 Site 0, Jump 1 Site 0, Jump 0 Site 1, Jump 1 Site 1...]
         jump_dict = {'jumps': [], 'strengths': [], 'sites': [], 'probabilities': []}
         dp_m_list = []
@@ -29,7 +28,6 @@ def create_probability_distribution(state: 'MPS', noise_model: 'NoiseModel', dt:
                 jump_dict['jumps'].append(jump_operator)
                 jump_dict['strengths'].append(noise_model.strengths[j])
                 jump_dict['sites'].append(i)
-        print(np.sum(dp_m_list))
         jump_dict['probabilities'] = dp_m_list/np.sum(dp_m_list).astype(float)
         return jump_dict
 
