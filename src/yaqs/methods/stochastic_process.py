@@ -9,9 +9,11 @@ if TYPE_CHECKING:
     from yaqs.data_structures.MPS import MPS
     from yaqs.data_structures.noise_model import NoiseModel
 
+
 # TODO: Can be reduced to a single tensor contraction
 def calculate_stochastic_factor(state: 'MPS') -> float:
     return 1 - scalar_product(state, state)
+
 
 # TODO: Can be reduced to a single tensor contraction
 def create_probability_distribution(state: 'MPS', noise_model: 'NoiseModel', dt: float) -> dict[np.ndarray, float, int, float]:
