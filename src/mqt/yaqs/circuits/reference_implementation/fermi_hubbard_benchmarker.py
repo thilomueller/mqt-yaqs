@@ -70,9 +70,6 @@ def benchmarker() -> None:
     # YAQS simulation
     ##################################
 
-    # Define the initial state
-    state = MPS(num_qubits, state='wall', pad=32)
-
     # Define the simulation parameters
     N = 1
     max_bond_dim = 16
@@ -80,28 +77,45 @@ def benchmarker() -> None:
     window_size = 0
     measurements = [Observable('z', site) for site in range(num_qubits)]
 
-    # Run the simulation
-    occupations_yaqs = np.zeros((num_qubits, timesteps), dtype='complex')
+    max_bond_dim_list = range(2, 2**num_qubits//2+1, 2)
+    threshold_list = [10**-x for x in range(1, 13)]
 
-    for timestep in range(timesteps):
-        print("Timestep: " + str(timestep))
-        circuit = create_2d_fermi_hubbard_circuit(Lx=Lx, Ly=Ly, u=u, t=t, mu=mu,
-                                                num_trotter_steps=num_trotter_steps,
-                                                dt=dt, timesteps=1)
+    heatmap = np.empty((len(max_bond_dim_list), len(threshold_list)))
 
-        sim_params = StrongSimParams(measurements, N, max_bond_dim, threshold, window_size, get_state=True)
+    for i, max_bond_dim in enumerate(max_bond_dim_list):
+        for j, threshold in enumerate(threshold_list):
+            # Define the initial state
+            state = MPS(num_qubits, state='wall', pad=32)
 
-        simulator.run(state, circuit, sim_params, None)
+            # Run the simulation
+            occupations_yaqs = np.zeros((num_qubits, timesteps), dtype='complex')
 
-        for observable in sim_params.observables:
-            index = observable.site
-            occupations_yaqs[index, timestep] = 0.5 * (1 - observable.results.item())
+            for timestep in range(timesteps):
+                print("Timestep: " + str(timestep))
+                circuit = create_2d_fermi_hubbard_circuit(Lx=Lx, Ly=Ly, u=u, t=t, mu=mu,
+                                                        num_trotter_steps=num_trotter_steps,
+                                                        dt=dt, timesteps=1)
 
-        state = MPS(num_qubits, sim_params.output_state.tensors, pad=32)
+                sim_params = StrongSimParams(measurements, N, max_bond_dim, threshold, window_size, get_state=True)
 
-    # Calculate error
-    error = np.linalg.norm(occupations_yaqs[:,-1][::-1] - occupations_qutip[:,-1], 2)
-    print(error)
+                simulator.run(state, circuit, sim_params, None)
+
+                for observable in sim_params.observables:
+                    index = observable.site
+                    occupations_yaqs[index, timestep] = 0.5 * (1 - observable.results.item())
+
+                state = MPS(num_qubits, sim_params.output_state.tensors, pad=32)
+
+            # Calculate error
+            error = np.linalg.norm(occupations_yaqs[:,-1][::-1] - occupations_qutip[:,-1], 2)
+            print("max bond dim: ", max_bond_dim, "\t threshold: ", threshold)
+            print(error)
+            heatmap[i, j] = error
+
+    plt.xlabel("threshold")
+    plt.ylabel("max bond dim")
+    plt.imshow(heatmap)
+    plt.show()
 
 
 if __name__ == "__main__":
