@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams
 from mqt.yaqs.core.libraries.circuit_library import create_2d_fermi_hubbard_circuit
-from mqt.yaqs.circuits.reference_implementation.fermi_hubbard_reference import create_fermi_hubbard_model_qutip
+from mqt.yaqs.circuits.reference_implementation.fermi_hubbard_reference import create_fermi_hubbard_model_qutip, site_index
 
 from mqt.yaqs import simulator
 
@@ -45,6 +45,31 @@ def benchmarker() -> None:
     total_time = dt * timesteps
     print("Total time: ", total_time)
 
+    ##################################
+    # Reference simulation
+    ##################################
+    state_list = sum(([qt.basis(2, 0), qt.basis(2, 0)] if x >= L/2 else [qt.basis(2, 1), qt.basis(2, 1)] for x in range(L)), [])    # brick wall state
+    initial_state = qt.tensor(state_list)
+
+    H = create_fermi_hubbard_model_qutip(Lx, Ly, u, -t, mu)
+
+    tlist = np.linspace(0, total_time, timesteps)
+    result = qt.mesolve(H, initial_state, tlist, [], [])
+    occupations_qutip = np.zeros((num_qubits, timesteps), dtype='complex')
+
+    for x in range(Lx):
+        for y in range(Ly):
+            i_up = site_index(x, y, '↑', Lx)
+            i_down = site_index(x, y, '↓', Lx)
+            n_up = qt.fcreate(n_sites=2*L, site=i_up) * qt.fdestroy(n_sites=2*L, site=i_up)
+            n_down = qt.fcreate(n_sites=2*L, site=i_down) * qt.fdestroy(n_sites=2*L, site=i_down)
+            occupations_qutip[i_up, :] = qt.expect(n_up, result.states)
+            occupations_qutip[i_down, :] = qt.expect(n_down, result.states)
+
+    ##################################
+    # YAQS simulation
+    ##################################
+
     # Define the initial state
     state = MPS(num_qubits, state='wall', pad=32)
 
@@ -56,7 +81,7 @@ def benchmarker() -> None:
     measurements = [Observable('z', site) for site in range(num_qubits)]
 
     # Run the simulation
-    occupations = np.zeros((num_qubits, timesteps), dtype='complex')
+    occupations_yaqs = np.zeros((num_qubits, timesteps), dtype='complex')
 
     for timestep in range(timesteps):
         print("Timestep: " + str(timestep))
@@ -70,27 +95,12 @@ def benchmarker() -> None:
 
         for observable in sim_params.observables:
             index = observable.site
-            occupations[index, timestep] = 0.5 * (1 - observable.results.item())
+            occupations_yaqs[index, timestep] = 0.5 * (1 - observable.results.item())
 
         state = MPS(num_qubits, sim_params.output_state.tensors, pad=32)
 
-    state = MPS(num_qubits, state='wall', pad=32)
-    state_yaqs = state.to_vec()
-
-    
-    state_list = sum(([qt.basis(2, 0), qt.basis(2, 0)] if x >= L/2 else [qt.basis(2, 1), qt.basis(2, 1)] for x in range(L)), [])    # brick wall state
-    initial_state = qt.tensor(state_list)
-
-    H = create_fermi_hubbard_model_qutip(Lx, Ly, u, -t, mu)
-
-    tlist = np.linspace(0, 10, 100)
-    result = qt.mesolve(H, initial_state, tlist, [], [])
-    print(result.states[0].full())
-
-    #state_qutip = result.states[0].full()
-    state_qutip = initial_state.full()
-
-    error = np.linalg.norm(state_qutip - state_yaqs, 2)
+    # Calculate error
+    error = np.linalg.norm(occupations_yaqs[:,-1][::-1] - occupations_qutip[:,-1], 2)
     print(error)
 
 
