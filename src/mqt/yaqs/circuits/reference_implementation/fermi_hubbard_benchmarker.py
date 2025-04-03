@@ -20,6 +20,7 @@ from __future__ import annotations
 import numpy as np
 import qutip as qt
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams
@@ -72,13 +73,14 @@ def benchmarker() -> None:
 
     # Define the simulation parameters
     N = 1
-    max_bond_dim = 16
-    threshold = 1e-6
     window_size = 0
     measurements = [Observable('z', site) for site in range(num_qubits)]
 
-    max_bond_dim_list = range(2, 2**num_qubits//2+1, 2)
-    threshold_list = [10**-x for x in range(1, 13)]
+    #max_bond_dim_list = range(2, 2**num_qubits//2+1, 2)
+    #threshold_list = [10**-x for x in range(1, 13)]
+
+    max_bond_dim_list = range(2, 2**3//2+1, 2)
+    threshold_list = [10**-x for x in range(1, 5)]
 
     heatmap = np.empty((len(max_bond_dim_list), len(threshold_list)))
 
@@ -112,9 +114,24 @@ def benchmarker() -> None:
             print(error)
             heatmap[i, j] = error
 
-    plt.xlabel("threshold")
-    plt.ylabel("max bond dim")
-    plt.imshow(heatmap)
+    fig, ax = plt.subplots(1, 1)
+    im = ax.imshow(heatmap.T, aspect="auto", norm=LogNorm())
+    title = r"$\Delta t = $" + str(dt) + ", Timesteps = " + str(timesteps) + ", Total simulation time T = " + str(total_time)
+    ax.set_title(title)
+    ax.set_xlabel("max bond dim")
+    ax.set_ylabel("threshold")
+    formatted_threshold_vals = [f"$10^{{{int(np.log10(t))}}}$" for t in threshold_list]
+    tick_positions = np.arange(0, len(max_bond_dim_list), 10)
+    tick_labels = [str(max_bond_dim_list[i]) for i in tick_positions]
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
+    ax.set_yticks(range(len(threshold_list)))
+    ax.set_yticklabels(formatted_threshold_vals)
+    fig.subplots_adjust(top=0.95, right=0.88)
+    cbar_ax = fig.add_axes(rect=(0.9, 0.11, 0.025, 0.8))
+    cbar = fig.colorbar(im, cax=cbar_ax)
+    cbar.ax.set_title("$\\langle Z \\rangle$")
+
     plt.show()
 
 
