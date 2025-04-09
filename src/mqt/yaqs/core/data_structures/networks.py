@@ -897,7 +897,7 @@ class MPO:
             H: NDArray[np.complex128],
             L: int,
             d: int = 2,
-            max_bond = None,
+            max_bond_dim = None,
             tol = 1e-10
         ) -> None:
         """Custom Hamiltonian from full matrix.
@@ -910,38 +910,46 @@ class MPO:
             H (NDArray)
             L (int): The number of tensors in the MPO.
             d (int): The physical bond dimension of the MPO (default is d=2).
-            max_bond (int, optional): The maximum virtual bond dimension of the MPO.
-            tol (float, optional): The tolerance.
+            max_bond_dim (int, optional): The maximum virtual bond dimension of the MPO.
+            tol (float, optional): The tolerance for truncation.
         """
         T = H.reshape((d,) * (2 * L))  # shape: (i1, i2, ..., iL, j1, j2, ..., jL)
         T = np.transpose(T, [i for pair in zip(range(L), range(L, 2*L)) for i in pair])  # shape: (i1, j1, i2, j2, ..., iL, jL)
-        T = T.reshape(2**L, 2**L)  # (i1,j1) vs (i2,j2)
+        T = T.reshape(2**L, 2**L)  # (i1,j1) x (i2,j2)
 
         mpo_tensors = []
-        r_prev = 1
+        right_prev = 1  # initial bond dimension
 
         for n in range(L - 1):
-            #T = T.reshape((r_prev * d * d, -1))  # merge left (r_prev, i_n, j_n)
-            T = T.reshape((r_prev, d, d, -1))
-            T = T.transpose(1, 2, 0, 3).reshape(d * d * r_prev, -1)
+            # Group together to merge the right part
+            T = T.reshape((right_prev, d, d, -1))
+            T = T.transpose(1, 2, 0, 3).reshape(d * d * right_prev, -1)
 
+            # SVD decomposition
             U, S, Vh = np.linalg.svd(T, full_matrices=False)
 
-            l = np.sum(S > 1e-10)
-            U = U[:, :l]
-            S = S[:l]
-            Vh = Vh[:l, :]
+            right = np.sum(S > 1e-10)
+            # Truncate
+            if max_bond_dim is not None:
+                right = min(np.sum(S > tol), max_bond_dim)
+            else:
+                right = np.sum(S > tol)
+            U = U[:, :right]
+            S = S[:right]
+            Vh = Vh[:right, :]
 
-            W = U.reshape(d, d, r_prev, l)
+            # Extract MPO tensor
+            W = U.reshape(d, d, right_prev, right)
             mpo_tensors.append(W)
 
-            #T = np.dot(np.diag(S), Vh)
+            # Absorb singular values into Vh
+            # This is more efficient than np.dot(np.diag(S), Vh)
             T = (S[:, None] * Vh)
 
-            r_prev = l
+            right_prev = right
 
-        W_last = T.reshape(r_prev, d, d)
-        W_last = np.transpose(W_last, (1, 2, 0)).reshape(d, d, r_prev, 1)
+        W_last = T.reshape(right_prev, d, d)
+        W_last = np.transpose(W_last, (1, 2, 0)).reshape(d, d, right_prev, 1)
         mpo_tensors.append(W_last)
         self.tensors = mpo_tensors
         assert self.check_if_valid_mpo(), "MPO initialized wrong"
