@@ -851,6 +851,97 @@ class MPO:
         self.length = len(self.tensors)
         self.physical_dimension = tensors[0].shape[0]
 
+    # Build full Hamiltonian matrix from term list
+    def build_full_hamiltonian(self, terms: list[tuple[float, list[str]]], L: int) -> NDArray:
+        ops = {
+            'I': np.eye(2),
+            'X': np.array([[0, 1], [1, 0]]),
+            'Y': np.array([[0, -1j], [1j, 0]]),
+            'Z': np.array([[1, 0], [0, -1]])
+        }
+        dim = 2**L
+        H = np.zeros((dim, dim), dtype=complex)
+
+        for coeff, term_ops in terms:
+            full_op = 1
+            for op_label in term_ops:
+                full_op = np.kron(full_op, ops[op_label])
+            H += coeff * full_op
+
+        return H
+    
+    # Convert a full matrix to MPO form (exact but not efficient for large L)
+    def init_from_full_matrix(
+            self,
+            H: NDArray[np.complex128],
+            L: int,
+            d: int = 2,
+            max_bond = None,
+            tol = 1e-10
+        ) -> None:
+        """Custom Hamiltonian from full matrix.
+
+        Initialize a custom Hamiltonian as a Matrix Product Operator (MPO).
+        This method sets up the Hamiltonian using a matrix received in form of a numpy array.
+
+        Args:
+            H (NDArray)
+            L (int): The number of tensors in the MPO.
+            d (int): The physical bond dimension of the MPO (default is d=2).
+            max_bond (int, optional): The maximum virtual bond dimension of the MPO.
+            tol (float, optional): The tolerance.
+        """
+        T = H.reshape((d,) * (2 * L))  # shape: (i1, i2, ..., iL, j1, j2, ..., jL)
+        T = np.transpose(T, [i for pair in zip(range(L), range(L, 2*L)) for i in pair])  # shape: (i1, j1, i2, j2, ..., iL, jL)
+        T = T.reshape(2**L, 2**L)  # (i1,j1) vs (i2,j2)
+
+        mpo_tensors = []
+        r_prev = 1
+
+        for n in range(L - 1):
+            #T = T.reshape((r_prev * d * d, -1))  # merge left (r_prev, i_n, j_n)
+            T = T.reshape((r_prev, d, d, -1))
+            T = T.transpose(1, 2, 0, 3).reshape(d * d * r_prev, -1)
+
+            U, S, Vh = np.linalg.svd(T, full_matrices=False)
+
+            l = np.sum(S > 1e-10)
+            U = U[:, :l]
+            S = S[:l]
+            Vh = Vh[:l, :]
+
+            W = U.reshape(d, d, r_prev, l)
+            mpo_tensors.append(W)
+
+            #T = np.dot(np.diag(S), Vh)
+            T = (S[:, None] * Vh)
+
+            r_prev = l
+
+        W_last = T.reshape(r_prev, d, d)
+        W_last = np.transpose(W_last, (1, 2, 0)).reshape(d, d, r_prev, 1)
+        mpo_tensors.append(W_last)
+        self.tensors = mpo_tensors
+        assert self.check_if_valid_mpo(), "MPO initialized wrong"
+        self.length = L
+        self.physical_dimension = d
+
+
+    def init_from_sum_op(self, terms: list[tuple[float, list[str]]], L: int) -> None:
+        """Initialize MPO from sum of operators.
+
+        Initialize the custom MPO (Matrix Product Operator) from terms. Each term is a sum of
+        tensor products of local operators (local ops).
+
+        Args:
+            terms : list[tuple[float, list[str]]]
+                A list of operator terms.        
+        """
+        H = self.build_full_hamiltonian(terms, L)
+        self.init_from_full_matrix(H, L)
+        assert self.check_if_valid_mpo(), "MPO initialized wrong" 
+
+
     def to_mps(self) -> MPS:
         """MPO to MPS conversion.
 
