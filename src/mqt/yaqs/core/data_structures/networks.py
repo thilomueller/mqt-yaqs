@@ -851,8 +851,30 @@ class MPO:
         self.length = len(self.tensors)
         self.physical_dimension = tensors[0].shape[0]
 
-    # Build full Hamiltonian matrix from term list
-    def build_full_hamiltonian(self, terms: list[tuple[float, list[str]]], L: int) -> NDArray:
+    def build_full_hamiltonian(
+            self,
+            terms: list[tuple[float, list[str]]],
+            L: int
+        ) -> NDArray[np.complex128]:
+        """Build full Hamiltonian matrix from term list.
+
+        This method creates the full matrix representation of a Hamiltonian that is given by a
+        list of terms of Pauli matrix tensor products.
+
+        Example:
+
+        terms = [
+            (1.0, ['Z', 'Z', 'I', 'I']),
+            (0.5, ['X', 'I', 'X', 'I']),
+            (-0.2, ['I', 'Y', 'Y', 'I']),
+        ]
+
+        Args:
+            terms (list[tuple[float, list[str]]]): The list of weighted terms.
+            L (int): The number of sites in the Hamiltonian.
+        Returns:
+            NDArray[np.complex128]: The full matrix representation of the Hamiltonian.
+        """
         ops = {
             'I': np.eye(2),
             'X': np.array([[0, 1], [1, 0]]),
@@ -870,7 +892,6 @@ class MPO:
 
         return H
     
-    # Convert a full matrix to MPO form (exact but not efficient for large L)
     def init_from_full_matrix(
             self,
             H: NDArray[np.complex128],
@@ -883,6 +904,7 @@ class MPO:
 
         Initialize a custom Hamiltonian as a Matrix Product Operator (MPO).
         This method sets up the Hamiltonian using a matrix received in form of a numpy array.
+        Note that this method is exact but not very efficient for large L.
 
         Args:
             H (NDArray)
