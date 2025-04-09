@@ -288,6 +288,28 @@ def test_init_custom() -> None:
         assert np.allclose(original, created)
 
 
+def test_init_from_full_matrix() -> None:
+    """Test that init_from_full_matrix correctly sets up an MPO from a full matrix.
+
+    This test generates a full matrix representation of a random Hamiltonian,
+    initializes an MPO from that, and verifies that the reconstructed matrix matched
+    the original one.
+    """
+    L = 4
+    n = 2**L
+    # Generates a random Hermitian (Hamiltonian) matrix of size n x n.
+    A = np.random.randn(n, n) + 1j * np.random.randn(n, n)
+    H = (A + A.conj().T) / 2  # Ensure Hermitian (H = H†)
+
+    mpo = MPO()
+    mpo.init_from_full_matrix(H, L)
+
+    assert mpo.length == L
+    assert mpo.physical_dimension == 2
+    assert len(mpo.tensors) == L
+    assert np.allclose(mpo.to_matrix(), H)
+
+
 def test_to_mps() -> None:
     """Test converting an MPO to an MPS.
 
