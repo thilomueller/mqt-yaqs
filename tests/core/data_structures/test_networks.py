@@ -292,7 +292,7 @@ def test_init_from_full_matrix() -> None:
     """Test that init_from_full_matrix correctly sets up an MPO from a full matrix.
 
     This test generates a full matrix representation of a random Hamiltonian,
-    initializes an MPO from that, and verifies that the reconstructed matrix matched
+    initializes an MPO from that, and verifies that the reconstructed matrix matches
     the original one.
     """
     L = 4
@@ -303,6 +303,29 @@ def test_init_from_full_matrix() -> None:
 
     mpo = MPO()
     mpo.init_from_full_matrix(H, L)
+
+    assert mpo.length == L
+    assert mpo.physical_dimension == 2
+    assert len(mpo.tensors) == L
+    assert np.allclose(mpo.to_matrix(), H)
+
+
+def test_init_from_sum_op() -> None:
+    """Test that init_from_sum_op correctly sets up an MPO from a sum of operators.
+
+    This test generates a Hamiltonian from a list of sum operators, initializes an MPO from
+    that list, and verifies that the reconstructed matrix matches the original one.
+    """
+    H_terms = [
+        (1.0, ['Z', 'Z', 'I', 'I']),
+        (0.5, ['X', 'I', 'X', 'I']),
+        (-0.2, ['I', 'Y', 'Y', 'I']),
+    ]
+    L = len(H_terms[0][1])
+
+    mpo = MPO()
+    H = mpo.build_full_hamiltonian(H_terms, L=L)
+    mpo.init_from_sum_op(terms=H_terms, L=L)
 
     assert mpo.length == L
     assert mpo.physical_dimension == 2
