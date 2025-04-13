@@ -19,6 +19,7 @@ These tests ensure that the MPS class functions as expected in various simulatio
 from __future__ import annotations
 
 import copy
+import functools as ft
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -208,6 +209,63 @@ def test_init_heisenberg() -> None:
             assert tensor.shape == (2, 2, 5, 1)
         else:
             assert tensor.shape == (2, 2, 5, 5)
+
+
+def test_init_general_nearest_neighbor() -> None:
+    """Test that init_general_nearest_neighbor creates the correct MPO for the nearest neighbor model.
+
+    This test initializes a general nearest neighbor MPO with given parameters (a, b, c, d, e, f) such
+    that the Hamiltonian is: H = a*XX + b*YY + c*ZZ + d*X + e*Y + f*Z
+    It verifies that:
+      - The MPO has the expected length and physical dimension.
+      - The left boundary tensor (after untransposition) has the correct shape and
+        contains the expected operators: [I, X, Y, Z, d*X + e*Y + f*Z].
+      - Inner and right boundary tensors have the expected shapes.
+      - The reconstructed matrix matches the original one.
+    """
+    mpo = MPO()
+    length = 5
+    a, b, c, d, e, f = 1.0, 2.0, 3.0, 0.5, 0.25, 0.1
+
+    mpo.init_general_nearest_neighbor(length, a, b, c, d, e, f)
+
+    assert mpo.length == length
+    assert mpo.physical_dimension == 2
+    assert len(mpo.tensors) == length
+
+    left_block = untranspose_block(mpo.tensors[0])
+    assert left_block.shape == (1, 5, 2, 2)
+
+    block_I = left_block[0, 0]
+    block_X = left_block[0, 1]
+    block_Y = left_block[0, 2]
+    block_Z = left_block[0, 3]
+    block_XYZ = left_block[0, 4]
+
+    assert np.allclose(block_I, Id)
+    assert np.allclose(block_X, X)
+    assert np.allclose(block_Y, Y)
+    assert np.allclose(block_Z, Z)
+    assert np.allclose(block_XYZ, d * X + e * Y + f * Z)
+
+    for i, tensor in enumerate(mpo.tensors):
+        if i == 0:
+            assert tensor.shape == (2, 2, 1, 5)
+        elif i == length - 1:
+            assert tensor.shape == (2, 2, 5, 1)
+        else:
+            assert tensor.shape == (2, 2, 5, 5)
+
+    H_ref = np.zeros((2**length, 2**length), dtype=complex)
+    for i in range(length - 1):
+        H_ref += a * ft.reduce(np.kron, [X if p == i or p == (i + 1) else Id for p in range(length)])
+        H_ref += b * ft.reduce(np.kron, [Y if p == i or p == (i + 1) else Id for p in range(length)])
+        H_ref += c * ft.reduce(np.kron, [Z if p == i or p == (i + 1) else Id for p in range(length)])
+    for i in range(length):
+        H_ref += d * ft.reduce(np.kron, [X if p == i else Id for p in range(length)])
+        H_ref += e * ft.reduce(np.kron, [Y if p == i else Id for p in range(length)])
+        H_ref += f * ft.reduce(np.kron, [Z if p == i else Id for p in range(length)])
+    assert np.allclose(H_ref, mpo.to_matrix())
 
 
 def test_init_identity() -> None:
