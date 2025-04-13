@@ -777,7 +777,9 @@ class MPO:
         self.length = length
         self.physical_dimension = physical_dimension
 
-    def init_general_nearest_neighbor(self, length: int, a: float, b: float, c: float, d: float, e: float, f: float) -> None:  # noqa: N803
+    def init_general_nearest_neighbor(
+        self, length: int, a: float, b: float, c: float, d: float, e: float, f: float
+    ) -> None:
         """General nearest neighbor MPO.
 
         Initialize a general nearest neighbor with the following Hamiltonian as a MPO:
@@ -811,20 +813,20 @@ class MPO:
         y = ObservablesLibrary["y"]
         z = ObservablesLibrary["z"]
 
-        left_bound = np.array([identity, x, y, z, d*x + e*y + f*z])[np.newaxis, :]
+        left_bound = np.array([identity, x, y, z, d * x + e * y + f * z])[np.newaxis, :]
 
         inner = np.zeros((5, 5, physical_dimension, physical_dimension), dtype=complex)
         inner[0, 0] = identity
         inner[0, 1] = x
         inner[0, 2] = y
         inner[0, 3] = z
-        inner[0, 4] = d*x + e*y + f*z
-        inner[1, 4] = a*x
-        inner[2, 4] = b*y
-        inner[3, 4] = c*z
+        inner[0, 4] = d * x + e * y + f * z
+        inner[1, 4] = a * x
+        inner[2, 4] = b * y
+        inner[3, 4] = c * z
         inner[4, 4] = identity
 
-        right_bound = np.array([d*x + e*y + f*z, a*x, b*y, c*z, identity])[:, np.newaxis]
+        right_bound = np.array([d * x + e * y + f * z, a * x, b * y, c * z, identity])[:, np.newaxis]
 
         # Construct the MPO
         self.tensors = [left_bound] + [inner] * (length - 2) + [right_bound]
