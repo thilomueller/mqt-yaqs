@@ -777,6 +777,63 @@ class MPO:
         self.length = length
         self.physical_dimension = physical_dimension
 
+    def init_general_nearest_neighbor(self, length: int, a: float, b: float, c: float, d: float, e: float, f: float) -> None:  # noqa: N803
+        """General nearest neighbor MPO.
+
+        Initialize a general nearest neighbor with the following Hamiltonian as a MPO:
+        H = a*XX + b*YY + c*ZZ + d*X + e*Y + f*Z
+
+        Left boundary: shape (1, 5, d, d)
+        [I, X, Y, Z, d*X + e*Y + f*Z]
+
+        Inner tensor: shape (5, 5, d, d)
+        W = [[ I,      X,     Y,     Z,   d*X + e*Y + f*Z ],
+              [ 0,     0,     0,     0,          X  ],
+              [ 0,     0,     0,     0,          Y  ],
+              [ 0,     0,     0,     0,          Z  ],
+              [ 0,     0,     0,     0,          I  ]]
+
+        Right boundary: shape (5, 1, d, d)
+        [d*X + e*Y + f*Z, a*X, b*Y, c*Z, I]^T
+
+        Parameters:
+        length (int): The number of sites in the chain.
+        a (float): The coupling constant for the XX interaction.
+        b (float): The coupling constant for the YY interaction.
+        c (float): The coupling constant for the ZZ interaction.
+        e (float): The coupling constant for the X interaction.
+        e (float): The coupling constant for the Y interaction.
+        f (float): The coupling constant for the Z interaction.
+        """
+        physical_dimension = 2
+        identity = np.eye(physical_dimension, dtype=complex)
+        x = ObservablesLibrary["x"]
+        y = ObservablesLibrary["y"]
+        z = ObservablesLibrary["z"]
+
+        left_bound = np.array([identity, x, y, z, d*x + e*y + f*z])[np.newaxis, :]
+
+        inner = np.zeros((5, 5, physical_dimension, physical_dimension), dtype=complex)
+        inner[0, 0] = identity
+        inner[0, 1] = x
+        inner[0, 2] = y
+        inner[0, 3] = z
+        inner[0, 4] = d*x + e*y + f*z
+        inner[1, 4] = a*x
+        inner[2, 4] = b*y
+        inner[3, 4] = c*z
+        inner[4, 4] = identity
+
+        right_bound = np.array([d*x + e*y + f*z, a*x, b*y, c*z, identity])[:, np.newaxis]
+
+        # Construct the MPO
+        self.tensors = [left_bound] + [inner] * (length - 2) + [right_bound]
+        for i, tensor in enumerate(self.tensors):
+            # left, right, sigma, sigma'
+            self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
+        self.length = length
+        self.physical_dimension = physical_dimension
+
     def init_identity(self, length: int, physical_dimension: int = 2) -> None:
         """Initialize identity MPO.
 
