@@ -819,7 +819,7 @@ class MPO:
 
         left_bound = np.array([d, t*c_up, t*c_down, -t*c_up__d, -t*c_down__d, identity])[np.newaxis, :]
 
-        inner = np.zeros((5, 5, physical_dimension, physical_dimension), dtype=complex)
+        inner = np.zeros((6, 6, physical_dimension, physical_dimension), dtype=complex)
         inner[0, 0] = identity
         inner[1, 0] = c_up__d
         inner[2, 0] = c_down__d
