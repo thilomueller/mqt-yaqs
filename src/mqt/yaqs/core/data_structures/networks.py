@@ -779,6 +779,69 @@ class MPO:
         self.length = length
         self.physical_dimension = physical_dimension
 
+    def init_1d_fermi_hubbard(self, length: int, t: float, u: float) -> None:  # noqa: N803
+        """1D Fermi-Hubbard MPO.
+
+        Initialize the 1D Fermi-Hubbard model as a Matrix Product Operator (MPO).
+
+        Left boundary: shape (1, 6, d, d)
+        [U*n↑*n↓, t*c↑, t*c↓, -t*c↑†, -t*c↓†, I]
+
+        Inner tensor: shape (6, 6, d, d)
+        W = [[ I,          0,    0,    0,    0,    0 ],
+              [ c↑†,       0,    0,    0,    0,    0 ],
+              [ c↓†,       0,    0,    0,    0,    0 ],
+              [ c↑,        0,    0,    0,    0,    0 ],
+              [ c↓,        0,    0,    0,    0,    0 ],
+              [ U*n↑*n↓,  t*c↑, t*c↓, -t*c↑†, -t*c↓†, I ]]
+
+        Right boundary: shape (6, 1, d, d)
+        [I, c↑†, c↓†, c↑, c↓, U*n↑*n↓]^T
+
+        Parameters:
+        length (int): The number of sites in the chain.
+        t (float): The hopping strength.
+        u (float): The onsite interaction.
+        """
+        physical_dimension = 4
+        zero = np.zeros((physical_dimension, physical_dimension), dtype=complex)
+        identity = np.eye(physical_dimension, dtype=complex)
+        # fermionic creation and annihilation operators
+        c = np.array([[0, 1], [0, 0]])
+        c__d = np.array([[0, 0], [1, 0]])
+        c_up = np.kron(c, np.eye(2))
+        c_down = np.kron(np.eye(2), c)
+        c_up__d = np.kron(c__d, np.eye(2))
+        c_down__d = np.kron(np.eye(2), c__d)
+        n_up = np.kron(c__d @ c, np.eye(2))
+        n_down = np.kron(np.eye(2), c__d @ c)
+        d = u * n_up @ n_down
+
+        left_bound = np.array([d, t*c_up, t*c_down, -t*c_up__d, -t*c_down__d, identity])[np.newaxis, :]
+
+        inner = np.zeros((5, 5, physical_dimension, physical_dimension), dtype=complex)
+        inner[0, 0] = identity
+        inner[1, 0] = c_up__d
+        inner[2, 0] = c_down__d
+        inner[3, 0] = c_up
+        inner[4, 0] = c_down
+        inner[5, 0] = d
+        inner[5, 1] = t * c_up
+        inner[5, 2] = t * c_down
+        inner[5, 3] = -t * c_up__d
+        inner[5, 4] = -t * c_down__d
+        inner[5, 5] = identity
+
+        right_bound = np.array([identity, c_up__d, c_down__d, c_up, c_down, d])[:, np.newaxis]
+
+        # Construct the MPO
+        self.tensors = [left_bound] + [inner] * (length - 2) + [right_bound]
+        for i, tensor in enumerate(self.tensors):
+            # left, right, sigma, sigma'
+            self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
+        self.length = length
+        self.physical_dimension = physical_dimension
+
     def init_identity(self, length: int, physical_dimension: int = 2) -> None:
         """Initialize identity MPO.
 
