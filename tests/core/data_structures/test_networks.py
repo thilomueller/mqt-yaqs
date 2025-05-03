@@ -210,6 +210,39 @@ def test_init_heisenberg() -> None:
             assert tensor.shape == (2, 2, 5, 5)
 
 
+def test_init_1d_fermi_hubbard() -> None:
+    """Test that init_1d_fermi_hubbard creates the correct MPO for the 1D Fermi-Hubbard model.
+
+    This test initializes a 1D Fermi-Hubbard MPO with given parameters (u, t).
+    It verifies that:
+      - The MPO has the expected length and physical dimension.
+      - Inner and right boundary tensors have the expected shapes.
+      - After contracting the MPO, the resulting matrix will have the correct shape.
+    """
+    mpo = MPO()
+    length = 5
+    u, t = 0.5, 1.0
+
+    mpo.init_1d_fermi_hubbard(length, t, u)
+
+    assert mpo.length == length
+    assert mpo.physical_dimension == 4
+    assert len(mpo.tensors) == length
+
+    left_block = untranspose_block(mpo.tensors[0])
+    assert left_block.shape == (1, 6, 4, 4)
+
+    for i, tensor in enumerate(mpo.tensors):
+        if i == 0:
+            assert tensor.shape == (4, 4, 1, 6)
+        elif i == length - 1:
+            assert tensor.shape == (4, 4, 6, 1)
+        else:
+            assert tensor.shape == (4, 4, 6, 6)
+
+    assert mpo.to_matrix().shape == (4**length, 4**length)
+
+
 def test_init_identity() -> None:
     """Test that init_identity initializes an identity MPO correctly.
 
