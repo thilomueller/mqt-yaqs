@@ -249,7 +249,7 @@ def circuit_tjm(
                 else:
                     # Normalizes state
                     for i in reversed(range(state.length)):
-                        state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="QR")
+                        state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
                 dag.remove_op_node(node)
 
     if isinstance(sim_params, WeakSimParams):
