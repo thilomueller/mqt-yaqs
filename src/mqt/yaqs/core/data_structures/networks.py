@@ -309,7 +309,7 @@ class MPS:
                 )
         elif decomposition == "SVD":
             A, B = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center+1]
-            A_new, S, B_new = two_site_svd(A, B, threshold=1e-17, max_bond_dim=None)
+            A_new, S, B_new = two_site_svd(A, B, threshold=1e-15, max_bond_dim=None)
             self.tensors[current_orthogonality_center],   self.tensors[current_orthogonality_center+1] = A_new, B_new
 
 
