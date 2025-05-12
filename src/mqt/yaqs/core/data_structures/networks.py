@@ -25,7 +25,7 @@ import opt_einsum as oe
 from tqdm import tqdm
 
 from ..libraries.observables_library import ObservablesLibrary
-from ..methods.decompositions import right_qr, truncated_right_svd
+from ..methods.decompositions import right_qr, two_site_svd
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -298,18 +298,20 @@ class MPS:
                            Default is QR.
         """
         tensor = self.tensors[current_orthogonality_center]
-        if decomposition == "QR":
+        if decomposition == "QR" or current_orthogonality_center == self.length - 1:
             site_tensor, bond_tensor = right_qr(tensor)
-        elif decomposition == "SVD":
-            site_tensor, s_vec, v_mat = truncated_right_svd(tensor, threshold=1e-17, max_bond_dim=None)
-            bond_tensor = np.diag(s_vec) @ v_mat
-        self.tensors[current_orthogonality_center] = site_tensor
+            self.tensors[current_orthogonality_center] = site_tensor
 
-        # If normalizing, we just throw away the R
-        if current_orthogonality_center + 1 < self.length:
-            self.tensors[current_orthogonality_center + 1] = oe.contract(
-                "ij, ajc->aic", bond_tensor, self.tensors[current_orthogonality_center + 1]
-            )
+            # If normalizing, we just throw away the R
+            if current_orthogonality_center + 1 < self.length:
+                self.tensors[current_orthogonality_center + 1] = oe.contract(
+                    "ij, ajc->aic", bond_tensor, self.tensors[current_orthogonality_center + 1]
+                )
+        elif decomposition == "SVD":
+            A, B = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center+1]
+            A_new, S, B_new = two_site_svd(A, B, threshold=1e-17, max_bond_dim=None)
+            self.tensors[current_orthogonality_center],   self.tensors[current_orthogonality_center+1] = A_new, B_new
+
 
     def shift_orthogonality_center_left(self, current_orthogonality_center: int, decomposition: str = "QR") -> None:
         """Shifts orthogonality center left.
@@ -374,38 +376,26 @@ class MPS:
             self.flip_network()
 
     def truncate(self, threshold: float = 1e-12, max_bond_dim: int | None = None) -> None:
-        """Truncates the MPS in place.
+        """In-place MPS truncation via repeated two-site SVDs."""
+        orth_center = self.check_canonical_form()[0]
+        if self.length == 1:
+            return
 
-        Args:
-            state: The MPS.
-            sim_params: The truncation parameters.
-            threshold: The truncation threshold. Default
-            max_bond_dim: The maximum bond dimension allowed. Default None.
+        # ——— left­-to-­center sweep ———
+        for i in range(orth_center-1):
+            A, B = self.tensors[i], self.tensors[i+1]
+            A_new, S, B_new = two_site_svd(A, B, threshold, max_bond_dim)
+            self.tensors[i],   self.tensors[i+1] = A_new, B_new
 
-        """
-        orthogonality_center = self.check_canonical_form()[0]
-        if self.length != 1:
-            for i in range(orthogonality_center):
-                u_tensor, s_vec, v_mat = truncated_right_svd(self.tensors[i], threshold, max_bond_dim)
-                self.tensors[i] = u_tensor
+        # flip the network and sweep back
+        self.flip_network()
+        orth_flipped = self.length - 1 - orth_center
+        for i in range(orth_flipped-1):
+            A, B = self.tensors[i], self.tensors[i+1]
+            A_new, S, B_new = two_site_svd(A, B, threshold, max_bond_dim)
+            self.tensors[i],   self.tensors[i+1] = A_new, B_new
 
-                # Pull v into left leg of next tensor.
-                bond = np.diag(s_vec) @ v_mat
-                new_next = oe.contract("ij, kjl ->kil", bond, self.tensors[i + 1])
-                self.tensors[i + 1] = new_next
-
-            self.flip_network()
-
-            orthogonality_center_flipped = self.length - 1 - orthogonality_center
-            for i in range(orthogonality_center_flipped):
-                u_tensor, s_vec, v_mat = truncated_right_svd(self.tensors[i], threshold, max_bond_dim)
-                self.tensors[i] = u_tensor
-                # Pull v into left leg of next tensor.
-                bond = np.diag(s_vec) @ v_mat
-                new_next = oe.contract("ij, kjl ->kil", bond, self.tensors[i + 1])
-                self.tensors[i + 1] = new_next
-
-            self.flip_network()
+        self.flip_network()
 
     def scalar_product(self, other: MPS, site: int | None = None) -> np.complex128:
         """Compute the scalar (inner) product between two Matrix Product States (MPS).

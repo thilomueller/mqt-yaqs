@@ -128,3 +128,48 @@ def truncated_right_svd(
     s_vec = s_vec[:cut_index]
     v_mat = v_mat[:cut_index, :]
     return u_tensor, s_vec, v_mat
+
+
+def two_site_svd(
+        A: NDArray[np.complex128],
+        B: NDArray[np.complex128],
+        threshold: float,
+        max_bond_dim: int | None = None,
+    ) -> tuple[NDArray[np.complex128], NDArray[np.complex128], NDArray[np.complex128]]:
+        """
+        Combine two neighboring MPS tensors A (phys_i, L, D) and B (phys_j, D, R),
+        perform a truncated SVD on the joint block, and split back into
+        A' (phys_i, L, k) and B' (phys_j, k, R).
+        """
+        # 1) build the two-site tensor Θ_{(phys_i,L),(phys_j,R)}
+        theta = np.tensordot(A, B, axes=(2, 1))  
+        phys_i, L = A.shape[0], A.shape[1]
+        phys_j, R = B.shape[0], B.shape[2]
+
+        # 2) reshape to matrix M of shape (L*phys_i) × (phys_j*R)
+        M = theta.reshape(L * phys_i, phys_j * R)
+
+        # 3) full SVD
+        U_mat, S_vec, Vh_mat = np.linalg.svd(M, full_matrices=False)
+
+        # 4) decide how many singular values to keep:
+        #    sum of squares of *discarded* values ≤ threshold
+        discard = 0.0
+        keep = len(S_vec)
+        for idx, s in enumerate(reversed(S_vec)):
+            discard += s*s
+            if discard >= threshold:
+                keep = len(S_vec) - idx
+                break
+        if max_bond_dim is not None:
+            keep = min(keep, max_bond_dim)
+
+        # 5) build the truncated A′ of shape (phys_i, L, keep)
+        U_trunc = U_mat[:, :keep].reshape(phys_i, L, keep)
+
+        # 6) absorb S into Vh and reshape to B′ of shape (phys_j, keep, R)
+        V = (np.diag(S_vec[:keep]) @ Vh_mat[:keep, :])      # shape (keep, phys_j*R)
+        V = V.reshape(keep, phys_j, R)                      # (keep, phys_j, R)
+        B_trunc = V.transpose(1, 0, 2)                      # (phys_j, keep, R)
+
+        return U_trunc, S_vec[:keep], B_trunc
