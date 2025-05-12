@@ -13,71 +13,53 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+
+from qiskit_aer import AerSimulator
+from qiskit.quantum_info import Statevector, SparsePauliOp
+
+
+def _mid_z_operator(num_qubits):
+    """Helper to build a SparsePauliOp for Z on the middle qubit."""
+    mid = num_qubits // 2
+    label = ['I'] * num_qubits
+    label[mid] = 'Z'
+    return SparsePauliOp(''.join(label))
+
 def state_vector_simulator(circ):
-    simulator = AerSimulator(method='statevector')
-    result = simulator.run(circ)
-    state_vector = result.result().get_statevector(circ)
+    # Run statevector simulator
+    sim = AerSimulator(method='statevector')
+    result = sim.run(circ).result()
+    sv = Statevector(result.get_statevector(circ))
 
-    sv = Statevector(state_vector)
-    return sv
+    # build Z_mid and compute expectation
+    z_mid = _mid_z_operator(circ.num_qubits)
+    exp_val = sv.expectation_value(z_mid).real
 
+    return sv, exp_val
 
 def tebd_simulator(circ, max_bond, threshold):
-    # Set up the simulator with the MPS backend and the desired options.
+    # Save MPS snapshot into the circuit 
     circ.save_matrix_product_state(label='mps')
+    sim = AerSimulator(
+        method='matrix_product_state',
+        matrix_product_state_max_bond_dimension=max_bond,
+        matrix_product_state_truncation_threshold=threshold
+    )
+    result = sim.run(circ).result()
 
-    simulator = AerSimulator(method='matrix_product_state',
-                                matrix_product_state_max_bond_dimension=max_bond,
-                                matrix_product_state_truncation_threshold=threshold)
-                               # mps_log_data=False)
-    result = simulator.run(circ).result()
+    # pull out the statevector (for consistency) and the MPS
     state_vector = result.get_statevector(circ)
     mps = result.data(0)['mps'][0]
 
-    max_bond = 1
-    for tensor in mps:
-        max_bond = max(max_bond, max(tensor[0].shape))
-    print("TEBD Max Bond", max_bond)
+    # (optional) report actual max bond
+    mb = max(tensor[0].shape[0] for tensor in mps)
+    print("TEBD Max Bond", mb)
 
     sv = Statevector(state_vector)
-    return sv
+    z_mid = _mid_z_operator(circ.num_qubits)
+    exp_val = sv.expectation_value(z_mid).real
+    return sv, exp_val
 
-# import quimb as qu
-# import quimb.tensor as qtn
-# import numpy as np
-
-# def tebd_simulator_quimb(num_qubits, J, h, dt, timesteps, max_bond, threshold):
-#     """
-#     Simulate time evolution under a Heisenberg Hamiltonian using TEBD in quimb.
-    
-#     Parameters:
-#       num_qubits (int): Number of spins in the chain.
-#       J (float): Coupling constant (assumed uniform for simplicity).
-#       h (float): External field (or anisotropy parameter, as needed).
-#       dt (float): Time step for the Trotter evolution.
-#       timesteps (int): Number of time steps.
-#       max_bond (int): Maximum allowed bond dimension.
-#       threshold (float): Truncation error threshold for SVD.
-      
-#     Returns:
-#       state_vector (numpy.ndarray): Final state vector after evolution.
-#     """
-#     # Create the Heisenberg Hamiltonian.
-#     # Here we use quimb's helper for a Heisenberg chain with periodic boundary conditions.
-#     H = qtn.ham_1d_heis(L=num_qubits, j=J, bz=h, cyclic=False)
-
-#     # Define the initial state as an MPS. For example, all spins up ('0' for spin-up).
-#     psi0 = qtn.MPS_zero_state(num_qubits)
-    
-#     # Evolve the state using TEBD.
-#     # The evolve method applies a Trotterized time evolution using the provided Hamiltonian.
-#     # It returns the MPS that approximates the evolved state.
-#     tebd = qtn.TEBD(psi0, H)
-#     # tebd.split_opts['cutoff'] = threshold
-#     # tebd.split_opts['max_bond'] = 64
-#     tebd.update_to(T=dt*timesteps, dt=dt, order=2)
-#     final_psi = tebd.pt
-#     return final_psi
 
 def tdvp_simulator(circ, max_bond, threshold, pad, initial_state=None):
     if initial_state is None:
@@ -90,10 +72,11 @@ def tdvp_simulator(circ, max_bond, threshold, pad, initial_state=None):
     print("TDVP Max Bond", mps.write_max_bond_dim())
 
     sv = mps.to_vec()
-    return mps, sv
+    exp_val = sim_params.observables[0].results[0]
+    return mps, sv, exp_val
 
 
-def generate_ising_infidelity_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {'TEBD': [], 'TDVP': []}
     for max_bond in max_bonds:
@@ -123,7 +106,7 @@ def generate_ising_infidelity_data(num_qubits, J, g, dt, pad, thresholds, max_bo
                 results['TDVP'].append((timesteps, threshold, max_bond, tdvp_error))
     return results
 
-def generate_periodic_ising_infidelity_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {'TEBD': [], 'TDVP': []}
     for max_bond in max_bonds:
@@ -139,23 +122,25 @@ def generate_periodic_ising_infidelity_data(num_qubits, J, g, dt, pad, threshold
                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps, periodic=True)
                 circ2 = create_ising_circuit(num_qubits, J, g, dt, timesteps, periodic=True)
                 circ2.save_statevector()
-                exact_result = state_vector_simulator(circ2)
+                exact_sv, exact_exp_val = state_vector_simulator(circ2)
 
                 # Run both simulators
-                mps, tdvp_result = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_result = tebd_simulator(circ2, max_bond, threshold)
+                mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_error = np.abs(1-np.abs(np.vdot(exact_result, tebd_result))**2)
-                tdvp_error = np.abs(1-np.abs(np.vdot(exact_result, tdvp_result))**2)
+                tebd_infidelity = np.abs(1-np.abs(np.vdot(exact_sv, tebd_sv))**2)
+                tdvp_infidelity = np.abs(1-np.abs(np.vdot(exact_sv, tdvp_sv))**2)
+                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
+                tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
 
                 # Save the results
-                results['TEBD'].append((timesteps, threshold, max_bond, tebd_error))
-                results['TDVP'].append((timesteps, threshold, max_bond, tdvp_error))
+                results['TEBD'].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
+                results['TDVP'].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
 
-def generate_heisenberg_infidelity_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {'TEBD': [], 'TDVP': []}
     for max_bond in max_bonds:
@@ -171,22 +156,25 @@ def generate_heisenberg_infidelity_data(num_qubits, J, h, dt, pad, thresholds, m
                 circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps)
                 circ2 = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps)
                 circ2.save_statevector()
-                exact_result = state_vector_simulator(circ2)
+                exact_sv, exact_exp_val = state_vector_simulator(circ2)
 
                 # Run both simulators
-                mps, tdvp_result = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_result = tebd_simulator(circ2, max_bond, threshold)
+                mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_error = np.abs(1-np.abs(np.vdot(exact_result, tebd_result))**2)
-                tdvp_error = np.abs(1-np.abs(np.vdot(exact_result, tdvp_result))**2)
+                tebd_infidelity = np.abs(1-np.abs(np.vdot(exact_sv, tebd_sv))**2)
+                tdvp_infidelity = np.abs(1-np.abs(np.vdot(exact_sv, tdvp_sv))**2)
+                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
+                tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
+
                 # Save the results
-                results['TEBD'].append((timesteps, threshold, max_bond, tebd_error))
-                results['TDVP'].append((timesteps, threshold, max_bond, tdvp_error))
+                results['TEBD'].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
+                results['TDVP'].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
 
-def generate_2d_heisenberg_infidelity_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {'TEBD': [], 'TDVP': []}
     for max_bond in max_bonds:
@@ -217,7 +205,7 @@ def generate_2d_heisenberg_infidelity_data(num_rows, num_cols, J, h, dt, pad, th
     return results
 
 
-def generate_2d_ising_infidelity_data(num_rows, num_cols, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {'TEBD': [], 'TDVP': []}
     for max_bond in max_bonds:
@@ -232,36 +220,37 @@ def generate_2d_ising_infidelity_data(num_rows, num_cols, J, g, dt, pad, thresho
                 circ = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, delta_timesteps)
                 circ2 = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, timesteps)
                 circ2.save_statevector()
-                exact_result = state_vector_simulator(circ2)
+                exact_sv, exact_exp_val = state_vector_simulator(circ2)
 
                 # Run both simulators
-                mps, tdvp_result = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_result = tebd_simulator(circ2, max_bond, threshold)
+                mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_error = np.abs(1-np.abs(np.vdot(exact_result, tebd_result))**2)
-                tdvp_error = np.abs(1-np.abs(np.vdot(exact_result, tdvp_result))**2)
+                tebd_infidelity = np.abs(1-np.abs(np.vdot(exact_sv, tebd_sv))**2)
+                tdvp_infidelity = np.abs(1-np.abs(np.vdot(exact_sv, tdvp_sv))**2)
+                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
+                tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
+
                 # Save the results
-                results['TEBD'].append((timesteps, threshold, max_bond, tebd_error))
-                results['TDVP'].append((timesteps, threshold, max_bond, tdvp_error))
+                results['TEBD'].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
+                results['TDVP'].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
 
 
-def plot_error_vs_depth(results, thresholds, bond_dims):
+def plot_error_vs_depth(results, bond_dims):
     # Create a 1xN figure (one subplot per threshold)
-    fig, axes = plt.subplots(1, len(thresholds), figsize=(15, 5), sharey=True)
+    fig, axes = plt.subplots(2, 1, sharex=True)
     # Map bond dimensions to distinct colors
     color_map = {4: 'red', 8: 'green', 16: 'blue', 32: 'black', 64: 'black'}
     # Use different markers for each simulator
     marker_map = {'TEBD': 'o', 'TDVP': '^'}
 
-    for i, threshold in enumerate(thresholds):
-        if len(thresholds) == 1:
-            ax = axes
-        else:
-            ax = axes[i]
-        ax.set_title(f"Threshold = {threshold}")
+    axes[0].set_title("Infidelity")
+    axes[1].set_title("Local Observable Error")
+    for i, name in enumerate(['infidelity', 'error']):
+        ax = axes[i]
 
         # Create an inset in the lower right corner
         ax_inset = ax.inset_axes([0.55, 0.05, 0.4, 0.4])
@@ -270,16 +259,28 @@ def plot_error_vs_depth(results, thresholds, bond_dims):
         ax_inset.set_ylim(0.5e-1, 1e8)
         for bond_dim in bond_dims:
             # Extract data for TEBD and TDVP
-            tebd_data = [
-                (depth, err)
-                for (depth, thr, bd, err) in results['TEBD']
-                if thr == threshold and bd == bond_dim
-            ]
-            tdvp_data = [
-                (depth, err)
-                for (depth, thr, bd, err) in results['TDVP']
-                if thr == threshold and bd == bond_dim
-            ]
+            if name == 'infidelity':
+                tebd_data = [
+                    (depth, infid)
+                    for (depth, thr, bd, infid, err) in results['TEBD']
+                    if bd == bond_dim
+                ]
+                tdvp_data = [
+                    (depth, infid)
+                    for (depth, thr, bd, infid, err) in results['TDVP']
+                    if bd == bond_dim
+                ]
+            elif name == 'error':
+                tebd_data = [
+                    (depth, err)
+                    for (depth, thr, bd, infid, err) in results['TEBD']
+                    if bd == bond_dim
+                ]
+                tdvp_data = [
+                    (depth, err)
+                    for (depth, thr, bd, infid, err) in results['TDVP']
+                    if bd == bond_dim
+                ]
 
             # Sort by circuit depth
             tebd_data.sort(key=lambda x: x[0])
@@ -323,22 +324,20 @@ def plot_error_vs_depth(results, thresholds, bond_dims):
             ax_inset.set_yscale('log')
 
 
-        ax.set_xlabel("Circuit depth (Trotter steps)")
         ax.set_yscale("log")
         ax.set_ylim(1e-16, 5e-1)
 
-        if i == 0:
-            ax.set_ylabel("Fidelity error (log scale)")
         ax.grid(True)
 
         # Add a horizontal line at 0 in the inset to mark no difference
         ax_inset.axhline(0, color='black', linestyle='--', linewidth=1)
 
-    # Place a combined legend in the left-most subplot
-    if len(thresholds) == 1:
-        ax.legend(loc="lower left", fontsize="small")
-    else:
-        axes[0].legend(loc="lower left", fontsize="small")
-    plt.suptitle("Simulator Error vs. Circuit Depth\n(Varying SVD Threshold and Bond Dimension)")
+    axes[1].set_ylabel("Circuit depth (Trotter steps)")
+    axes[0].set_ylabel("Infidelity (log scale)")
+    axes[1].set_ylabel("Local observable error (log scale)")
+
+    axes[0].legend(loc="lower left", fontsize="small")
+    axes[0].set_xlabel("Circuit depth (Trotter steps)")
+    axes[0].set_xlabel(None)
     plt.tight_layout()
     plt.show()
