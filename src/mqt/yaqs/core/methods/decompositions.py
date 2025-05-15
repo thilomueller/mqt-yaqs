@@ -157,7 +157,7 @@ def two_site_svd(
         discard = 0.0
         keep = len(S_vec)
         for idx, s in enumerate(reversed(S_vec)):
-            discard += s*s
+            discard += s**2
             if discard >= threshold:
                 keep = len(S_vec) - idx
                 break
@@ -172,4 +172,4 @@ def two_site_svd(
         V = V.reshape(keep, phys_j, R)                      # (keep, phys_j, R)
         B_trunc = V.transpose(1, 0, 2)                      # (phys_j, keep, R)
 
-        return U_trunc, S_vec[:keep], B_trunc
+        return U_trunc, B_trunc
