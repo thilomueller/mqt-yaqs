@@ -19,13 +19,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import opt_einsum as oe
-from qiskit.converters import circuit_to_dag
+from qiskit.converters import circuit_to_dag, dag_to_circuit
 
 from ..core.data_structures.networks import MPO, MPS
 from ..core.data_structures.simulation_parameters import WeakSimParams
 from ..core.methods.dissipation import apply_dissipation
 from ..core.methods.stochastic_process import stochastic_process
-from ..core.methods.tdvp import local_dynamic_tdvp, two_site_tdvp
+from ..core.methods.tdvp import local_dynamic_tdvp, two_site_tdvp, single_site_tdvp
 from .utils.dag_utils import convert_dag_to_tensor_algorithm
 
 if TYPE_CHECKING:
@@ -163,8 +163,11 @@ def apply_window(state: MPS, mpo: MPO, first_site: int, last_site: int, window_s
     window[1] = min(window[1], state.length - 1)
 
     # Shift the orthogonality center for sites before the window.
+    # assert state.check_canonical_form()[0] == 0, "MPS is not in canonical form before shifting"
     for i in range(window[0]):
         state.shift_orthogonality_center_right(i)
+
+    assert window[0] in state.check_canonical_form()
 
     short_mpo = MPO()
     short_mpo.init_custom(mpo.tensors[window[0] : window[1] + 1], transpose=False)
@@ -174,7 +177,7 @@ def apply_window(state: MPS, mpo: MPO, first_site: int, last_site: int, window_s
     return short_state, short_mpo, window
 
 
-def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParams | WeakSimParams) -> None:
+def apply_two_qubit_gate(state: MPS, gate: BaseGate, sim_params: StrongSimParams | WeakSimParams) -> None:
     """Apply two-qubit gate.
 
     Applies a two-qubit gate to the given Matrix Product State (MPS) with dynamic TDVP.
@@ -187,8 +190,6 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
 
     .
     """
-    gate = convert_dag_to_tensor_algorithm(node)[0]
-
     # Construct the MPO for the two-qubit gate.
     mpo, first_site, last_site = construct_generator_mpo(gate, state.length)
 
@@ -198,12 +199,10 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
         # Apply two-site TDVP for nearest-neighbor gates.
         two_site_tdvp(short_state, short_mpo, sim_params)
     else:
-        local_dynamic_tdvp(short_state, short_mpo, sim_params)
-
+        two_site_tdvp(short_state, short_mpo, sim_params)
     # Replace the updated tensors back into the full state.
     for i in range(window[0], window[1] + 1):
         state.tensors[i] = short_state.tensors[i - window[0]]
-
 
 def circuit_tjm(
     args: tuple[int, MPS, NoiseModel | None, StrongSimParams | WeakSimParams, QuantumCircuit],
@@ -230,7 +229,8 @@ def circuit_tjm(
     state = copy.deepcopy(initial_state)
 
     dag = circuit_to_dag(circuit)
-
+    # print("YAQS")
+    # print(dag_to_circuit(dag))
     while dag.op_nodes():
         single_qubit_nodes, even_nodes, odd_nodes = process_layer(dag)
 
@@ -241,15 +241,24 @@ def circuit_tjm(
         # Process two-qubit gates in even/odd sweeps.
         for group in [even_nodes, odd_nodes]:
             for node in group:
-                apply_two_qubit_gate(state, node, sim_params)
+                gate = convert_dag_to_tensor_algorithm(node)[0]
+                apply_two_qubit_gate(state, gate, sim_params)
                 # Jump process occurs after each two-qubit gate
                 if noise_model is not None:
                     apply_dissipation(state, noise_model, dt=1)
                     state = stochastic_process(state, noise_model, dt=1)
                 else:
                     # Normalizes state
-                    for i in reversed(range(state.length)):
-                        state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
+                    if np.abs(gate.sites[0] - gate.sites[1]) == 1:
+                        state.normalize(form='B', decomposition="SVD")
+                    else:
+                        state.normalize(form='B', decomposition='SVD')
+
+                    assert 0 in state.check_canonical_form()
+                    # for i in reversed(range(state.length)):
+                    #     state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
+                    # assert state.check_canonical_form()[0] == 0, "MPS is not in canonical form after normalization"
+
                 dag.remove_op_node(node)
 
     if isinstance(sim_params, WeakSimParams):
