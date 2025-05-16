@@ -156,10 +156,13 @@ def two_site_svd(
         #    sum of squares of *discarded* values ≤ threshold
         discard = 0.0
         keep = len(S_vec)
+
+        total_norm = np.sum(S_vec**2)
+        min_keep = 2  # Prevents pathological dimension-1 truncation
         for idx, s in enumerate(reversed(S_vec)):
             discard += s**2
-            if discard >= threshold:
-                keep = len(S_vec) - idx
+            if discard / total_norm >= threshold:
+                keep = max(len(S_vec) - idx, min_keep)
                 break
         if max_bond_dim is not None:
             keep = min(keep, max_bond_dim)
