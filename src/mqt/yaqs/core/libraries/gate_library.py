@@ -1115,7 +1115,7 @@ class ZZ(BaseGate):
         Raises:
             ValueError: If the number of sites does not match the interaction level of the gate.
         """
-        sites_list = list(sites)
+        sites_list = list(*sites)
 
         if len(sites_list) != self.interaction:
             msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
