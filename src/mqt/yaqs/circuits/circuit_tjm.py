@@ -163,11 +163,8 @@ def apply_window(state: MPS, mpo: MPO, first_site: int, last_site: int, window_s
     window[1] = min(window[1], state.length - 1)
 
     # Shift the orthogonality center for sites before the window.
-    # assert state.check_canonical_form()[0] == 0, "MPS is not in canonical form before shifting"
     for i in range(window[0]):
         state.shift_orthogonality_center_right(i)
-
-    assert window[0] in state.check_canonical_form()
 
     short_mpo = MPO()
     short_mpo.init_custom(mpo.tensors[window[0] : window[1] + 1], transpose=False)
@@ -195,11 +192,7 @@ def apply_two_qubit_gate(state: MPS, gate: BaseGate, sim_params: StrongSimParams
 
     window_size = 1
     short_state, short_mpo, window = apply_window(state, mpo, first_site, last_site, window_size)
-    if np.abs(first_site - last_site) == 1:
-        # Apply two-site TDVP for nearest-neighbor gates.
-        two_site_tdvp(short_state, short_mpo, sim_params)
-    else:
-        two_site_tdvp(short_state, short_mpo, sim_params)
+    two_site_tdvp(short_state, short_mpo, sim_params)
     # Replace the updated tensors back into the full state.
     for i in range(window[0], window[1] + 1):
         state.tensors[i] = short_state.tensors[i - window[0]]
@@ -229,8 +222,6 @@ def circuit_tjm(
     state = copy.deepcopy(initial_state)
 
     dag = circuit_to_dag(circuit)
-    # print("YAQS")
-    # print(dag_to_circuit(dag))
     while dag.op_nodes():
         single_qubit_nodes, even_nodes, odd_nodes = process_layer(dag)
 
@@ -249,15 +240,7 @@ def circuit_tjm(
                     state = stochastic_process(state, noise_model, dt=1)
                 else:
                     # Normalizes state
-                    if np.abs(gate.sites[0] - gate.sites[1]) == 1:
-                        state.normalize(form='B', decomposition="SVD")
-                    else:
-                        state.normalize(form='B', decomposition='SVD')
-
-                    assert 0 in state.check_canonical_form()
-                    # for i in reversed(range(state.length)):
-                    #     state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
-                    # assert state.check_canonical_form()[0] == 0, "MPS is not in canonical form after normalization"
+                    state.normalize(form='B', decomposition='QR')
 
                 dag.remove_op_node(node)
 
