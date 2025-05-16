@@ -1083,6 +1083,47 @@ class Rzz(BaseGate):
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[1, 0], [0, -1]]), np.array([[1, 0], [0, -1]])]
 
+class ZZ(BaseGate):
+    """Class representing an ZZ operation. Used for two-site correlators.
+
+    Attributes:
+        name (str): The name of the gate ("zz").
+        matrix (NDArray[np.complex128]): The 4x4 matrix representation of the gate.
+        interaction (int): The interaction level (2 for two-qubit gates).
+        tensor (NDArray[np.complex128]): The tensor representation reshaped to (2, 2, 2, 2).
+        mpo: An MPO representation generated from the gate tensor.
+        sites (list[int]): The control and target sites.
+
+    Methods:
+        set_sites(*sites: int) -> None:
+            Sets the sites and updates the tensor and MPO.
+    """
+
+    name = "zz"
+
+    def __init__(self) -> None:
+        """Initializes the ZZ gate."""
+        mat = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, -1], [0, 0, 0, 1]])
+        super().__init__(mat)
+
+    def set_sites(self, *sites: int) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites (int): Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = list(sites)
+
+        if len(sites_list) != self.interaction:
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
+            raise ValueError(msg)
+
+        self.sites: list[int] = sites_list
+        self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
+        self.mpo = extend_gate(self.tensor, self.sites)
 
 class GateLibrary:
     """A collection of quantum gate classes for use in simulations.
@@ -1128,3 +1169,4 @@ class GateLibrary:
     phase = Phase
     destroy = Destroy
     create = Create
+    zz = ZZ
