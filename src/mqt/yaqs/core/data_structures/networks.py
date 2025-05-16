@@ -469,7 +469,9 @@ class MPS:
         Returns:
         np.float64: The real part of the expectation value of the observable.
         """
-        assert observable.sites[0] in range(self.length), "State is shorter than selected site for expectation value."
+        for site in observable.sites:
+            assert site in range(self.length), "Observable acting on non-existing site."
+ 
         # Copying done to stop the state from messing up its own canonical form
         exp = self.local_expval(observable.gate.matrix, observable.sites[0])
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
