@@ -89,7 +89,19 @@ def split_mps_tensor(
     u_mat, sigma, v_mat = np.linalg.svd(matrix_for_svd, full_matrices=False)
 
     # Handled by dynamic TDVP
-    cut_index = len(sigma) if dynamic else min(len(sigma), sim_params.max_bond_dim)
+    if not dynamic:
+        discard = 0.0
+        min_keep = min(len(sigma), 16)  # Prevents pathological dimension-1 truncation
+        for idx, s in enumerate(reversed(sigma)):
+            discard += s**2
+            if discard >= 1e-15:
+                cut_index = max(len(sigma) - idx, min_keep)
+                break
+        if sim_params.max_bond_dim is not None:
+            cut_index = min(cut_index, sim_params.max_bond_dim)
+    else:
+        cut_index = min(len(sigma, sim_params.max_bond_dim))
+
     left_tensor = u_mat[:, :cut_index]
     sigma = sigma[:cut_index]
     right_tensor = v_mat[:cut_index, :]
