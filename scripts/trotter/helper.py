@@ -1,21 +1,15 @@
-from qiskit_aer import AerSimulator
-from qiskit.quantum_info import Statevector, Operator, Pauli
+import copy
 import numpy as np
+import matplotlib.pyplot as plt
+from qiskit_aer import AerSimulator
+from qiskit.quantum_info import Statevector, SparsePauliOp
+from qiskit import transpile
 
 from mqt.yaqs import simulator
 from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit, create_2d_ising_circuit, create_heisenberg_circuit, create_2d_heisenberg_circuit
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams
 from mqt.yaqs.core.libraries.gate_library import Z
-
-import copy
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-
-
-from qiskit_aer import AerSimulator
-from qiskit.quantum_info import Statevector, SparsePauliOp
 
 
 def _mid_z_operator(num_qubits):
@@ -28,37 +22,43 @@ def _mid_z_operator(num_qubits):
 def state_vector_simulator(circ):
     # Run statevector simulator
     sim = AerSimulator(method='statevector')
-    result = sim.run(circ).result()
-    sv = Statevector(result.get_statevector(circ))
+    tcirc = transpile(circ, sim)
+    result = sim.run(tcirc).result()
+    sv = Statevector(result.get_statevector(tcirc))
 
     # build Z_mid and compute expectation
-    z_mid = _mid_z_operator(circ.num_qubits)
+    z_mid = _mid_z_operator(tcirc.num_qubits)
     exp_val = sv.expectation_value(z_mid).real
 
     return sv, exp_val
 
-def tebd_simulator(circ, max_bond, threshold):
-    # Save MPS snapshot into the circuit 
-    circ.save_matrix_product_state(label='mps')
+def tebd_simulator(circ, max_bond, threshold, initial_state):
+    threshold = 1e-15
+    # Save MPS snapshot into the circuit
+    circ2 = copy.deepcopy(circ)
+    circ2.clear()
+    if initial_state is not None:
+        circ2.set_matrix_product_state(initial_state)
+    circ2.append(circ, range(circ.num_qubits))
+    circ2.save_matrix_product_state(label='final_mps')
     sim = AerSimulator(
         method='matrix_product_state',
         matrix_product_state_max_bond_dimension=max_bond,
         matrix_product_state_truncation_threshold=threshold
     )
-    result = sim.run(circ).result()
+    tcirc = transpile(circ2, sim)
 
-    # pull out the statevector (for consistency) and the MPS
-    state_vector = result.get_statevector(circ)
-    mps = result.data(0)['mps'][0]
+    result = sim.run(tcirc).result()
 
-    # (optional) report actual max bond
-    mb = max(tensor[0].shape[0] for tensor in mps)
-    print("TEBD Max Bond", mb)
+    state_vector = result.get_statevector(tcirc)
+    mps = result.data(0)['final_mps']
+    bonds = [lam[0].shape[0] for lam in mps[0][1::]]
+    print("TEBD Max Bond:", max(bonds))
 
     sv = Statevector(state_vector)
     z_mid = _mid_z_operator(circ.num_qubits)
     exp_val = sv.expectation_value(z_mid).real
-    return sv, exp_val
+    return mps, sv, exp_val
 
 
 def tdvp_simulator(circ, max_bond, threshold, pad, initial_state=None):
@@ -66,8 +66,10 @@ def tdvp_simulator(circ, max_bond, threshold, pad, initial_state=None):
         initial_state = MPS(length=circ.num_qubits)
         initial_state.pad_bond_dimension(pad)
     measurements = [Observable(Z(), circ.num_qubits//2)]
-    sim_params = StrongSimParams(measurements, num_traj=1, max_bond_dim=max_bond, threshold=threshold, get_state=True, window_size=1)
-    simulator.run(initial_state, circ, sim_params, noise_model=None)
+    sim_params = StrongSimParams(measurements, num_traj=1, max_bond_dim=max_bond, threshold=threshold, get_state=True)
+
+    circ_flipped = copy.deepcopy(circ).reverse_bits()
+    simulator.run(initial_state, circ_flipped, sim_params, noise_model=None)
     mps = sim_params.output_state
     print("TDVP Max Bond", mps.write_max_bond_dim())
 
@@ -106,6 +108,7 @@ def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bo
                 results['TDVP'].append((timesteps, threshold, max_bond, tdvp_error))
     return results
 
+
 def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {'TEBD': [], 'TDVP': []}
@@ -117,16 +120,19 @@ def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, threshold
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
+                    mps_qiskit = None
                 else:
                     delta_timesteps = timesteps - timesteps_list[i-1]
                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps, periodic=True)
-                circ2 = create_ising_circuit(num_qubits, J, g, dt, timesteps, periodic=True)
+                circ2 = copy.deepcopy(circ)
                 circ2.save_statevector()
-                exact_sv, exact_exp_val = state_vector_simulator(circ2)
+                circ_sv = create_ising_circuit(num_qubits, J, g, dt, timesteps, periodic=True)
+                circ_sv.save_statevector()
+                exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
 
                 # Run both simulators
                 mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
@@ -139,6 +145,7 @@ def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, threshold
                 results['TEBD'].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
                 results['TDVP'].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
+
 
 def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
@@ -151,16 +158,19 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
+                    mps_qiskit = None
                 else:
                     delta_timesteps = timesteps - timesteps_list[i-1]
                 circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps)
-                circ2 = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps)
+                circ2 = copy.deepcopy(circ)
                 circ2.save_statevector()
-                exact_sv, exact_exp_val = state_vector_simulator(circ2)
+                circ_sv = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps)
+                circ_sv.save_statevector()
+                exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
 
                 # Run both simulators
                 mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
@@ -173,6 +183,7 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
                 results['TEBD'].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
                 results['TDVP'].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
+
 
 def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
@@ -215,16 +226,19 @@ def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresho
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
+                    mps_qiskit = None
                 else:
                     delta_timesteps = timesteps - timesteps_list[i-1]
                 circ = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, delta_timesteps)
-                circ2 = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, timesteps)
+                circ2 = copy.deepcopy(circ)
                 circ2.save_statevector()
-                exact_sv, exact_exp_val = state_vector_simulator(circ2)
+                circ_sv = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, timesteps)
+                circ_sv.save_statevector()
+                exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
 
                 # Run both simulators
                 mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
@@ -243,7 +257,7 @@ def plot_error_vs_depth(results, bond_dims):
     # Create a 1xN figure (one subplot per threshold)
     fig, axes = plt.subplots(2, 1, sharex=True)
     # Map bond dimensions to distinct colors
-    color_map = {4: 'red', 8: 'green', 16: 'blue', 32: 'black', 64: 'black'}
+    color_map = {4: 'red', 8: 'green', 16: 'blue', 32: 'black', 64: 'black', 256: 'black'}
     # Use different markers for each simulator
     marker_map = {'TEBD': 'o', 'TDVP': '^'}
 
