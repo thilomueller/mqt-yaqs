@@ -545,9 +545,6 @@ class MPS:
 
         Returns:
             np.float64: The real part of the expectation value of the observable.
-
-        Raises:
-            TypeError: Sites not properly initialized
         """
         if isinstance(observable.sites, int):
             sites_list = [observable.sites]
