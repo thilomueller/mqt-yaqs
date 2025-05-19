@@ -480,6 +480,9 @@ class MPS:
         Returns:
             np.complex128: The computed expectation value (typically, its real part is of interest).
 
+        Raises:
+            TypeError: Sites are in an invalid format
+
         Notes:
             A deep copy of the state is used to prevent modifications to the original MPS.
         """
@@ -489,12 +492,18 @@ class MPS:
                 i = sites[0]
             elif isinstance(sites, int):
                 i = sites
+            else:
+                msg = f"Invalid type for 'sites': expected int or list[int], got {type(sites).__name__}"
+                raise TypeError(msg)
             assert operator.sites == i, f"Operator sites mismatch {operator.sites}, {i}"
             a = temp_state.tensors[i]
             temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.gate.matrix, a)
+
         elif operator.gate.matrix.shape[0] == 4:  # Two-site correlator
             assert isinstance(sites, list)
+            assert isinstance(operator.sites, list)
             i, j = sites
+
             assert operator.sites[0] == i, "Observable sites mismatch"
             assert operator.sites[1] == j, "Observable sites mismatch"
             assert operator.sites[0] < operator.sites[1], "Observable sites must be in ascending order."
