@@ -9,14 +9,15 @@ from mqt.yaqs import simulator
 from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit, create_2d_ising_circuit, create_heisenberg_circuit, create_2d_heisenberg_circuit
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams
-from mqt.yaqs.core.libraries.gate_library import Z
+from mqt.yaqs.core.libraries.gate_library import XX
 
 
 def _mid_z_operator(num_qubits):
     """Helper to build a SparsePauliOp for Z on the middle qubit."""
     mid = num_qubits // 2
     label = ['I'] * num_qubits
-    label[mid] = 'Z'
+    label[mid] = 'X'
+    label[mid+1] = 'X'
     return SparsePauliOp(''.join(label))
 
 def state_vector_simulator(circ):
@@ -65,7 +66,7 @@ def tdvp_simulator(circ, max_bond, threshold, pad, initial_state=None):
     if initial_state is None:
         initial_state = MPS(length=circ.num_qubits)
         initial_state.pad_bond_dimension(pad)
-    measurements = [Observable(Z(), circ.num_qubits//2)]
+    measurements = [Observable(XX(), [circ.num_qubits//2, circ.num_qubits//2+1])]
     sim_params = StrongSimParams(measurements, num_traj=1, max_bond_dim=max_bond, threshold=threshold, get_state=True)
 
     circ_flipped = copy.deepcopy(circ).reverse_bits()
