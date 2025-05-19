@@ -480,21 +480,17 @@ class MPS:
         Returns:
             np.complex128: The computed expectation value (typically, its real part is of interest).
 
-        Raises:
-            TypeError: Sites are in an invalid format
-
         Notes:
             A deep copy of the state is used to prevent modifications to the original MPS.
         """
         temp_state = copy.deepcopy(self)
         if operator.gate.matrix.shape[0] == 2:  # Local observable
+            i = None
             if isinstance(sites, list):
                 i = sites[0]
             elif isinstance(sites, int):
                 i = sites
-            else:
-                msg = f"Invalid type for 'sites': expected int or list[int], got {type(sites).__name__}"
-                raise TypeError(msg)
+            assert i is not None, f"Invalid type for 'sites': expected int or list[int], got {type(sites).__name__}"
             assert operator.sites == i, f"Operator sites mismatch {operator.sites}, {i}"
             a = temp_state.tensors[i]
             temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.gate.matrix, a)
@@ -554,10 +550,13 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
+        sites_list = None
         if isinstance(observable.sites, int):
             sites_list = [observable.sites]
         elif isinstance(observable.sites, list):
             sites_list = observable.sites
+
+        assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
 
         assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
 
