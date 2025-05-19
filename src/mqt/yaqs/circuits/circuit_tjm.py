@@ -174,7 +174,7 @@ def apply_window(state: MPS, mpo: MPO, first_site: int, last_site: int, window_s
     return short_state, short_mpo, window
 
 
-def apply_two_qubit_gate(state: MPS, gate: BaseGate, sim_params: StrongSimParams | WeakSimParams) -> None:
+def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParams | WeakSimParams) -> None:
     """Apply two-qubit gate.
 
     Applies a two-qubit gate to the given Matrix Product State (MPS) with dynamic TDVP.
@@ -188,6 +188,7 @@ def apply_two_qubit_gate(state: MPS, gate: BaseGate, sim_params: StrongSimParams
     .
     """
     # Construct the MPO for the two-qubit gate.
+    gate = convert_dag_to_tensor_algorithm(node)[0]
     mpo, first_site, last_site = construct_generator_mpo(gate, state.length)
 
     window_size = 1
@@ -232,8 +233,7 @@ def circuit_tjm(
         # Process two-qubit gates in even/odd sweeps.
         for group in [even_nodes, odd_nodes]:
             for node in group:
-                gate = convert_dag_to_tensor_algorithm(node)[0]
-                apply_two_qubit_gate(state, gate, sim_params)
+                apply_two_qubit_gate(state, node, sim_params)
                 # Jump process occurs after each two-qubit gate
                 if noise_model is not None:
                     apply_dissipation(state, noise_model, dt=1)
