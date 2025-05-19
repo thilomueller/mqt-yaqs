@@ -60,7 +60,7 @@ class Observable:
         Initializes the results and trajectories arrays based on the type of simulation parameters provided.
     """
 
-    def __init__(self, gate: BaseGate, sites: list[int]) -> None:
+    def __init__(self, gate: BaseGate, sites: int | list[int]) -> None:
         """Initializes an Observable instance.
 
         Parameters
@@ -186,7 +186,7 @@ class PhysicsSimParams:
             If True, output MPS is returned.
         """
         self.observables = observables
-        self.sorted_observables = sorted(observables, key=lambda obs: (obs.sites[0]))
+        self.sorted_observables = sorted(observables, key=lambda obs: obs.sites[0] if isinstance(obs.sites, list) else obs.sites)
         self.elapsed_time = elapsed_time
         self.dt = dt
         self.times = np.arange(0, elapsed_time + dt, dt)
@@ -371,7 +371,7 @@ class StrongSimParams:
             If True, output MPS is returned.
         """
         self.observables = observables
-        self.sorted_observables = sorted(observables, key=lambda obs: (obs.sites[0]))
+        self.sorted_observables = sorted(observables, key=lambda obs: obs.sites[0] if isinstance(obs.sites, list) else obs.sites)
         self.num_traj = num_traj
         self.max_bond_dim = max_bond_dim
         self.threshold = threshold
