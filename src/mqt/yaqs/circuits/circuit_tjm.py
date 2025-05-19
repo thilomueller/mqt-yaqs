@@ -268,5 +268,5 @@ def circuit_tjm(
             for site in range(last_site, idx):
                 temp_state.shift_orthogonality_center_right(site)
             last_site = idx
-        results[obs_index, 0] = temp_state.measure_expectation_value(observable)
+        results[obs_index, 0] = temp_state.expect(observable)
     return results
