@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from .simulation_parameters import Observable
-
+    from ..libraries.gate_library import BaseGate
 
 class MPS:
     """Matrix Product State (MPS) class for representing quantum states.
@@ -421,7 +421,7 @@ class MPS:
 
         #     self.flip_network()
 
-    def scalar_product(self, other: MPS, site: int | None = None) -> np.complex128:
+    def scalar_product(self, other: MPS, sites: int | list[int] | None = None) -> np.complex128:
         """Compute the scalar (inner) product between two Matrix Product States (MPS).
 
         The function contracts the corresponding tensors of two MPS objects. If no specific site is
@@ -430,7 +430,7 @@ class MPS:
 
         Args:
             other (MPS): The second Matrix Product State.
-            site (int | None): Optional site index at which to compute the contraction. If None, the
+            site: Optional site indices at which to compute the contraction. If None, the
                 contraction is performed over all sites.
 
         Returns:
@@ -441,16 +441,48 @@ class MPS:
         for i, tensor in enumerate(a_copy.tensors):
             a_copy.tensors[i] = np.conj(tensor)
 
-        result = np.array(np.inf)
-        if site is None:
+        if sites is None:
+            result = None
             for idx in range(self.length):
-                tensor = oe.contract("abc, ade->bdce", a_copy.tensors[idx], b_copy.tensors[idx])
-                result = tensor if idx == 0 else oe.contract("abcd, cdef->abef", result, tensor)
-        else:
-            result = oe.contract("ijk, ijk", a_copy.tensors[site], b_copy.tensors[site])
-        return np.complex128(np.squeeze(result))
+                # contract at each site into a 4-leg tensor
+                M = oe.contract("abc,ade->bdce",
+                                a_copy.tensors[idx],
+                                b_copy.tensors[idx])
+                result = M if idx == 0 else oe.contract("abcd,cdef->abef",
+                                                        result, M)
+            # squeeze down to scalar
+            return np.complex128(np.squeeze(result))
 
-    def local_expval(self, operator: NDArray[np.complex128], site: int) -> np.complex128:
+        if isinstance(sites, int) or (isinstance(sites, list) and len(sites) == 1):
+            if isinstance(sites, int):
+                i = sites
+            elif (isinstance(sites, list[int]) and len(sites) == 1):
+                i = sites[0]
+            A = a_copy.tensors[i]
+            B = b_copy.tensors[i]
+            # sum over all three legs (p,l,r):
+            val = oe.contract("ijk,ijk->", A, B)
+            return np.complex128(val)
+
+        if isinstance(sites, list) and len(sites) == 2:
+            i, j = sites
+            assert j == i + 1, "Only nearest-neighbor two-site overlaps supported."
+
+            A1 = a_copy.tensors[i]  # (p_i, l_i, r_i)
+            A2 = b_copy.tensors[i]  # (p_i, l_i, r'_i)
+            B1 = a_copy.tensors[j]  # (p_j, l_j=r_i, r_j)
+            B2 = b_copy.tensors[j]  # (p_j, l'_j=r'_i, r_j)
+
+            # contract all four:
+            #   - A1(a,b,c), A2(a,b,d)
+            #   - B1(e,c,f), B2(e,d,f)
+            val = oe.contract("abc,abd,ecf,edf->",
+                              A1, A2, B1, B2)
+            return np.complex128(val)
+
+        raise ValueError(f"Invalid `sites` argument: {sites!r}")
+
+    def local_expval(self, operator: BaseGate, sites: int) -> np.complex128:
         """Compute the local expectation value of an operator on an MPS.
 
         The function applies the given operator to the tensor at the specified site of a deep copy of the
@@ -459,7 +491,7 @@ class MPS:
 
         Args:
             operator (NDArray[np.complex128]): The local operator (matrix) to be applied.
-            site (int): The index of the site at which to evaluate the expectation value.
+            site: The indices of the sites at which to evaluate the expectation value.
 
         Returns:
             np.complex128: The computed expectation value (typically, its real part is of interest).
@@ -468,8 +500,47 @@ class MPS:
             A deep copy of the state is used to prevent modifications to the original MPS.
         """
         temp_state = copy.deepcopy(self)
-        temp_state.tensors[site] = oe.contract("ab, bcd->acd", operator, temp_state.tensors[site])
-        return self.scalar_product(temp_state, site)
+        if operator.interaction == 1: # Local observable
+            i = sites[0]
+            assert operator.sites[0] == i
+
+            A = temp_state.tensors[i]
+            temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator, A)
+        elif operator.interaction == 2: # Two-site correlator
+            i, j = sites
+            assert operator.sites[0] == i and operator.sites[1] == j, "Observable sites must be in ascending order."
+            assert operator.sites[1] - operator.sites[0] == 1, "Only nearest-neighbor observables are currently implemented."
+            A = temp_state.tensors[i]
+            B = temp_state.tensors[j]
+            d_i, l, _ = A.shape
+            d_j, _, r   = B.shape
+
+            # 1) merge A,B into theta of shape (l, d_i*d_j, r)
+            theta = np.tensordot(A, B, axes=(2,1))   # (d_i, l, d_j, r)
+            theta = theta.transpose(1, 0, 2, 3)         # (l, d_i, d_j, r)
+            theta = theta.reshape(l, d_i*d_j, r)     # (l, d_i*d_j, r)
+
+            # 2) apply operator on the combined phys index
+            theta = oe.contract("ab, cbd->cad", operator.matrix, theta)  # (l, d_i*d_j, r)
+            theta = theta.reshape(l, d_i, d_j, r)    # back to (l, d_i, d_j, r)
+
+            # 3) split via SVD
+            theta_mat = theta.reshape(l * d_i, d_j * r)
+            U, S, Vh = np.linalg.svd(theta_mat, full_matrices=False)
+
+            chi_new = len(S)                          # keep all singular values
+
+            # build new A, B in (p, l, r) order
+            U_mat = U.reshape(l, d_i, chi_new)       # (l, d_i, r_new)
+            A_new = U_mat.transpose(1, 0, 2)         # → (d_i, l, r_new)
+
+            V = (np.diag(S) @ Vh).reshape(chi_new, d_j, r)  # (l_new, d_j, r)
+            B_new = V.transpose(1, 0, 2)             # → (d_j, l_new, r)
+
+            temp_state.tensors[i]   = A_new
+            temp_state.tensors[j]   = B_new
+
+        return self.scalar_product(temp_state, sites)
 
     def measure_expectation_value(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.
@@ -483,9 +554,12 @@ class MPS:
         Returns:
         np.float64: The real part of the expectation value of the observable.
         """
-        assert observable.site in range(self.length), "State is shorter than selected site for expectation value."
+        assert len(observable.sites) < 3, "Only one- and two-site observables are currently implemented."
+        for site in observable.sites:
+            assert site in range(self.length), "Observable acting on non-existing site."
+ 
         # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expval(observable.gate.matrix, observable.site)
+        exp = self.local_expval(observable.gate, observable.sites)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
