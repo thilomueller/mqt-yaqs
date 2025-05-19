@@ -558,34 +558,34 @@ def test_scalar_product_partial_site() -> None:
     np.testing.assert_allclose(partial_val, 1.0, atol=1e-12)
 
 
-def test_local_expval_z_on_zero_state() -> None:
+def test_local_expect_z_on_zero_state() -> None:
     """Test the local expectation value of the Z observable on a |0> state.
 
     For the computational basis state |0>, the expectation value of Z is +1.
-    This test verifies that local_expval returns +1 for site 0 and site 1 of a 2-qubit MPS
+    This test verifies that local_expect returns +1 for site 0 and site 1 of a 2-qubit MPS
     initialized in the "zeros" state.
     """
     # Pauli-Z in computational basis.
     z = Z()
     z.set_sites(0)
     psi_mps = MPS(length=2, state="zeros")
-    val = psi_mps.local_expval(z, sites=0)
+    val = psi_mps.local_expect(z, sites=0)
     np.testing.assert_allclose(val, 1.0, atol=1e-12)
     z.set_sites(1)
-    val_site1 = psi_mps.local_expval(z, sites=1)
+    val_site1 = psi_mps.local_expect(z, sites=1)
     np.testing.assert_allclose(val_site1, 1.0, atol=1e-12)
 
 
-def test_local_expval_x_on_plus_state() -> None:
+def test_local_expect_x_on_plus_state() -> None:
     """Test the local expectation value of the X observable on a |+> state.
 
     For the |+> state, defined as 1/√2 (|0> + |1>), the expectation value of the X observable is +1.
-    This test verifies that local_expval returns +1 for a single-qubit MPS initialized in the "x+" state.
+    This test verifies that local_expect returns +1 for a single-qubit MPS initialized in the "x+" state.
     """
     x = X()
     x.set_sites(0)
     psi_mps = MPS(length=3, state="x+")
-    val = psi_mps.local_expval(x, sites=0)
+    val = psi_mps.local_expect(x, sites=0)
     np.testing.assert_allclose(val, 1.0, atol=1e-12)
 
 
@@ -599,7 +599,7 @@ def test_measure() -> None:
     pdim = 2
     mps = MPS(length=length, physical_dimensions=[pdim] * length, state="x+")
     obs = Observable(X(), 0)
-    val = mps.measure_expectation_value(obs)
+    val = mps.expect(obs)
     assert np.isclose(val, 1)
 
 

@@ -467,7 +467,7 @@ class MPS:
         msg = f"Invalid `sites` argument: {sites!r}"
         raise ValueError(msg)
 
-    def local_expval(self, operator: BaseGate, sites: int | list[int]) -> np.complex128:
+    def local_expect(self, operator: BaseGate, sites: int | list[int]) -> np.complex128:
         """Compute the local expectation value of an operator on an MPS.
 
         The function applies the given operator to the tensor at the specified site of a deep copy of the
@@ -534,7 +534,7 @@ class MPS:
 
         return self.scalar_product(temp_state, sites)
 
-    def measure_expectation_value(self, observable: Observable) -> np.float64:
+    def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.
 
         Measure the expectation value of a given observable.
@@ -557,7 +557,7 @@ class MPS:
             assert s in range(self.length), f"Observable acting on non-existing site: {s}"
 
         # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expval(observable.gate, sites_list)
+        exp = self.local_expect(observable.gate, sites_list)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
