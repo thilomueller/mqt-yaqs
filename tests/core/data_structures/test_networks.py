@@ -566,12 +566,13 @@ def test_local_expect_z_on_zero_state() -> None:
     initialized in the "zeros" state.
     """
     # Pauli-Z in computational basis.
-    z = Z()
-    z.set_sites(0)
+    z = Observable(Z(), 0)
+
     psi_mps = MPS(length=2, state="zeros")
     val = psi_mps.local_expect(z, sites=0)
     np.testing.assert_allclose(val, 1.0, atol=1e-12)
-    z.set_sites(1)
+
+    z = Observable(Z(), 1)
     val_site1 = psi_mps.local_expect(z, sites=1)
     np.testing.assert_allclose(val_site1, 1.0, atol=1e-12)
 
@@ -582,8 +583,7 @@ def test_local_expect_x_on_plus_state() -> None:
     For the |+> state, defined as 1/√2 (|0> + |1>), the expectation value of the X observable is +1.
     This test verifies that local_expect returns +1 for a single-qubit MPS initialized in the "x+" state.
     """
-    x = X()
-    x.set_sites(0)
+    x = Observable(X(), 0)
     psi_mps = MPS(length=3, state="x+")
     val = psi_mps.local_expect(x, sites=0)
     np.testing.assert_allclose(val, 1.0, atol=1e-12)
