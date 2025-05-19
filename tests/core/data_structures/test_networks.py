@@ -554,7 +554,7 @@ def test_scalar_product_partial_site() -> None:
     """
     psi_mps = MPS(length=3, state="x+")
     site = 0
-    partial_val = psi_mps.scalar_product(psi_mps, site=site)
+    partial_val = psi_mps.scalar_product(psi_mps, sites=site)
     np.testing.assert_allclose(partial_val, 1.0, atol=1e-12)
 
 
@@ -566,11 +566,13 @@ def test_local_expval_z_on_zero_state() -> None:
     initialized in the "zeros" state.
     """
     # Pauli-Z in computational basis.
-    z = np.array([[1, 0], [0, -1]], dtype=complex)
+    z = Z()
+    z.set_sites(0)
     psi_mps = MPS(length=2, state="zeros")
-    val = psi_mps.local_expval(z, site=0)
+    val = psi_mps.local_expval(z, sites=0)
     np.testing.assert_allclose(val, 1.0, atol=1e-12)
-    val_site1 = psi_mps.local_expval(z, site=1)
+    z.set_sites(1)
+    val_site1 = psi_mps.local_expval(z, sites=1)
     np.testing.assert_allclose(val_site1, 1.0, atol=1e-12)
 
 
@@ -580,9 +582,10 @@ def test_local_expval_x_on_plus_state() -> None:
     For the |+> state, defined as 1/√2 (|0> + |1>), the expectation value of the X observable is +1.
     This test verifies that local_expval returns +1 for a single-qubit MPS initialized in the "x+" state.
     """
-    x = np.array([[0, 1], [1, 0]], dtype=complex)
+    x = X()
+    x.set_sites(0)
     psi_mps = MPS(length=3, state="x+")
-    val = psi_mps.local_expval(x, site=0)
+    val = psi_mps.local_expval(x, sites=0)
     np.testing.assert_allclose(val, 1.0, atol=1e-12)
 
 

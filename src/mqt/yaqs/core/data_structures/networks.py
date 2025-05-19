@@ -468,7 +468,7 @@ class MPS:
 
         raise ValueError(f"Invalid `sites` argument: {sites!r}")
 
-    def local_expval(self, operator: BaseGate, sites: int) -> np.complex128:
+    def local_expval(self, operator: BaseGate, sites: int | list[int]) -> np.complex128:
         """Compute the local expectation value of an operator on an MPS.
 
         The function applies the given operator to the tensor at the specified site of a deep copy of the
@@ -487,7 +487,10 @@ class MPS:
         """
         temp_state = copy.deepcopy(self)
         if operator.interaction == 1: # Local observable
-            i = sites[0]
+            if isinstance(sites, list):
+                i = sites[0]
+            elif isinstance(sites, int):
+                i = sites
             assert operator.sites[0] == i, f"Operator sites mismatch {operator.sites[0]}, {i}"
             A = temp_state.tensors[i]
             temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.matrix, A)
