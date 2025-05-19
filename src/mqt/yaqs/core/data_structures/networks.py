@@ -553,9 +553,6 @@ class MPS:
             sites_list = [observable.sites]
         elif isinstance(observable.sites, list):
             sites_list = observable.sites
-        else:
-            msg = f"Invalid type for sites: {type(observable.sites)}"
-            raise TypeError(msg)
 
         assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
 
