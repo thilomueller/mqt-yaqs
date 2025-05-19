@@ -114,19 +114,27 @@ def sample(
         temp_state = copy.deepcopy(psi)
         last_site = 0
         for obs_index, observable in enumerate(sim_params.sorted_observables):
-            if observable.sites[0] > last_site:
-                for site in range(last_site, observable.sites[0]):
+            if isinstance(observable.sites, list):
+                idx = observable.sites[0]
+            elif isinstance(observable.sites, int):
+                idx = observable.sites
+            if idx > last_site:
+                for site in range(last_site, idx):
                     temp_state.shift_orthogonality_center_right(site)
-                last_site = observable.site[0]
+                last_site = idx
             results[obs_index, j] = temp_state.measure_expectation_value(observable)
     else:
         temp_state = copy.deepcopy(psi)
         last_site = 0
         for obs_index, observable in enumerate(sim_params.sorted_observables):
-            if observable.sites[0] > last_site:
-                for site in range(last_site, observable.sites[0]):
+            if isinstance(observable.sites, list):
+                idx = observable.sites[0]
+            elif isinstance(observable.sites, int):
+                idx = observable.sites
+            if idx > last_site:
+                for site in range(last_site, idx):
                     temp_state.shift_orthogonality_center_right(site)
-                last_site = observable.sites[0]
+                last_site = idx
             results[obs_index, 0] = temp_state.measure_expectation_value(observable)
 
 
@@ -214,10 +222,14 @@ def physics_tjm_1(args: tuple[int, MPS, NoiseModel | None, PhysicsSimParams, MPO
             temp_state = copy.deepcopy(state)
             last_site = 0
             for obs_index, observable in enumerate(sim_params.sorted_observables):
-                if observable.sites[0] > last_site:
-                    for site in range(last_site, observable.sites[0]):
+                if isinstance(observable.sites, list):
+                    idx = observable.sites[0]
+                elif isinstance(observable.sites, int):
+                    idx = observable.sites
+                if idx > last_site:
+                    for site in range(last_site, idx):
                         temp_state.shift_orthogonality_center_right(site)
-                    last_site = observable.sites[0]
+                    last_site = idx
                 results[obs_index, j] = temp_state.measure_expectation_value(observable)
         elif j == len(sim_params.times) - 1:
             temp_state = copy.deepcopy(state)
