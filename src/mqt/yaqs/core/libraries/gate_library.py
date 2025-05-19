@@ -184,7 +184,7 @@ class BaseGate:
 
         # enforce the right number of sites
         if len(sites_list) != self.interaction:
-            msg = f"Number of sites {len(sites_list)} must equal interaction level {self.interaction}"
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
             raise ValueError(msg)
 
         # store as the proper type
