@@ -30,7 +30,6 @@ from ..methods.decompositions import right_qr, two_site_svd
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from ..libraries.gate_library import BaseGate
     from .simulation_parameters import Observable
 
 
@@ -456,7 +455,7 @@ class MPS:
         msg = f"Invalid `sites` argument: {sites!r}"
         raise ValueError(msg)
 
-    def local_expect(self, operator: BaseGate, sites: int | list[int]) -> np.complex128:
+    def local_expect(self, operator: Observable, sites: int | list[int]) -> np.complex128:
         """Compute the local expectation value of an operator on an MPS.
 
         The function applies the given operator to the tensor at the specified site of a deep copy of the
@@ -464,7 +463,7 @@ class MPS:
         This effectively calculates the expectation value of the operator at the specified site.
 
         Args:
-            operator (NDArray[np.complex128]): The local operator (matrix) to be applied.
+            operator: The local operator to be applied.
             sites: The indices of the sites at which to evaluate the expectation value.
 
         Returns:
@@ -474,17 +473,22 @@ class MPS:
             A deep copy of the state is used to prevent modifications to the original MPS.
         """
         temp_state = copy.deepcopy(self)
-        if operator.interaction == 1:  # Local observable
+        if operator.gate.matrix.shape[0] == 2:  # Local observable
+            i = None
             if isinstance(sites, list):
                 i = sites[0]
             elif isinstance(sites, int):
                 i = sites
-            assert operator.sites[0] == i, f"Operator sites mismatch {operator.sites[0]}, {i}"
+            assert i is not None, f"Invalid type for 'sites': expected int or list[int], got {type(sites).__name__}"
+            assert operator.sites == i, f"Operator sites mismatch {operator.sites}, {i}"
             a = temp_state.tensors[i]
-            temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.matrix, a)
-        elif operator.interaction == 2:  # Two-site correlator
+            temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.gate.matrix, a)
+
+        elif operator.gate.matrix.shape[0] == 4:  # Two-site correlator
             assert isinstance(sites, list)
+            assert isinstance(operator.sites, list)
             i, j = sites
+
             assert operator.sites[0] == i, "Observable sites mismatch"
             assert operator.sites[1] == j, "Observable sites mismatch"
             assert operator.sites[0] < operator.sites[1], "Observable sites must be in ascending order."
@@ -502,7 +506,7 @@ class MPS:
             theta = theta.reshape(left, d_i * d_j, right)  # (l, d_i*d_j, r)
 
             # 2) apply operator on the combined phys index
-            theta = oe.contract("ab, cbd->cad", operator.matrix, theta)  # (l, d_i*d_j, r)
+            theta = oe.contract("ab, cbd->cad", operator.gate.matrix, theta)  # (l, d_i*d_j, r)
             theta = theta.reshape(left, d_i, d_j, right)  # back to (l, d_i, d_j, r)
 
             # 3) split via SVD
@@ -535,10 +539,13 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
+        sites_list = None
         if isinstance(observable.sites, int):
             sites_list = [observable.sites]
         elif isinstance(observable.sites, list):
             sites_list = observable.sites
+
+        assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
 
         assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
 
@@ -546,7 +553,7 @@ class MPS:
             assert s in range(self.length), f"Observable acting on non-existing site: {s}"
 
         # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expect(observable.gate, sites_list)
+        exp = self.local_expect(observable, sites_list)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
