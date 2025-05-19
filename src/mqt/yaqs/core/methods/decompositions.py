@@ -136,13 +136,12 @@ def two_site_svd(
         threshold: float,
         max_bond_dim: int | None = None,
     ) -> tuple[NDArray[np.complex128], NDArray[np.complex128], NDArray[np.complex128]]:
-        """
-        Combine two neighboring MPS tensors A (phys_i, L, D) and B (phys_j, D, R),
+        """Combine two neighboring MPS tensors A (phys_i, L, D) and B (phys_j, D, R),
         perform a truncated SVD on the joint block, and split back into
         A' (phys_i, L, k) and B' (phys_j, k, R).
         """
         # 1) build the two-site tensor Θ_{(phys_i,L),(phys_j,R)}
-        theta = np.tensordot(a, b, axes=(2, 1))  
+        theta = np.tensordot(a, b, axes=(2, 1))
         phys_i, left = a.shape[0], a.shape[1]
         phys_j, right = b.shape[0], b.shape[2]
 
@@ -168,7 +167,7 @@ def two_site_svd(
 
         # 5) build the truncated A′ of shape (phys_i, L, keep)
         a_new = u_mat[:, :keep].reshape(phys_i, left, keep)
-        
+
         # 6) absorb S into Vh and reshape to B′ of shape (phys_j, keep, R)
         v_tensor = (np.diag(s_vec[:keep]) @ v_mat[:keep, :])      # shape (keep, phys_j*R)
         v_tensor = v_tensor.reshape(keep, phys_j, right)                      # (keep, phys_j, R)

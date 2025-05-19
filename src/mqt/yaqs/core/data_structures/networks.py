@@ -309,10 +309,9 @@ class MPS:
                     "ij, ajc->aic", bond_tensor, self.tensors[current_orthogonality_center + 1]
                 )
         elif decomposition == "SVD":
-            A, B = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center+1]
+            A, B = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1]
             A_new, B_new = two_site_svd(A, B, threshold=1e-15, max_bond_dim=None)
-            self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center+1] = A_new, B_new
-
+            self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1] = A_new, B_new
 
     def shift_orthogonality_center_left(self, current_orthogonality_center: int, decomposition: str = "QR") -> None:
         """Shifts orthogonality center left.
@@ -384,20 +383,19 @@ class MPS:
 
         # ——— left­-to-­center sweep ———
         for i in range(orth_center):
-            a, b = self.tensors[i], self.tensors[i+1]
+            a, b = self.tensors[i], self.tensors[i + 1]
             a_new, b_new = two_site_svd(a, b, threshold, max_bond_dim)
-            self.tensors[i],   self.tensors[i+1] = a_new, b_new
+            self.tensors[i], self.tensors[i + 1] = a_new, b_new
 
         # flip the network and sweep back
         self.flip_network()
         orth_flipped = self.length - 1 - orth_center
         for i in range(orth_flipped):
-            a, b = self.tensors[i], self.tensors[i+1]
+            a, b = self.tensors[i], self.tensors[i + 1]
             a_new, b_new = two_site_svd(a, b, threshold, max_bond_dim)
-            self.tensors[i],   self.tensors[i+1] = a_new, b_new
+            self.tensors[i], self.tensors[i + 1] = a_new, b_new
 
         self.flip_network()
-
 
     def scalar_product(self, other: MPS, sites: int | list[int] | None = None) -> np.complex128:
         """Compute the scalar (inner) product between two Matrix Product States (MPS).
@@ -694,14 +692,14 @@ class MPS:
 
         mixed_truth = [False for _ in range(self.length)]
         for i in range(self.length):
-            if all(a_truth[:i]) and all(b_truth[i+1:]):
+            if all(a_truth[:i]) and all(b_truth[i + 1:]):
                 mixed_truth[i] = True
 
         sites = []
         for i, val in enumerate(mixed_truth):
             if val:
                 sites.append(i)
-    
+
         return sites
 
     def to_vec(self) -> NDArray[np.complex128]:

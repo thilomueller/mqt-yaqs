@@ -1,10 +1,12 @@
-from qiskit.circuit import QuantumCircuit
-import numpy as np
-from helper import state_vector_simulator, tebd_simulator, tdvp_simulator
+from __future__ import annotations
+
 import copy
 import time
 
-from mqt.yaqs.core.libraries.circuit_library import create_heisenberg_circuit, create_ising_circuit
+import numpy as np
+from helper import state_vector_simulator, tdvp_simulator, tebd_simulator
+from qiskit.circuit import QuantumCircuit
+
 
 def create_long_range_circuit(num_qubits):
     # Create a circuit with the specified number of qubits
@@ -23,13 +25,12 @@ def create_long_range_circuit(num_qubits):
     return qc
 
 
-def test_rxx():
+def test_rxx() -> None:
     threshold = 0
     max_bond = 2**16
 
     pad = 2
     for num_qubits in range(4, 21):
-        print("L:", num_qubits)
 
         # circ = create_heisenberg_circuit(num_qubits, 1, 1, 1, 0.1, 0.1, 10)
         # circ = create_heisenberg_circuit(num_qubits, 1, 1, 1, 0.1, 0.1, 10)
@@ -37,16 +38,14 @@ def test_rxx():
         circ2 = copy.deepcopy(circ)
         circ2.save_statevector()
         exact_result = state_vector_simulator(circ2)
-        start_time = time.time()
-        mps, tdvp_result = tdvp_simulator(circ, max_bond, threshold, pad)
+        time.time()
+        _mps, tdvp_result = tdvp_simulator(circ, max_bond, threshold, pad)
 
-        print("TDVP time:", time.time() - start_time)
-        start_time = time.time()
+        time.time()
         tebd_result = tebd_simulator(circ2, max_bond, threshold)
-        print("TEBD time:", time.time() - start_time)
-        tebd_error = np.abs(1-np.abs(np.vdot(exact_result, tebd_result))**2)
-        tdvp_error = np.abs(1-np.abs(np.vdot(exact_result, tdvp_result))**2)
-        print(tebd_error, tdvp_error)
+        np.abs(1 - np.abs(np.vdot(exact_result, tebd_result))**2)
+        np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result))**2)
+
 
 if __name__ == "__main__":
     test_rxx()

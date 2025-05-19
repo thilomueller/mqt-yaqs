@@ -702,7 +702,7 @@ def test_check_canonical_form_full() -> None:
     tensors = [delta_left, delta_mid, delta_right]
     mps = MPS(length=3, tensors=tensors)
     res = mps.check_canonical_form()
-    assert [0, 1, 2] == res
+    assert res == [0, 1, 2]
 
 
 def test_convert_to_vector() -> None:
@@ -911,8 +911,8 @@ def test_truncate_reduces_bond_dimensions_and_truncates() -> None:
 
     # check validity and that every bond dim <= 3
     mps.check_if_valid_mps()
-    for tensor in mps.tensors:
-        print(tensor.shape)
+    for _tensor in mps.tensors:
+        pass
     for T in mps.tensors:
         _, bond_left, bond_right = T.shape
         assert bond_left <= 3

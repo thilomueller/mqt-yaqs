@@ -198,6 +198,7 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
     for i in range(window[0], window[1] + 1):
         state.tensors[i] = short_state.tensors[i - window[0]]
 
+
 def circuit_tjm(
     args: tuple[int, MPS, NoiseModel | None, StrongSimParams | WeakSimParams, QuantumCircuit],
 ) -> NDArray[np.float64]:
@@ -240,7 +241,7 @@ def circuit_tjm(
                     state = stochastic_process(state, noise_model, dt=1)
                 else:
                     # Normalizes state
-                    state.normalize(form='B', decomposition='QR')
+                    state.normalize(form="B", decomposition="QR")
 
                 dag.remove_op_node(node)
 
