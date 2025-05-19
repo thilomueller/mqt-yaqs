@@ -15,7 +15,7 @@ for standard gates. The GateLibrary class aggregates all these gate classes for 
 
 from __future__ import annotations
 
-from typing import overload, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -184,9 +184,8 @@ class BaseGate:
 
         # enforce the right number of sites
         if len(sites_list) != self.interaction:
-            raise ValueError(
-                f"Number of sites {len(sites_list)} must equal interaction level {self.interaction}"
-            )
+            msg = f"Number of sites {len(sites_list)} must equal interaction level {self.interaction}"
+            raise ValueError(msg)
 
         # store as the proper type
         self.sites = sites_list
@@ -918,7 +917,6 @@ class CZ(BaseGate):
             else:
                 sites_list.extend(s)
 
-
         if len(sites_list) != self.interaction:
             msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
             raise ValueError(msg)
@@ -1103,6 +1101,7 @@ class Rzz(BaseGate):
         super().__init__(mat)
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[1, 0], [0, -1]]), np.array([[1, 0], [0, -1]])]
+
 
 class XX(BaseGate):
     """Class representing an XX operation. Used for two-site correlators.
