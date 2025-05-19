@@ -456,7 +456,7 @@ class MPS:
         if isinstance(sites, int) or (isinstance(sites, list) and len(sites) == 1):
             if isinstance(sites, int):
                 i = sites
-            elif (isinstance(sites, list[int]) and len(sites) == 1):
+            elif (isinstance(sites, list) and len(sites) == 1):
                 i = sites[0]
             A = a_copy.tensors[i]
             B = b_copy.tensors[i]
@@ -502,10 +502,9 @@ class MPS:
         temp_state = copy.deepcopy(self)
         if operator.interaction == 1: # Local observable
             i = sites[0]
-            assert operator.sites[0] == i
-
+            assert operator.sites[0] == i, f"Operator sites mismatch {operator.sites[0]}, {i}"
             A = temp_state.tensors[i]
-            temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator, A)
+            temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.matrix, A)
         elif operator.interaction == 2: # Two-site correlator
             i, j = sites
             assert operator.sites[0] == i and operator.sites[1] == j, "Observable sites must be in ascending order."
@@ -554,12 +553,22 @@ class MPS:
         Returns:
         np.float64: The real part of the expectation value of the observable.
         """
-        assert len(observable.sites) < 3, "Only one- and two-site observables are currently implemented."
-        for site in observable.sites:
-            assert site in range(self.length), "Observable acting on non-existing site."
- 
+        if isinstance(observable.sites, int):
+            sites_list = [observable.sites]
+        elif isinstance(observable.sites, list):
+            sites_list = observable.sites
+        else:
+            raise TypeError(f"Invalid type for sites: {type(observable.sites)}")
+
+        assert len(sites_list) < 3, \
+            "Only one- and two-site observables are currently implemented."
+
+        for s in sites_list:
+            assert s in range(self.length), \
+                f"Observable acting on non-existing site: {s}"
+    
         # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expval(observable.gate, observable.sites)
+        exp = self.local_expval(observable.gate, sites_list)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
