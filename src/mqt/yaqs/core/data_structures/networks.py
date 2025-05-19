@@ -439,10 +439,10 @@ class MPS:
             # squeeze down to scalar
             return np.complex128(np.squeeze(result))
 
-        if isinstance(sites, int) or (isinstance(sites, list) and len(sites) == 1):
+        if isinstance(sites, int) or len(sites) == 1:
             if isinstance(sites, int):
                 i = sites
-            elif (isinstance(sites, list) and len(sites) == 1):
+            elif len(sites) == 1:
                 i = sites[0]
             A = a_copy.tensors[i]
             B = b_copy.tensors[i]
@@ -450,7 +450,7 @@ class MPS:
             val = oe.contract("ijk,ijk->", A, B)
             return np.complex128(val)
 
-        if isinstance(sites, list) and len(sites) == 2:
+        if len(sites) == 2:
             i, j = sites
             assert j == i + 1, "Only nearest-neighbor two-site overlaps supported."
 
@@ -495,6 +495,7 @@ class MPS:
             A = temp_state.tensors[i]
             temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.matrix, A)
         elif operator.interaction == 2: # Two-site correlator
+            assert isinstance(sites, list)
             i, j = sites
             assert operator.sites[0] == i and operator.sites[1] == j, "Observable sites must be in ascending order."
             assert operator.sites[1] - operator.sites[0] == 1, "Only nearest-neighbor observables are currently implemented."
