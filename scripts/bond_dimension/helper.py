@@ -1,3 +1,10 @@
+# Copyright (c) 2025 Chair for Design Automation, TUM
+# All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+#
+# Licensed under the MIT License
+
 from __future__ import annotations
 
 import copy
@@ -34,7 +41,7 @@ def tebd_simulator(circ, max_bond, threshold, initial_state=None):
     sim = AerSimulator(
         method="matrix_product_state",
         matrix_product_state_max_bond_dimension=max_bond,
-        matrix_product_state_truncation_threshold=threshold
+        matrix_product_state_truncation_threshold=threshold,
     )
     tcirc = transpile(circ2, sim)
 
@@ -173,14 +180,9 @@ def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresho
     return results
 
 
-def plot_bond_heatmaps(results,
-                       bond_dim,
-                       threshold,
-                       method1="TEBD",
-                       method2="TDVP",
-                       cmap="plasma_r",
-                       log_scale=False,
-                       figsize=(12, 5)) -> None:
+def plot_bond_heatmaps(
+    results, bond_dim, threshold, method1="TEBD", method2="TDVP", cmap="plasma_r", log_scale=False, figsize=(12, 5)
+) -> None:
     """Plot two heatmaps of bond dimensions over circuit layers:
       1) method1
       2) method2 with an inset showing total bond dimension over steps.
@@ -189,13 +191,13 @@ def plot_bond_heatmaps(results,
     ----------
     results : dict
         Dict with two keys (e.g. 'TEBD', 'TDVP'), each mapping to a list of
-        tuples (depth, thr, bd, infid, err, bonds_list).
+        tuples (depth, the, bd, infid, err, bonds_list).
     bond_dim : int
         The maximum bond‐dim (bd) used in the run; filters results to only
         entries with this bd.
     threshold : float
-        The threshold (thr) used in the run; filters results to only
-        entries with this thr.
+        The threshold (the) used in the run; filters results to only
+        entries with this the.
     method1, method2 : str
         Keys in `results` to compare.
     cmap : str
@@ -205,6 +207,7 @@ def plot_bond_heatmaps(results,
     figsize : tuple
         Figure size in inches (width, height).
     """
+
     def extract_matrix(method):
         filtered = [e for e in results[method] if e[1] == threshold and e[2] == bond_dim]
         filtered.sort(key=operator.itemgetter(0))
@@ -224,9 +227,7 @@ def plot_bond_heatmaps(results,
 
     # Panel 1: method1
     axes[0].imshow(
-        mat1, aspect="auto", origin="lower",
-        interpolation="nearest", cmap=cmap, vmin=vmin, vmax=vmax,
-        norm=norm
+        mat1, aspect="auto", origin="lower", interpolation="nearest", cmap=cmap, vmin=vmin, vmax=vmax, norm=norm
     )
     axes[0].set_title(method1)
     axes[0].set_xlabel("Bond index")
@@ -234,9 +235,7 @@ def plot_bond_heatmaps(results,
 
     # Panel 2: method2
     im2 = axes[1].imshow(
-        mat2, aspect="auto", origin="lower",
-        interpolation="nearest", cmap=cmap, vmin=vmin, vmax=vmax,
-        norm=norm
+        mat2, aspect="auto", origin="lower", interpolation="nearest", cmap=cmap, vmin=vmin, vmax=vmax, norm=norm
     )
     axes[1].set_title(method2)
     axes[1].set_xlabel("Bond index")

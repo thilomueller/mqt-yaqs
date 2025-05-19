@@ -1,3 +1,10 @@
+# Copyright (c) 2025 Chair for Design Automation, TUM
+# All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+#
+# Licensed under the MIT License
+
 from __future__ import annotations
 
 import copy
@@ -31,7 +38,6 @@ def test_rxx() -> None:
 
     pad = 2
     for num_qubits in range(4, 21):
-
         # circ = create_heisenberg_circuit(num_qubits, 1, 1, 1, 0.1, 0.1, 10)
         # circ = create_heisenberg_circuit(num_qubits, 1, 1, 1, 0.1, 0.1, 10)
         circ = create_long_range_circuit(num_qubits)
@@ -43,8 +49,8 @@ def test_rxx() -> None:
 
         time.time()
         tebd_result = tebd_simulator(circ2, max_bond, threshold)
-        np.abs(1 - np.abs(np.vdot(exact_result, tebd_result))**2)
-        np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result))**2)
+        np.abs(1 - np.abs(np.vdot(exact_result, tebd_result)) ** 2)
+        np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result)) ** 2)
 
 
 if __name__ == "__main__":

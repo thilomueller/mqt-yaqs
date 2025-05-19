@@ -1,3 +1,10 @@
+# Copyright (c) 2025 Chair for Design Automation, TUM
+# All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+#
+# Licensed under the MIT License
+
 from __future__ import annotations
 
 import copy
@@ -56,7 +63,7 @@ def tebd_simulator(circ, max_bond, threshold, initial_state):
     sim = AerSimulator(
         method="matrix_product_state",
         matrix_product_state_max_bond_dimension=max_bond,
-        matrix_product_state_truncation_threshold=threshold
+        matrix_product_state_truncation_threshold=threshold,
     )
     tcirc = transpile(circ2, sim)
 
@@ -110,8 +117,8 @@ def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bo
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_error = np.abs(1 - np.abs(np.vdot(exact_result, tebd_result))**2)
-                tdvp_error = np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result))**2)
+                tebd_error = np.abs(1 - np.abs(np.vdot(exact_result, tebd_result)) ** 2)
+                tdvp_error = np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result)) ** 2)
                 # Save the results
                 results["TEBD"].append((timesteps, threshold, max_bond, tebd_error))
                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_error))
@@ -143,8 +150,8 @@ def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, threshold
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv))**2)
-                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv))**2)
+                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
+                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
                 tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
 
@@ -179,8 +186,8 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv))**2)
-                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv))**2)
+                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
+                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
                 tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
 
@@ -212,8 +219,8 @@ def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, th
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_error = np.abs(1 - np.abs(np.vdot(exact_result, tebd_result))**2)
-                tdvp_error = np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result))**2)
+                tebd_error = np.abs(1 - np.abs(np.vdot(exact_result, tebd_result)) ** 2)
+                tdvp_error = np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result)) ** 2)
                 # Save the results
                 results["TEBD"].append((timesteps, threshold, max_bond, tebd_error))
                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_error))
@@ -245,8 +252,8 @@ def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresho
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv))**2)
-                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv))**2)
+                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
+                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
                 tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
 
@@ -277,27 +284,11 @@ def plot_error_vs_depth(results, bond_dims) -> None:
         for bond_dim in bond_dims:
             # Extract data for TEBD and TDVP
             if name == "infidelity":
-                tebd_data = [
-                    (depth, infid)
-                    for (depth, thr, bd, infid, err) in results["TEBD"]
-                    if bd == bond_dim
-                ]
-                tdvp_data = [
-                    (depth, infid)
-                    for (depth, thr, bd, infid, err) in results["TDVP"]
-                    if bd == bond_dim
-                ]
+                tebd_data = [(depth, infid) for (depth, the, bd, infid, err) in results["TEBD"] if bd == bond_dim]
+                tdvp_data = [(depth, infid) for (depth, the, bd, infid, err) in results["TDVP"] if bd == bond_dim]
             elif name == "error":
-                tebd_data = [
-                    (depth, err)
-                    for (depth, thr, bd, infid, err) in results["TEBD"]
-                    if bd == bond_dim
-                ]
-                tdvp_data = [
-                    (depth, err)
-                    for (depth, thr, bd, infid, err) in results["TDVP"]
-                    if bd == bond_dim
-                ]
+                tebd_data = [(depth, err) for (depth, the, bd, infid, err) in results["TEBD"] if bd == bond_dim]
+                tdvp_data = [(depth, err) for (depth, the, bd, infid, err) in results["TDVP"] if bd == bond_dim]
 
             # Sort by circuit depth
             tebd_data.sort(key=operator.itemgetter(0))
@@ -316,7 +307,7 @@ def plot_error_vs_depth(results, bond_dims) -> None:
                 label=f"TEBD, bond={bond_dim}" if i == 0 else "",
                 color=color_map[bond_dim],
                 marker=marker_map["TEBD"],
-                linestyle="--"
+                linestyle="--",
             )
             ax.plot(
                 tdvp_depths,
@@ -324,7 +315,7 @@ def plot_error_vs_depth(results, bond_dims) -> None:
                 label=f"TDVP, bond={bond_dim}" if i == 0 else "",
                 color=color_map[bond_dim],
                 marker=marker_map["TDVP"],
-                linestyle="-"
+                linestyle="-",
             )
 
             ratio_errors = [te / td for td, te in zip(tdvp_errors, tebd_errors)]
@@ -336,7 +327,7 @@ def plot_error_vs_depth(results, bond_dims) -> None:
                 label=f"bond={bond_dim}",
                 color=color_map[bond_dim],
                 marker=marker_map["TDVP"],
-                linestyle="-"
+                linestyle="-",
             )
             ax_inset.set_yscale("log")
 

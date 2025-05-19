@@ -309,9 +309,9 @@ class MPS:
                     "ij, ajc->aic", bond_tensor, self.tensors[current_orthogonality_center + 1]
                 )
         elif decomposition == "SVD":
-            A, B = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1]
-            A_new, B_new = two_site_svd(A, B, threshold=1e-15, max_bond_dim=None)
-            self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1] = A_new, B_new
+            a, b = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1]
+            a_new, b_new = two_site_svd(a, b, threshold=1e-15, max_bond_dim=None)
+            self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1] = a_new, b_new
 
     def shift_orthogonality_center_left(self, current_orthogonality_center: int, decomposition: str = "QR") -> None:
         """Shifts orthogonality center left.
@@ -676,7 +676,6 @@ class MPS:
         # We choose the rightmost index in case even that one fulfills the condition
         for i in range(self.length):
             mat = oe.contract("ijk, ijl->kl", a[i], b[i])
-            # mat[epsilon > mat] = 0
             test_identity = np.eye(mat.shape[0], dtype=complex)
             if np.allclose(mat, test_identity):
                 a_truth[i] = True
@@ -685,14 +684,13 @@ class MPS:
         # We choose the leftmost index in case even that one fulfills the condition
         for i in reversed(range(self.length)):
             mat = oe.contract("ijk, ilk->jl", b[i], a[i])
-            # mat[epsilon > mat] = 0
             test_identity = np.eye(mat.shape[0], dtype=complex)
             if np.allclose(mat, test_identity):
                 b_truth[i] = True
 
         mixed_truth = [False for _ in range(self.length)]
         for i in range(self.length):
-            if all(a_truth[:i]) and all(b_truth[i + 1:]):
+            if all(a_truth[:i]) and all(b_truth[i + 1 :]):
                 mixed_truth[i] = True
 
         sites = []
