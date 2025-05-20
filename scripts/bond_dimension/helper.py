@@ -58,8 +58,8 @@ def tdvp_simulator(circ, max_bond, threshold, min_bond, initial_state=None):
     measurements = [Observable(Z(), circ.num_qubits // 2)]
     sim_params = StrongSimParams(measurements, max_bond_dim=max_bond, min_bond_dim=min_bond, get_state=True)
 
-    circ_flipped = copy.deepcopy(circ).reverse_bits()
-    simulator.run(initial_state, circ_flipped, sim_params, noise_model=None)
+    # circ_flipped = copy.deepcopy(circ).reverse_bits()
+    simulator.run(initial_state, circ, sim_params, noise_model=None)
     mps = sim_params.output_state
 
 
