@@ -2,6 +2,7 @@ import pickle
 
 from scripts.trotter.correlator_utils import generate_heisenberg_error_data, generate_periodic_heisenberg_error_data, generate_2d_ising_error_data
 
+
 def run_correlator_test():
     # General Heisenberg parameters
     J = 1
