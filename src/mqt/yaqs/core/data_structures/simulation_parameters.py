@@ -249,6 +249,7 @@ class WeakSimParams:
         self,
         shots: int,
         max_bond_dim: int = 2,
+        min_bond_dim: int = 2,
         threshold: float = 1e-6,
         window_size: int | None = 0,
         *,
@@ -264,6 +265,8 @@ class WeakSimParams:
             Number of measurement shots to simulate.
         max_bond_dim : int, optional
             Maximum bond dimension for simulation, by default 2.
+        min_bond_dim:
+            The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
         threshold : float, optional
             Accuracy threshold for truncating tensors, by default 1e-6.
         window_size : int or None, optional
@@ -274,6 +277,7 @@ class WeakSimParams:
         self.measurements: list[dict[int, int] | None] = [None] * shots
         self.shots = shots
         self.max_bond_dim = max_bond_dim
+        self.min_bond_dim = min_bond_dim
         self.threshold = threshold
         self.window_size = window_size
         self.get_state = get_state
@@ -323,6 +327,8 @@ class StrongSimParams:
         The number of trajectories to simulate. Default is 1000.
     max_bond_dim : int
         The maximum bond dimension for the simulation. Default is 2.
+    min_bond_dim:
+        The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
     threshold : float
         The threshold value for the simulation. Default is 1e-6.
     window_size : int or None
@@ -348,6 +354,7 @@ class StrongSimParams:
         observables: list[Observable],
         num_traj: int = 1000,
         max_bond_dim: int = 2,
+        min_bond_dim: int = 2,
         threshold: float = 1e-6,
         window_size: int | None = 0,
         *,
@@ -378,6 +385,7 @@ class StrongSimParams:
         )
         self.num_traj = num_traj
         self.max_bond_dim = max_bond_dim
+        self.min_bond_dim = min_bond_dim
         self.threshold = threshold
         self.window_size = window_size
         self.get_state = get_state

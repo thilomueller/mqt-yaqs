@@ -51,20 +51,23 @@ def tebd_simulator(circ, max_bond, threshold, initial_state=None):
     return mps, bonds
 
 
-def tdvp_simulator(circ, max_bond, threshold, pad, initial_state=None):
+def tdvp_simulator(circ, max_bond, threshold, min_bond, initial_state=None):
     if initial_state is None:
         initial_state = MPS(length=circ.num_qubits)
-        initial_state.pad_bond_dimension(pad)
+
     measurements = [Observable(Z(), circ.num_qubits // 2)]
-    sim_params = StrongSimParams(measurements, num_traj=1, max_bond_dim=max_bond, threshold=threshold, get_state=True)
-    simulator.run(initial_state, circ, sim_params, noise_model=None)
+    sim_params = StrongSimParams(measurements, max_bond_dim=max_bond, min_bond_dim=min_bond, get_state=True)
+
+    circ_flipped = copy.deepcopy(circ).reverse_bits()
+    simulator.run(initial_state, circ_flipped, sim_params, noise_model=None)
     mps = sim_params.output_state
+
 
     bonds = [tensor.shape[1] for tensor in mps.tensors[1::]]
     return mps, bonds
 
 
-def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {"TEBD": [], "TDVP": []}
     for max_bond in max_bonds:
@@ -78,7 +81,7 @@ def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bo
                     delta_timesteps = timesteps - timesteps_list[i - 1]
                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps)
                 # Run both simulators
-                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
                 mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Save the results
@@ -87,7 +90,7 @@ def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bo
     return results
 
 
-def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {"TEBD": [], "TDVP": []}
     for max_bond in max_bonds:
@@ -102,7 +105,7 @@ def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, threshold
                     delta_timesteps = timesteps - timesteps_list[i - 1]
                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps, periodic=True)
                 # Run both simulators
-                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
                 mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Save the results
@@ -111,7 +114,7 @@ def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, threshold
     return results
 
 
-def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {"TEBD": [], "TDVP": []}
     for max_bond in max_bonds:
@@ -127,7 +130,7 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
                 circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps)
 
                 # Run both simulators
-                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
                 mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Save the results
@@ -135,7 +138,7 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_bonds))
     return results
 
-def generate_periodic_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_periodic_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {"TEBD": [], "TDVP": []}
     for max_bond in max_bonds:
@@ -151,7 +154,7 @@ def generate_periodic_heisenberg_observable_data(num_qubits, J, h, dt, pad, thre
                 circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps, periodic=True)
 
                 # Run both simulators
-                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
                 mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Save the results
@@ -160,7 +163,7 @@ def generate_periodic_heisenberg_observable_data(num_qubits, J, h, dt, pad, thre
     return results
 
 
-def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {"TEBD": [], "TDVP": []}
     for max_bond in max_bonds:
@@ -174,7 +177,7 @@ def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, th
                     delta_timesteps = timesteps - timesteps_list[i - 1]
                 circ = create_2d_heisenberg_circuit(num_rows, num_cols, J, J, J, h, dt, delta_timesteps)
                 # Run both simulators
-                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
                 mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Save the results
@@ -183,7 +186,7 @@ def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, th
     return results
 
 
-def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresholds, max_bonds, timesteps_list):
+def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
     results = {"TEBD": [], "TDVP": []}
     for max_bond in max_bonds:
@@ -198,7 +201,7 @@ def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresho
                     delta_timesteps = timesteps - timesteps_list[i - 1]
                 circ = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, delta_timesteps)
                 # Run both simulators
-                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
                 mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Save the results
