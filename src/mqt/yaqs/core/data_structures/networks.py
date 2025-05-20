@@ -436,7 +436,7 @@ class MPS:
             a = a_copy.tensors[i]
             b = b_copy.tensors[i]
             # sum over all three legs (p,l,r):
-            val = oe.contract("ijk,ijk->", a, b)
+            val = oe.contract("ijk,ijk", a, b)
             return np.complex128(val)
 
         if len(sites) == 2:
@@ -444,12 +444,15 @@ class MPS:
             assert j == i + 1, "Only nearest-neighbor two-site overlaps supported."
 
             a_1 = a_copy.tensors[i]  # (p_i, l_i, r_i)
-            b_1 = b_copy.tensors[i]  # (p_i, l_i, r'_i)
-            a_2 = a_copy.tensors[j]  # (p_j, l_j=r_i, r_j)
+            a_2 = b_copy.tensors[i]  # (p_i, l_i, r'_i)
+            b_1 = a_copy.tensors[j]  # (p_j, l_j=r_i, r_j)
             b_2 = b_copy.tensors[j]  # (p_j, l'_j=r'_i, r_j)
 
-            # Contraction: a_1(a,b,c), a_2(e,c,f), b_1(a,b,d), b_2(e,d,f)
-            val = oe.contract("abc,and,ecf,edf->", a_1, a_2, b_1, b_2)
+            # contract all four:
+            #   - A1(a,b,c), A2(a,b,d)
+            #   - B1(e,c,f), B2(e,d,f)
+            val = oe.contract("abc,abd,ecf,edf->",
+                              a_1, a_2, b_1, b_2)
             return np.complex128(val)
 
         msg = f"Invalid `sites` argument: {sites!r}"

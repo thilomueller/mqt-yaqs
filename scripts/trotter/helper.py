@@ -33,7 +33,7 @@ def _mid_z_operator(num_qubits):
     mid = num_qubits // 2
     label = ["I"] * num_qubits
     label[mid] = "X"
-    label[mid + 1] = "X"
+    label[mid+1] = "X"
     return SparsePauliOp("".join(label))
 
 
@@ -52,7 +52,7 @@ def state_vector_simulator(circ):
 
 
 def tebd_simulator(circ, max_bond, threshold, initial_state):
-    threshold = 1e-15
+    threshold = 1e-13
     # Save MPS snapshot into the circuit
     circ2 = copy.deepcopy(circ)
     circ2.clear()
@@ -104,24 +104,30 @@ def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bo
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
+                    mps_qiskit = None
                 else:
                     delta_timesteps = timesteps - timesteps_list[i - 1]
                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps)
-                circ2 = create_ising_circuit(num_qubits, J, g, dt, timesteps)
+                circ2 = copy.deepcopy(circ)
                 circ2.save_statevector()
-                exact_result = state_vector_simulator(circ2)
+                circ_sv = create_ising_circuit(num_qubits, J, g, dt, timesteps)
+                circ_sv.save_statevector()
+                exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
 
                 # Run both simulators
-                mps, tdvp_result = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
-                tebd_result = tebd_simulator(circ2, max_bond, threshold)
+                mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
 
                 # Compute the absolute error relative to the exact solution
                 # Second absolute is to stop numerical errors in squaring small floats
-                tebd_error = np.abs(1 - np.abs(np.vdot(exact_result, tebd_result)) ** 2)
-                tdvp_error = np.abs(1 - np.abs(np.vdot(exact_result, tdvp_result)) ** 2)
+                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
+                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
+                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
+                tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
+
                 # Save the results
-                results["TEBD"].append((timesteps, threshold, max_bond, tebd_error))
-                results["TDVP"].append((timesteps, threshold, max_bond, tdvp_error))
+                results["TEBD"].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
+                results["TDVP"].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
 
 
@@ -196,6 +202,41 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
     return results
 
+
+def generate_periodic_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+    # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
+    results = {"TEBD": [], "TDVP": []}
+    for max_bond in max_bonds:
+        for threshold in thresholds:
+            for i, timesteps in enumerate(timesteps_list):
+                if i == 0:
+                    delta_timesteps = timesteps
+                    mps = None
+                    mps_qiskit = None
+                else:
+                    delta_timesteps = timesteps - timesteps_list[i - 1]
+                circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps, periodic=True)
+                circ2 = copy.deepcopy(circ)
+                circ2.save_statevector()
+                circ_sv = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps, periodic=True)
+                circ_sv.save_statevector()
+                exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
+
+                # Run both simulators
+                mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
+
+                # Compute the absolute error relative to the exact solution
+                # Second absolute is to stop numerical errors in squaring small floats
+                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
+                tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
+                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
+                tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
+
+                # Save the results
+                results["TEBD"].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
+                results["TDVP"].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
+    return results
 
 def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }

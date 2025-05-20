@@ -94,7 +94,7 @@ def split_mps_tensor(
         min_keep = min(len(s_vec), 16)  # Prevents pathological dimension-1 truncation
         for idx, s in enumerate(reversed(s_vec)):
             discard += s**2
-            if discard >= 1e-15:
+            if discard >= 1e-13:
                 keep = max(len(s_vec) - idx, min_keep)
                 break
         if sim_params.max_bond_dim is not None:

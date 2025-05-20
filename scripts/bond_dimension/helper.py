@@ -30,7 +30,7 @@ from mqt.yaqs.core.libraries.gate_library import Z
 
 
 def tebd_simulator(circ, max_bond, threshold, initial_state=None):
-    threshold = 1e-15
+    threshold = 1e-13
     circ2 = copy.deepcopy(circ)
     circ2.clear()
     if initial_state is not None:
@@ -93,6 +93,7 @@ def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, threshold
     for max_bond in max_bonds:
         for threshold in thresholds:
             for i, timesteps in enumerate(timesteps_list):
+                print("Timesteps", timesteps)
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
@@ -116,6 +117,7 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
     for max_bond in max_bonds:
         for threshold in thresholds:
             for i, timesteps in enumerate(timesteps_list):
+                print("Timesteps", timesteps)
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
@@ -123,6 +125,30 @@ def generate_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, m
                 else:
                     delta_timesteps = timesteps - timesteps_list[i - 1]
                 circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps)
+
+                # Run both simulators
+                mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
+                mps_qiskit, tebd_bonds = tebd_simulator(circ, max_bond, threshold, initial_state=mps_qiskit)
+
+                # Save the results
+                results["TEBD"].append((timesteps, threshold, max_bond, tebd_bonds))
+                results["TDVP"].append((timesteps, threshold, max_bond, tdvp_bonds))
+    return results
+
+def generate_periodic_heisenberg_observable_data(num_qubits, J, h, dt, pad, thresholds, max_bonds, timesteps_list):
+    # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
+    results = {"TEBD": [], "TDVP": []}
+    for max_bond in max_bonds:
+        for threshold in thresholds:
+            for i, timesteps in enumerate(timesteps_list):
+                print("Timesteps", timesteps)
+                if i == 0:
+                    delta_timesteps = timesteps
+                    mps = None
+                    mps_qiskit = None
+                else:
+                    delta_timesteps = timesteps - timesteps_list[i - 1]
+                circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps, periodic=True)
 
                 # Run both simulators
                 mps, tdvp_bonds = tdvp_simulator(circ, max_bond, threshold, pad, initial_state=mps)
@@ -163,6 +189,7 @@ def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresho
     for max_bond in max_bonds:
         for threshold in thresholds:
             for i, timesteps in enumerate(timesteps_list):
+                print("Timesteps", timesteps)
                 if i == 0:
                     delta_timesteps = timesteps
                     mps = None
@@ -181,7 +208,7 @@ def generate_2d_ising_observable_data(num_rows, num_cols, J, g, dt, pad, thresho
 
 
 def plot_bond_heatmaps(
-    results, bond_dim, threshold, method1="TEBD", method2="TDVP", cmap="plasma_r", log_scale=False, figsize=(12, 5)
+    results, bond_dim, threshold, method1="TEBD", method2="TDVP", cmap="viridis", log_scale=False, figsize=(12, 5)
 ) -> None:
     """Plot two heatmaps of bond dimensions over circuit layers:
       1) method1
@@ -245,9 +272,10 @@ def plot_bond_heatmaps(
     cbar.set_label("Bond dimension")
 
     # Inset: total bond dimension over Trotter steps
-    total1 = np.sum(mat1**3, axis=1)
-    total2 = np.sum(mat2**3, axis=1)
+    total1 = np.sum(mat1, axis=1)
+    total2 = np.sum(mat2, axis=1)
     axins = inset_axes(axes[1], width="30%", height="30%", loc="lower right", borderpad=4)
+    print(total1 / total2)
     axins.plot(np.arange(len(total1)), total1 / total2)
     # axins.plot(np.arange(len(total2)), total2, label=method2)
     axins.set_ylabel("Runtime Ratio")
