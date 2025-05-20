@@ -459,7 +459,6 @@ class MPS:
             a_2 = a_copy.tensors[j]  # (p_j, l_j=r_i, r_j)
             b_2 = b_copy.tensors[j]  # (p_j, l'_j=r'_i, r_j)
 
-
             # Contraction: a_1(a,b,c), a_2(d,c,e), b_1(a,b,f), b_2(d,f,e)
             val = oe.contract("abc,dce,abf,dfe->", a_1, a_2, b_1, b_2)
             return np.complex128(val)
