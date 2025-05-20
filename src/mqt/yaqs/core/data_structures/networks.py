@@ -490,8 +490,13 @@ class MPS:
                 i = sites[0]
             elif isinstance(sites, int):
                 i = sites
+
+            if isinstance(operator.sites, list):
+                assert operator.sites[0] == i, f"Operator sites mismatch {operator.sites[0]}, {i}"
+            elif isinstance(operator.sites, int):
+                assert operator.sites == i, f"Operator sites mismatch {operator.sites}, {i}"
+
             assert i is not None, f"Invalid type for 'sites': expected int or list[int], got {type(sites).__name__}"
-            assert operator.sites == i, f"Operator sites mismatch {operator.sites}, {i}"
             a = temp_state.tensors[i]
             temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.gate.matrix, a)
 
