@@ -90,6 +90,8 @@ def test_physics_simulation_parallel_off() -> None:
     With PhysicsSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
     simulator.run is called. The test then verifies that for each observable the results and trajectories have been
     correctly initialized and that the measurement results are approximately as expected.
+
+    Additionally, this tests that single-site observables can be initialized with a list of a single int for usability.
     """
     length = 5
     initial_state = MPS(length, state="zeros")
@@ -104,7 +106,7 @@ def test_physics_simulation_parallel_off() -> None:
     threshold = 0
     order = 2
 
-    measurements = [Observable(Z(), site) for site in range(length)]
+    measurements = [Observable(Z(), [site]) for site in range(length)]
     sim_params = PhysicsSimParams(
         measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps
     )
