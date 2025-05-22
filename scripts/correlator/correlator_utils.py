@@ -150,6 +150,7 @@ def generate_periodic_heisenberg_error_data(num_qubits, J, h, dt, min_bonds, tim
                 delta_timesteps = timesteps
                 mps = None
                 mps_qiskit = None
+                exact_sv = None
             else:
                 delta_timesteps = timesteps - timesteps_list[i - 1]
             circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps, periodic=True)
@@ -187,13 +188,13 @@ def generate_2d_ising_error_data(num_rows, num_cols, J, g, dt, min_bonds, timest
                 delta_timesteps = timesteps
                 mps = None
                 mps_qiskit = None
+                exact_sv = None
             else:
                 delta_timesteps = timesteps - timesteps_list[i - 1]
             circ = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, delta_timesteps)
             circ_tebd = copy.deepcopy(circ)
             circ_tebd.save_statevector()
             circ_sv = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, timesteps)
-            circ_sv.save_statevector()
             circ_sv.save_statevector()
             exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
 
