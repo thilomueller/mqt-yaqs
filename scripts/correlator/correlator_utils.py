@@ -37,11 +37,18 @@ def _mid_z_operator(num_qubits):
     return SparsePauliOp("".join(label))
 
 
-def state_vector_simulator(circ):
+def state_vector_simulator(circ, initial_state=None):
     # Run statevector simulator
+    # circ2 = copy.deepcopy(circ)
+    # circ2.clear()
+    # if initial_state is not None:
+    #     circ2.set_initial_statevector(initial_state)
     sim = AerSimulator(method="statevector")
     tcirc = transpile(circ, sim)
-    result = sim.run(tcirc).result()
+    if initial_state is not None:
+        result = sim.run(tcirc, initial_statevector=initial_state).result()
+    else:
+        result = sim.run(tcirc).result()
     sv = Statevector(result.get_statevector(tcirc))
 
     # build Z_mid and compute expectation
@@ -105,17 +112,18 @@ def generate_heisenberg_error_data(num_qubits, J, h, dt, min_bonds, timesteps_li
                 delta_timesteps = timesteps
                 mps = None
                 mps_qiskit = None
+                exact_sv = None
             else:
                 delta_timesteps = timesteps - timesteps_list[i - 1]
             circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps)
-            circ2 = copy.deepcopy(circ)
-            circ2.save_statevector()
+            circ_tebd = copy.deepcopy(circ)
+            circ_tebd.save_statevector()
             circ_sv = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps)
             circ_sv.save_statevector()
-            exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
+            exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
 
             if j == 0:
-                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, initial_state=mps_qiskit)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ_tebd, initial_state=mps_qiskit)
                 tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
                 results["TEBD"].append((timesteps, tebd_infidelity, tebd_error))
@@ -145,14 +153,14 @@ def generate_periodic_heisenberg_error_data(num_qubits, J, h, dt, min_bonds, tim
             else:
                 delta_timesteps = timesteps - timesteps_list[i - 1]
             circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps, periodic=True)
-            circ2 = copy.deepcopy(circ)
-            circ2.save_statevector()
+            circ_tebd = copy.deepcopy(circ)
+            circ_tebd.save_statevector()
             circ_sv = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps, periodic=True)
             circ_sv.save_statevector()
-            exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
+            exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
 
             if j == 0:
-                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, initial_state=mps_qiskit)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ_tebd, initial_state=mps_qiskit)
                 tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
                 results["TEBD"].append((timesteps, tebd_infidelity, tebd_error))
@@ -182,14 +190,15 @@ def generate_2d_ising_error_data(num_rows, num_cols, J, g, dt, min_bonds, timest
             else:
                 delta_timesteps = timesteps - timesteps_list[i - 1]
             circ = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, delta_timesteps)
-            circ2 = copy.deepcopy(circ)
-            circ2.save_statevector()
+            circ_tebd = copy.deepcopy(circ)
+            circ_tebd.save_statevector()
             circ_sv = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, timesteps)
             circ_sv.save_statevector()
-            exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
+            circ_sv.save_statevector()
+            exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
 
             if j == 0:
-                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, initial_state=mps_qiskit)
+                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ_tebd, initial_state=mps_qiskit)
                 tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
                 results["TEBD"].append((timesteps, tebd_infidelity, tebd_error))

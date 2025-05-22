@@ -1,6 +1,6 @@
 import pickle
 
-from trotter.correlator_utils import generate_heisenberg_error_data, generate_periodic_heisenberg_error_data, generate_2d_ising_error_data
+from correlator.correlator_utils import generate_heisenberg_error_data, generate_periodic_heisenberg_error_data, generate_2d_ising_error_data
 
 
 def run_correlator_test():
@@ -8,7 +8,7 @@ def run_correlator_test():
     J = 1
     h = 1
     dt = 0.1
-    num_qubits = 16
+    num_qubits = 25
 
     min_bonds = [2, 4, 8, 16]
     timesteps_list = [*range(1, 21)]
