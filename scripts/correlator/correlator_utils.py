@@ -67,10 +67,11 @@ def tdvp(circ, min_bond, init=None):
     meas = [Observable(XX(), [circ.num_qubits//2, circ.num_qubits//2+1])]
     params = StrongSimParams(meas, max_bond_dim=2**(circ.num_qubits//2),
                              min_bond_dim=min_bond, get_state=True)
-    circ_flipped = copy.deepcopy(circ)
-    circ_flipped.reverse_bits()
-    simulator.run(init, circ_flipped, params, noise_model=None)
+    # circ_flipped = copy.deepcopy(circ)
+    # circ_flipped.reverse_bits()
+    simulator.run(init, circ, params, noise_model=None)
     mps_out = params.output_state
+
     return mps_out, mps_out.to_vec(), params.observables[0].results[0]
 
 def _infidelity(a, b):

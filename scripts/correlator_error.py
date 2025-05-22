@@ -39,8 +39,8 @@ def run_correlator_test():
     J = 1
     g = 1
     dt = 0.1
-    num_rows = 4
-    num_cols = 4
+    num_rows = 5
+    num_cols = 5
 
     print("2D Ising")
     results = generate_error_data(create_2d_ising_circuit, (num_rows, num_cols, J, g, dt),
