@@ -28,296 +28,114 @@ from mqt.yaqs.core.libraries.circuit_library import (
 from mqt.yaqs.core.libraries.gate_library import XX
 
 
-def _mid_z_operator(num_qubits):
-    """Helper to build a SparsePauliOp for Z on the middle qubit."""
-    mid = num_qubits // 2
-    label = ["I"] * num_qubits
-    label[mid] = "X"
-    label[mid+1] = "X"
+def _mid_z_operator(n):
+    """Z⊗Z on the middle bond (as an XX-string in SparsePauliOp)."""
+    m = n // 2
+    label = ["I"] * n
+    label[m] = label[m+1] = "X"
     return SparsePauliOp("".join(label))
 
-
-def state_vector_simulator(circ, initial_state=None):
-    # Run statevector simulator
-    # circ2 = copy.deepcopy(circ)
-    # circ2.clear()
-    # if initial_state is not None:
-    #     circ2.set_initial_statevector(initial_state)
-    sim = AerSimulator(method="statevector")
-    tcirc = transpile(circ, sim)
-    if initial_state is not None:
-        result = sim.run(tcirc, initial_statevector=initial_state).result()
-    else:
-        result = sim.run(tcirc).result()
-    sv = Statevector(result.get_statevector(tcirc))
-
-    # build Z_mid and compute expectation
-    z_mid = _mid_z_operator(tcirc.num_qubits)
-    exp_val = sv.expectation_value(z_mid).real
-
-    return sv, exp_val
-
-
-def tebd_simulator(circ, initial_state):
-    threshold = 1e-13
-    # Save MPS snapshot into the circuit
+def statevector_expectation(circ, init=None):
     circ2 = copy.deepcopy(circ)
-    circ2.clear()
-    if initial_state is not None:
-        circ2.set_matrix_product_state(initial_state)
-    circ2.append(circ, range(circ.num_qubits))
-    circ2.save_matrix_product_state(label="final_mps")
+    circ2.save_statevector()
+    sim = AerSimulator(method="statevector")
+    tc = transpile(circ2, sim)
+    res = sim.run(tc, initial_statevector=init).result() if init is not None else sim.run(tc).result()
+    sv = Statevector(res.get_statevector(tc))
+    return sv, sv.expectation_value(_mid_z_operator(tc.num_qubits)).real
+
+def tebd(circ, init=None, bond_dim=None, thresh=1e-13):
+    circ2 = copy.deepcopy(circ); circ2.clear()
+    if init is not None:
+        circ2.set_matrix_product_state(init)
+    circ2.append(circ, list(range(circ.num_qubits)))
+    circ2.save_matrix_product_state(label="mps")
+    circ2.save_statevector()
     sim = AerSimulator(
         method="matrix_product_state",
-        matrix_product_state_max_bond_dimension=2**(circ.num_qubits//2),
-        matrix_product_state_truncation_threshold=threshold,
+        matrix_product_state_max_bond_dimension=bond_dim,
+        matrix_product_state_truncation_threshold=thresh,
     )
-    tcirc = transpile(circ2, sim)
+    tc = transpile(circ2, sim)
+    r = sim.run(tc).result()
+    sv = Statevector(r.get_statevector(tc))
+    return r.data(0)["mps"], sv, sv.expectation_value(_mid_z_operator(circ.num_qubits)).real
 
-    result = sim.run(tcirc).result()
+def tdvp(circ, min_bond, init=None):
+    if init == None:
+        init = MPS(length=circ.num_qubits)
+    meas = [Observable(XX(), [circ.num_qubits//2, circ.num_qubits//2+1])]
+    params = StrongSimParams(meas, max_bond_dim=2**(circ.num_qubits//2),
+                             min_bond_dim=min_bond, get_state=True)
+    circ_flipped = copy.deepcopy(circ)
+    circ_flipped.reverse_bits()
+    simulator.run(init, circ_flipped, params, noise_model=None)
+    mps_out = params.output_state
+    return mps_out, mps_out.to_vec(), params.observables[0].results[0]
 
-    state_vector = result.get_statevector(tcirc)
-    mps = result.data(0)["final_mps"]
-    [lam[0].shape[0] for lam in mps[0][1::]]
+def _infidelity(a, b):
+    return np.abs(1 - np.abs(np.vdot(a, b))**2)
 
-    sv = Statevector(state_vector)
-    z_mid = _mid_z_operator(circ.num_qubits)
-    exp_val = sv.expectation_value(z_mid).real
-    return mps, sv, exp_val
+def generate_error_data(make_circ, make_args, *,
+                        min_bonds, timesteps, periodic=False):
+    """
+    Generic driver to compute TEBD/TDVP errors vs. an incrementally
+    updated exact statevector.
 
-
-def tdvp_simulator(circ, min_bond, initial_state=None):
-    if initial_state is None:
-        initial_state = MPS(length=circ.num_qubits)
-
-    measurements = [Observable(XX(), [circ.num_qubits // 2, circ.num_qubits // 2 + 1])]
-    sim_params = StrongSimParams(measurements, max_bond_dim=2**(circ.num_qubits//2), min_bond_dim=min_bond, get_state=True)
-
-    simulator.run(initial_state, circ, sim_params, noise_model=None)
-    mps = sim_params.output_state
-
-    sv = mps.to_vec()
-    exp_val = sim_params.observables[0].results[0]
-    return mps, sv, exp_val
-
-
-
-def generate_heisenberg_error_data(num_qubits, J, h, dt, min_bonds, timesteps_list):
-    # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
+    make_circ(*make_args, dt, nsteps, periodic=...) -> QuantumCircuit
+    """
     results = {"TEBD": [], "TDVP": []}
-    for j, min_bond_dim in enumerate(min_bonds):
-        for i, timesteps in enumerate(timesteps_list):
-            print("Timesteps", timesteps)
-            if i == 0:
-                delta_timesteps = timesteps
-                mps = None
-                mps_qiskit = None
-                exact_sv = None
-            else:
-                delta_timesteps = timesteps - timesteps_list[i - 1]
-            circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps)
-            circ_tebd = copy.deepcopy(circ)
-            circ_tebd.save_statevector()
-            circ_sv = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps)
-            circ_sv.save_statevector()
-            exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
+    exact_sv = None
+    exact_exp = None
+    mps_tebd = None
+    mps_tdvp = None
 
+    exact_svs = []
+    exact_exp_vals = []
+    for j, mb in enumerate(min_bonds):
+        print("Min bond dim", mb)
+        for i, ts in enumerate(timesteps):
+            print("  Timesteps =", ts)
+            delta_ts = ts - (timesteps[i-1] if i else 0)
+
+            # 1) build the small-step circuit
+            circ_full = make_circ(*make_args, ts, periodic=periodic)
+            circ_step = make_circ(*make_args, delta_ts, periodic=periodic)
+
+            # 2) only on the first bond-dimension do we advance the exact SV
             if j == 0:
-                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ_tebd, initial_state=mps_qiskit)
-                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
-                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
-                results["TEBD"].append((timesteps, tebd_infidelity, tebd_error))
+                exact_sv, exact_exp = statevector_expectation(circ_full, init=exact_sv)
+                exact_svs.append(exact_sv)
+                exact_exp_vals.append(exact_exp)
+                mps_tebd, sv_tebd, exp_tebd = tebd(
+                    circ_step,
+                    init=mps_tebd,
+                    bond_dim=2**(circ_step.num_qubits // 2)
+                )
+                results["TEBD"].append((
+                    ts,
+                    _infidelity(exact_sv, sv_tebd),
+                    abs(exact_exp - exp_tebd)
+                ))
 
-            mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, min_bond_dim, initial_state=mps)
-
-            # Compute the absolute error relative to the exact solution
-            # Second absolute is to stop numerical errors in squaring small floats
-            tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
-            tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
-
-            # Save the results
-            results["TDVP"].append((min_bond_dim, timesteps, tdvp_infidelity, tdvp_error))
-    return results
-
-
-def generate_periodic_heisenberg_error_data(num_qubits, J, h, dt, min_bonds, timesteps_list):
-    # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
-    results = {"TEBD": [], "TDVP": []}
-    for j, min_bond_dim in enumerate(min_bonds):
-        for i, timesteps in enumerate(timesteps_list):
-            print("Timesteps", timesteps)
+            # 3) reset TDVP MPS at the start of each timestep sweep
             if i == 0:
-                delta_timesteps = timesteps
-                mps = None
-                mps_qiskit = None
-                exact_sv = None
-            else:
-                delta_timesteps = timesteps - timesteps_list[i - 1]
-            circ = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, delta_timesteps, periodic=True)
-            circ_tebd = copy.deepcopy(circ)
-            circ_tebd.save_statevector()
-            circ_sv = create_heisenberg_circuit(num_qubits, J, J, J, h, dt, timesteps, periodic=True)
-            circ_sv.save_statevector()
-            exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
+                mps_tdvp = None
 
-            if j == 0:
-                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ_tebd, initial_state=mps_qiskit)
-                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
-                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
-                results["TEBD"].append((timesteps, tebd_infidelity, tebd_error))
+            # 4) run TDVP against the same small-step circuit
+            mps_tdvp, sv_tdvp, exp_tdvp = tdvp(
+                circ_step,
+                min_bond=mb,
+                init=mps_tdvp
+            )
+            results["TDVP"].append((
+                mb,
+                ts,
+                _infidelity(exact_svs[i], sv_tdvp),
+                abs(exact_exp_vals[i] - exp_tdvp)
+            ))
 
-            mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, min_bond_dim, initial_state=mps)
-
-            # Compute the absolute error relative to the exact solution
-            # Second absolute is to stop numerical errors in squaring small floats
-            tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
-            tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
-
-            # Save the results
-            results["TDVP"].append((min_bond_dim, timesteps, tdvp_infidelity, tdvp_error))
     return results
-
-
-def generate_2d_ising_error_data(num_rows, num_cols, J, g, dt, min_bonds, timesteps_list):
-    # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
-    results = {"TEBD": [], "TDVP": []}
-    for j, min_bond_dim in enumerate(min_bonds):
-        for i, timesteps in enumerate(timesteps_list):
-            print("Timesteps", timesteps)
-            if i == 0:
-                delta_timesteps = timesteps
-                mps = None
-                mps_qiskit = None
-                exact_sv = None
-            else:
-                delta_timesteps = timesteps - timesteps_list[i - 1]
-            circ = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, delta_timesteps)
-            circ_tebd = copy.deepcopy(circ)
-            circ_tebd.save_statevector()
-            circ_sv = create_2d_ising_circuit(num_rows, num_cols, J, g, dt, timesteps)
-            circ_sv.save_statevector()
-            exact_sv, exact_exp_val = state_vector_simulator(circ_sv, initial_state=exact_sv)
-
-            if j == 0:
-                mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ_tebd, initial_state=mps_qiskit)
-                tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
-                tebd_error = np.abs(exact_exp_val - tebd_exp_val)
-                results["TEBD"].append((timesteps, tebd_infidelity, tebd_error))
-
-            mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, min_bond_dim, initial_state=mps)
-
-            # Compute the absolute error relative to the exact solution
-            # Second absolute is to stop numerical errors in squaring small floats
-            tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
-            tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
-
-            # Save the results
-            results["TDVP"].append((min_bond_dim, timesteps, tdvp_infidelity, tdvp_error))
-    return results
-
-# def generate_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
-#     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
-#     results = {"TEBD": [], "TDVP": []}
-#     for max_bond in max_bonds:
-#         for threshold in thresholds:
-#             for i, timesteps in enumerate(timesteps_list):
-#                 if i == 0:
-#                     delta_timesteps = timesteps
-#                     mps = None
-#                     mps_qiskit = None
-#                 else:
-#                     delta_timesteps = timesteps - timesteps_list[i - 1]
-#                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps)
-#                 circ2 = copy.deepcopy(circ)
-#                 circ2.save_statevector()
-#                 circ_sv = create_ising_circuit(num_qubits, J, g, dt, timesteps)
-#                 circ_sv.save_statevector()
-#                 exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
-
-#                 # Run both simulators
-#                 mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
-#                 mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
-
-#                 # Compute the absolute error relative to the exact solution
-#                 # Second absolute is to stop numerical errors in squaring small floats
-#                 tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
-#                 tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
-#                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
-#                 tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
-
-#                 # Save the results
-#                 results["TEBD"].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
-#                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
-#     return results
-
-
-# def generate_periodic_ising_observable_data(num_qubits, J, g, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
-#     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
-#     results = {"TEBD": [], "TDVP": []}
-#     for max_bond in max_bonds:
-#         for threshold in thresholds:
-#             for i, timesteps in enumerate(timesteps_list):
-#                 if i == 0:
-#                     delta_timesteps = timesteps
-#                     mps = None
-#                     mps_qiskit = None
-#                 else:
-#                     delta_timesteps = timesteps - timesteps_list[i - 1]
-#                 circ = create_ising_circuit(num_qubits, J, g, dt, delta_timesteps, periodic=True)
-#                 circ2 = copy.deepcopy(circ)
-#                 circ2.save_statevector()
-#                 circ_sv = create_ising_circuit(num_qubits, J, g, dt, timesteps, periodic=True)
-#                 circ_sv.save_statevector()
-#                 exact_sv, exact_exp_val = state_vector_simulator(circ_sv)
-
-#                 # Run both simulators
-#                 mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
-#                 mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
-
-#                 # Compute the absolute error relative to the exact solution
-#                 # Second absolute is to stop numerical errors in squaring small floats
-#                 tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
-#                 tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
-#                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
-#                 tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
-
-#                 # Save the results
-#                 results["TEBD"].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
-#                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
-#     return results
-
-
-# def generate_2d_heisenberg_observable_data(num_rows, num_cols, J, h, dt, pad, thresholds, max_bonds, timesteps_list, min_bond_dim):
-#     # Format: { simulator: [ (timesteps, threshold, max_bond, error), ... ] }
-#     results = {"TEBD": [], "TDVP": []}
-#     for max_bond in max_bonds:
-#         for threshold in thresholds:
-#             for i, timesteps in enumerate(timesteps_list):
-#                 if i == 0:
-#                     delta_timesteps = timesteps
-#                     mps = None
-#                 else:
-#                     delta_timesteps = timesteps - timesteps_list[i - 1]
-#                 circ = create_2d_heisenberg_circuit(num_rows, num_cols, J, J, J, h, dt, delta_timesteps)
-#                 circ2 = create_2d_heisenberg_circuit(num_rows, num_cols, J, J, J, h, dt, timesteps)
-#                 circ2.save_statevector()
-#                 exact_result = state_vector_simulator(circ2)
-
-#                 # Run both simulators
-#                 mps, tdvp_sv, tdvp_exp_val = tdvp_simulator(circ, max_bond, threshold, min_bond_dim, initial_state=mps)
-#                 mps_qiskit, tebd_sv, tebd_exp_val = tebd_simulator(circ2, max_bond, threshold, initial_state=mps_qiskit)
-
-#                 # Compute the absolute error relative to the exact solution
-#                 # Second absolute is to stop numerical errors in squaring small floats
-#                 tebd_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tebd_sv)) ** 2)
-#                 tdvp_infidelity = np.abs(1 - np.abs(np.vdot(exact_sv, tdvp_sv)) ** 2)
-#                 tebd_error = np.abs(exact_exp_val - tebd_exp_val)
-#                 tdvp_error = np.abs(exact_exp_val - tdvp_exp_val)
-
-#                 # Save the results
-#                 results["TEBD"].append((timesteps, threshold, max_bond, tebd_infidelity, tebd_error))
-#                 results["TDVP"].append((timesteps, threshold, max_bond, tdvp_infidelity, tdvp_error))
-#     return results
 
 
 def plot_error_vs_depth(results, bond_dims) -> None:

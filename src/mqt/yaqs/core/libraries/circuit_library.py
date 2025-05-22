@@ -80,7 +80,7 @@ def create_ising_circuit(
 
 
 def create_2d_ising_circuit(
-    num_rows: int, num_cols: int, J: float, g: float, dt: float, timesteps: int
+    num_rows: int, num_cols: int, J: float, g: float, dt: float, timesteps: int, *, periodic: bool=False
 ) -> QuantumCircuit:
     """2D Ising Trotter circuit on a rectangular grid using a snaking MPS ordering.
 

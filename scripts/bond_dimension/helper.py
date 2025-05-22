@@ -26,8 +26,16 @@ from mqt.yaqs.core.libraries.circuit_library import (
     create_heisenberg_circuit,
     create_ising_circuit,
 )
-from mqt.yaqs.core.libraries.gate_library import Z
+from mqt.yaqs.core.libraries.gate_library import XX
+from qiskit.quantum_info import SparsePauliOp, Statevector
 
+def _mid_xx_operator(num_qubits):
+    """Helper to build a SparsePauliOp for Z on the middle qubit."""
+    mid = num_qubits // 2
+    label = ["I"] * num_qubits
+    label[mid] = "X"
+    label[mid+1] = "X"
+    return SparsePauliOp("".join(label))
 
 def tebd_simulator(circ, max_bond, threshold, initial_state=None):
     threshold = 1e-13
@@ -36,7 +44,10 @@ def tebd_simulator(circ, max_bond, threshold, initial_state=None):
     if initial_state is not None:
         circ2.set_matrix_product_state(initial_state)
     circ2.append(circ, range(circ.num_qubits))
-    circ2.save_matrix_product_state(label="final_mps")
+    circ2.save_matrix_product_state(label="final_mps")  
+    op_xx = _mid_xx_operator(circ.num_qubits)
+    mid = circ.num_qubits // 2
+    circ2.save_expectation_value(op_xx, [*range(circ.num_qubits)], label="exp_xx")
 
     sim = AerSimulator(
         method="matrix_product_state",
@@ -44,6 +55,10 @@ def tebd_simulator(circ, max_bond, threshold, initial_state=None):
         matrix_product_state_truncation_threshold=threshold,
     )
     tcirc = transpile(circ2, sim)
+
+    result = sim.run(tcirc).result()
+    exp_xx = result.data(0)["exp_xx"]  # already a real float
+    print("TEBD:", exp_xx)
 
     result = sim.run(tcirc).result()
     mps = result.data(0)["final_mps"]
@@ -55,13 +70,15 @@ def tdvp_simulator(circ, max_bond, threshold, min_bond, initial_state=None):
     if initial_state is None:
         initial_state = MPS(length=circ.num_qubits)
 
-    measurements = [Observable(Z(), circ.num_qubits // 2)]
+    measurements = [Observable(XX(), [circ.num_qubits // 2, circ.num_qubits//2+1])]
     sim_params = StrongSimParams(measurements, max_bond_dim=max_bond, min_bond_dim=min_bond, get_state=True)
 
     # circ_flipped = copy.deepcopy(circ).reverse_bits()
     simulator.run(initial_state, circ, sim_params, noise_model=None)
     mps = sim_params.output_state
 
+    exp_val = sim_params.observables[0].results[0]
+    print("TDVP:", exp_val)
 
     bonds = [tensor.shape[1] for tensor in mps.tensors[1::]]
     return mps, bonds
