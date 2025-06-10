@@ -9,10 +9,10 @@ def run_correlator_test():
     J = 1
     h = 1
     dt = 0.1
-    num_qubits = 25
+    num_qubits = 16
 
     min_bonds = [2, 4, 8, 16]
-    timesteps_list = [*range(1, 21)]
+    timesteps_list = [*range(1, 31)]
 
     # 1D Heisenberg model
     print("1D Heisenberg")
@@ -39,8 +39,8 @@ def run_correlator_test():
     J = 1
     g = 1
     dt = 0.1
-    num_rows = 5
-    num_cols = 5
+    num_rows = 4
+    num_cols = 4
 
     print("2D Ising")
     results = generate_error_data(create_2d_ising_circuit, (num_rows, num_cols, J, g, dt),
