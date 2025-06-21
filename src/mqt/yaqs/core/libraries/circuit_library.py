@@ -150,9 +150,8 @@ def create_2d_ising_circuit(
     return circ
 
 
-
 def create_heisenberg_circuit(
-    L: int, Jx: float, Jy: float, Jz: float, h: float, dt: float, timesteps: int, *, periodic: bool=True
+    L: int, Jx: float, Jy: float, Jz: float, h: float, dt: float, timesteps: int, *, periodic: bool = True
 ) -> QuantumCircuit:
     """Heisenberg Trotter circuit.
 
@@ -170,8 +169,6 @@ def create_heisenberg_circuit(
     Returns:
         QuantumCircuit: A quantum circuit representing the Heisenberg model evolution.
     """
-
-    print('Creating Heisenberg circuit with parameters:')
     theta_xx = -2 * dt * Jx
     theta_yy = -2 * dt * Jy
     theta_zz = -2 * dt * Jz
@@ -228,7 +225,6 @@ def create_heisenberg_circuit(
             circ.rzz(theta=theta_zz, qubit1=0, qubit2=L - 1)
 
     return circ
-
 
 
 def create_2d_heisenberg_circuit(
