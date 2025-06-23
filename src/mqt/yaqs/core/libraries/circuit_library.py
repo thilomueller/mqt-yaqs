@@ -80,7 +80,7 @@ def create_ising_circuit(
 
 
 def create_2d_ising_circuit(
-    num_rows: int, num_cols: int, J: float, g: float, dt: float, timesteps: int, *, periodic: bool=False
+    num_rows: int, num_cols: int, J: float, g: float, dt: float, timesteps: int, *, periodic: bool = False
 ) -> QuantumCircuit:
     """2D Ising Trotter circuit on a rectangular grid using a snaking MPS ordering.
 
@@ -151,7 +151,7 @@ def create_2d_ising_circuit(
 
 
 def create_heisenberg_circuit(
-    L: int, Jx: float, Jy: float, Jz: float, h: float, dt: float, timesteps: int, *, periodic: bool=False
+    L: int, Jx: float, Jy: float, Jz: float, h: float, dt: float, timesteps: int, *, periodic: bool = False
 ) -> QuantumCircuit:
     """Heisenberg Trotter circuit.
 
