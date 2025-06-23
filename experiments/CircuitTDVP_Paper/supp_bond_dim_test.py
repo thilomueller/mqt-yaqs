@@ -38,7 +38,7 @@ def run_bond_dimension_test():
     num_rows = int(np.sqrt(num_qubits))
     num_cols = int(np.sqrt(num_qubits))
 
-    min_bond = 4
+    min_bond = 8
     results = generate_sim_data_supplemental(
     make_circ=create_2d_ising_circuit,
     make_args=(num_rows, num_cols, J, g, dt),
