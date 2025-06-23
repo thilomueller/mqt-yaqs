@@ -80,7 +80,7 @@ def create_ising_circuit(
 
 
 def create_2d_ising_circuit(
-    num_rows: int, num_cols: int, J: float, g: float, dt: float, timesteps: int, *, periodic: bool = False
+    num_rows: int, num_cols: int, J: float, g: float, dt: float, timesteps: int
 ) -> QuantumCircuit:
     """2D Ising Trotter circuit on a rectangular grid using a snaking MPS ordering.
 
@@ -165,6 +165,7 @@ def create_heisenberg_circuit(
         h (float): Magnetic field strength.
         dt (float): Time step for the simulation.
         timesteps (int): Number of time steps to simulate.
+        periodic: Whether to apply periodic boundary conditions.
 
     Returns:
         QuantumCircuit: A quantum circuit representing the Heisenberg model evolution.
@@ -191,9 +192,9 @@ def create_heisenberg_circuit(
             circ.rzz(theta=theta_zz, qubit1=L - 2, qubit2=L - 1)
 
         # If periodic, add an additional long-range gate between qubit L-1 and qubit 0.
-        # if periodic and L > 1:
-        #     circ.rzz(theta=theta_zz, qubit1=0, qubit2=L - 1)
-        #     circ.barrier()
+        if periodic and L > 1:
+            circ.rzz(theta=theta_zz, qubit1=0, qubit2=L - 1)
+            circ.barrier()
 
         # XX application
         for site in range(L // 2):
@@ -205,9 +206,9 @@ def create_heisenberg_circuit(
         if L % 2 != 0 and L != 1:
             circ.rxx(theta=theta_xx, qubit1=L - 2, qubit2=L - 1)
 
-        # if periodic and L > 1:
-        #     circ.rxx(theta=theta_xx, qubit1=0, qubit2=L - 1)
-        #     circ.barrier()
+        if periodic and L > 1:
+            circ.rxx(theta=theta_xx, qubit1=0, qubit2=L - 1)
+            circ.barrier()
 
         # YY application
         for site in range(L // 2):
@@ -220,9 +221,7 @@ def create_heisenberg_circuit(
             circ.ryy(theta=theta_yy, qubit1=L - 2, qubit2=L - 1)
 
         if periodic and L > 1:
-            circ.rxx(theta=theta_xx, qubit1=0, qubit2=L - 1)
             circ.ryy(theta=theta_yy, qubit1=0, qubit2=L - 1)
-            circ.rzz(theta=theta_zz, qubit1=0, qubit2=L - 1)
 
     return circ
 
