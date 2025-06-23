@@ -303,7 +303,7 @@ def apply_long_range_layer(mpo: MPO, dag1: DAGCircuit, dag2: DAGCircuit, thresho
                 tensor2 = np.transpose(gate_mpo.tensors[site_gate_mpo + 1], (0, 2, 1, 3))
                 tensor3 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 tensor4 = np.transpose(mpo.tensors[overall_site + 1], (0, 2, 1, 3))
-                theta = oe.contract('abcd,edfg,chij,fjkl->ikhbaelg', tensor1, tensor2, tensor3, tensor4)
+                theta = oe.contract("abcd,edfg,chij,fjkl->ikhbaelg", tensor1, tensor2, tensor3, tensor4)
                 mpo.rotate(conjugate=True)
 
             dims = theta.shape

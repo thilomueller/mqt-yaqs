@@ -929,6 +929,7 @@ class CZ(BaseGate):
         if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
             self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
+
 class CPhase(BaseGate):
     """Class representing the controlled phase (CPhase) gate.
 
@@ -959,7 +960,6 @@ class CPhase(BaseGate):
         mat = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, np.exp(1j * self.theta)]])
         super().__init__(mat)
 
-
     def set_sites(self, *sites: int | list[int]) -> None:
         """Sets the sites for the gate.
 
@@ -986,6 +986,7 @@ class CPhase(BaseGate):
         self.mpo = extend_gate(self.tensor, self.sites)
         if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
             self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
+
 
 class SWAP(BaseGate):
     """Class representing the SWAP gate.
@@ -1035,6 +1036,7 @@ class SWAP(BaseGate):
         if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
             self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
+
 class Rxx(BaseGate):
     """Class representing a two-qubit rotation gate about the xx-axis.
 
@@ -1070,7 +1072,6 @@ class Rxx(BaseGate):
             [-1j * np.sin(self.theta / 2), 0, 0, np.cos(self.theta / 2)],
         ])
         super().__init__(mat)
-    
 
     def set_sites(self, *sites: int | list[int]) -> None:
         """Sets the sites for the gate.
