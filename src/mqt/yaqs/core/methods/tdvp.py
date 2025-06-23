@@ -89,6 +89,7 @@ def split_mps_tensor(
     u_mat, s_vec, v_mat = np.linalg.svd(theta_mat, full_matrices=False)
 
     # Handled by dynamic TDVP
+    keep = min(len(s_vec), sim_params.max_bond_dim)
     if not dynamic:
         assert isinstance(sim_params, (WeakSimParams, StrongSimParams)), (
             "Standalone 2TDVP intended for circuit simulation. Comment out this assert to use in other contexts."
@@ -102,8 +103,6 @@ def split_mps_tensor(
                 break
         if sim_params.max_bond_dim is not None:
             keep = min(keep, sim_params.max_bond_dim)
-    else:
-        keep = min(len(s_vec), sim_params.max_bond_dim)
 
     left_tensor = u_mat[:, :keep]
     s_vec = s_vec[:keep]
