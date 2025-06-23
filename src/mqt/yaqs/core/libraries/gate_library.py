@@ -984,8 +984,6 @@ class CPhase(BaseGate):
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[1, 0], [0, -1]]), np.array([[1, 0], [0, 0]])]
         self.mpo = extend_gate(self.tensor, self.sites)
-        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
-            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class SWAP(BaseGate):
@@ -1033,8 +1031,6 @@ class SWAP(BaseGate):
         self.sites = sites_list
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.mpo = extend_gate(self.tensor, self.sites)
-        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
-            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class Rxx(BaseGate):
@@ -1097,8 +1093,6 @@ class Rxx(BaseGate):
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[0, 1], [1, 0]]), np.array([[0, 1], [1, 0]])]
         self.mpo = extend_gate(self.tensor, self.sites)
-        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
-            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class Ryy(BaseGate):
@@ -1161,8 +1155,6 @@ class Ryy(BaseGate):
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[0, -1j], [1j, 0]]), np.array([[0, -1j], [1j, 0]])]
         self.mpo = extend_gate(self.tensor, self.sites)
-        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
-            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class Rzz(BaseGate):
@@ -1225,8 +1217,6 @@ class Rzz(BaseGate):
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[1, 0], [0, -1]]), np.array([[1, 0], [0, -1]])]
         self.mpo = extend_gate(self.tensor, self.sites)
-        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
-            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class XX(BaseGate):
