@@ -925,9 +925,9 @@ class CZ(BaseGate):
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         # Generator: π/4 (I-Z ⊗ I-Z)
         self.generator = [(np.pi / 4) * np.array([[0, 0], [0, 2]]), np.array([[1, -1], [-1, 1]])]
+        self.mpo = extend_gate(self.tensor, self.sites)
         if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
             self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
-
 
 class CPhase(BaseGate):
     """Class representing the controlled phase (CPhase) gate.
@@ -958,9 +958,34 @@ class CPhase(BaseGate):
         self.theta = params[0]
         mat = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, np.exp(1j * self.theta)]])
         super().__init__(mat)
+
+
+    def set_sites(self, *sites: int | list[int]) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites (int): Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = []
+        for s in sites:
+            if isinstance(s, int):
+                sites_list.append(s)
+            else:
+                sites_list.extend(s)
+
+        if len(sites_list) != self.interaction:
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
+            raise ValueError(msg)
+
+        self.sites = sites_list
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[1, 0], [0, -1]]), np.array([[1, 0], [0, 0]])]
-
+        self.mpo = extend_gate(self.tensor, self.sites)
+        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
+            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 class SWAP(BaseGate):
     """Class representing the SWAP gate.
@@ -983,8 +1008,32 @@ class SWAP(BaseGate):
         """Initializes the SWAP gate."""
         mat = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
         super().__init__(mat)
-        self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
 
+    def set_sites(self, *sites: int | list[int]) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites (int): Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = []
+        for s in sites:
+            if isinstance(s, int):
+                sites_list.append(s)
+            else:
+                sites_list.extend(s)
+
+        if len(sites_list) != self.interaction:
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
+            raise ValueError(msg)
+
+        self.sites = sites_list
+        self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
+        self.mpo = extend_gate(self.tensor, self.sites)
+        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
+            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 class Rxx(BaseGate):
     """Class representing a two-qubit rotation gate about the xx-axis.
@@ -1021,8 +1070,34 @@ class Rxx(BaseGate):
             [-1j * np.sin(self.theta / 2), 0, 0, np.cos(self.theta / 2)],
         ])
         super().__init__(mat)
+    
+
+    def set_sites(self, *sites: int | list[int]) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites (int): Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = []
+        for s in sites:
+            if isinstance(s, int):
+                sites_list.append(s)
+            else:
+                sites_list.extend(s)
+
+        if len(sites_list) != self.interaction:
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
+            raise ValueError(msg)
+
+        self.sites = sites_list
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[0, 1], [1, 0]]), np.array([[0, 1], [1, 0]])]
+        self.mpo = extend_gate(self.tensor, self.sites)
+        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
+            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class Ryy(BaseGate):
@@ -1060,8 +1135,33 @@ class Ryy(BaseGate):
             [1j * np.sin(self.theta / 2), 0, 0, np.cos(self.theta / 2)],
         ])
         super().__init__(mat)
+
+    def set_sites(self, *sites: int | list[int]) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites (int): Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = []
+        for s in sites:
+            if isinstance(s, int):
+                sites_list.append(s)
+            else:
+                sites_list.extend(s)
+
+        if len(sites_list) != self.interaction:
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
+            raise ValueError(msg)
+
+        self.sites = sites_list
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[0, -1j], [1j, 0]]), np.array([[0, -1j], [1j, 0]])]
+        self.mpo = extend_gate(self.tensor, self.sites)
+        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
+            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class Rzz(BaseGate):
@@ -1099,8 +1199,33 @@ class Rzz(BaseGate):
             [0, 0, 0, np.cos(self.theta / 2) - 1j * np.sin(self.theta / 2)],
         ])
         super().__init__(mat)
+
+    def set_sites(self, *sites: int | list[int]) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites (int): Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = []
+        for s in sites:
+            if isinstance(s, int):
+                sites_list.append(s)
+            else:
+                sites_list.extend(s)
+
+        if len(sites_list) != self.interaction:
+            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
+            raise ValueError(msg)
+
+        self.sites = sites_list
         self.tensor: NDArray[np.complex128] = np.reshape(self.matrix, (2, 2, 2, 2))
         self.generator = [(self.theta / 2) * np.array([[1, 0], [0, -1]]), np.array([[1, 0], [0, -1]])]
+        self.mpo = extend_gate(self.tensor, self.sites)
+        if self.sites[1] < self.sites[0]:  # Adjust for reverse control/target
+            self.tensor = np.transpose(self.tensor, (1, 0, 3, 2))
 
 
 class XX(BaseGate):
