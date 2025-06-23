@@ -91,14 +91,11 @@ def split_mps_tensor(
     # Handled by dynamic TDVP
     keep = min(len(s_vec), sim_params.max_bond_dim)
     if not dynamic:
-        assert isinstance(sim_params, (WeakSimParams, StrongSimParams)), (
-            "Standalone 2TDVP intended for circuit simulation. Comment out this assert to use in other contexts."
-        )
         discard = 0.0
         min_keep = min(len(s_vec), sim_params.min_bond_dim)  # Prevents pathological dimension-1 truncation
         for idx, s in enumerate(reversed(s_vec)):
             discard += s**2
-            if discard >= 1e-9:
+            if discard >= sim_params.threshold:
                 keep = max(len(s_vec) - idx, min_keep)
                 break
         if sim_params.max_bond_dim is not None:

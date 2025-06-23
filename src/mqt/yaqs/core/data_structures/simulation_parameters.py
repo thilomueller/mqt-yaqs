@@ -151,6 +151,7 @@ class PhysicsSimParams:
         dt: float = 0.1,
         num_traj: int = 1000,
         max_bond_dim: int = 2,
+        min_bond_dim: int = 2,
         threshold: float = 1e-6,
         order: int = 1,
         *,
@@ -174,6 +175,8 @@ class PhysicsSimParams:
             Number of simulation samples, by default 1000.
         max_bond_dim : int, optional
             Maximum bond dimension allowed, by default 2.
+        min_bond_dim:
+            The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
         threshold : float, optional
             Threshold for simulation accuracy, by default 1e-6.
         order : int, optional
@@ -195,6 +198,7 @@ class PhysicsSimParams:
         self.sample_timesteps = sample_timesteps
         self.num_traj = num_traj
         self.max_bond_dim = max_bond_dim
+        self.min_bond_dim = min_bond_dim
         self.threshold = threshold
         self.order = order
         self.evolution_mode = evolution_mode
