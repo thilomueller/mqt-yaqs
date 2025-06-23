@@ -2,22 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import operator
 import pickle
-
 from matplotlib.colors import LogNorm
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 def plot_bond_heatmaps(
-    method1="TEBD",
-    method2="TDVP",
+    methods=("TEBD", "TDVP"),
+    file_specs=(
+        ("heisenberg_bonds.pickle", "Heisenberg"),
+        ("periodic_heisenberg_bonds.pickle", "Periodic Heisenberg"),
+        ("2d_ising_bond.pickle", "2D Ising")
+    ),
     cmap="viridis",
     log_scale=False,
-    figsize=(7.0, 2.5)
+    figsize=(7.2, 6.5)
 ) -> None:
-    """
-    Create a Nature Physics style 1×3 figure row with:
-      (a) Observable expectation vs. Trotter steps for both TEBD and TDVP
-      (b) Combined heatmap (top = TEBD, bottom = TDVP) with annotations
-      (c) Memory/compression plot (placeholder)
-    """
+    # styling
     plt.rcParams.update({
         'font.family': 'sans-serif',
         'font.sans-serif': ['Arial'],
@@ -27,163 +26,194 @@ def plot_bond_heatmaps(
         'xtick.labelsize': 7,
         'ytick.labelsize': 7,
         'legend.fontsize': 7,
-        'lines.linewidth': 1.5,
-        'lines.markersize': 4,
-        'axes.titlepad': 2,
-        'axes.labelpad': 2,
-        'xtick.major.pad': 1,
-        'ytick.major.pad': 1
     })
+    cmap_obj = plt.get_cmap(cmap)
+    cmap_obj.set_bad('white')
 
-    # with open("heisenberg_bonds.pickle", 'rb') as f:
-    #     results = pickle.load(f)['results']
-    with open("periodic_heisenberg_bonds.pickle", 'rb') as f:
-        results = pickle.load(f)['results']
-    # with open("2d_ising_bond.pickle", 'rb') as f:
-    #     results = pickle.load(f)['results']
+    def extract_obs(results, method):
+        data = sorted(results.get(method, []), key=lambda x: x[0])
+        if not data:
+            return np.array([]), np.array([])
+        t, _, ev = zip(*data)
+        return np.array(t), np.array(ev)
 
-    def extract_obs(method):
-        data = [(t, exp_val) for (t, bonds, exp_val) in results[method]]
-        data.sort(key=lambda x: x[0])
-        return (np.array(x) for x in zip(*data)) if data else (np.array([]), np.array([]))
+    def extract_matrix(results, method):
+        data = sorted(results.get(method, []), key=lambda x: x[0])
+        if not data:
+            return np.empty((0, 0))
+        return np.vstack([b for _, b, _ in data])
 
-    ts_tebd, obs_tebd = extract_obs(method1)
-    ts_tdvp, obs_tdvp = extract_obs(method2)
+    # first pass: gather for global norm
+    combined_all = []
+    for fname, _ in file_specs:
+        with open(fname, 'rb') as f:
+            res = pickle.load(f)['results']
+        m1, m2 = methods
+        A = extract_matrix(res, m1)
+        B = extract_matrix(res, m2)
+        if A.size and B.size:
+            combined_all.append(np.vstack([B.T, A.T]))
 
-    def extract_matrix(method):
-        filtered = [e for e in results[method]]
-        filtered.sort(key=operator.itemgetter(0))
-        return np.vstack([e[1] for e in filtered]) if filtered else np.empty((0, 0))
-
-    mat1 = extract_matrix(method1)
-    mat2 = extract_matrix(method2)
-    threshold = 512
-    for i, row in enumerate(mat1):
-        if np.max(row) > threshold:
-            mat1[i:] = None
-            break
-
-    for i, row in enumerate(mat2):
-        if np.max(row) > threshold:
-            mat2[i:] = None
-            break
-
-    # Shared heatmap scale
-    if mat1.size and mat2.size:
-        vmin = np.nanmin([np.nanmin(mat1), np.nanmin(mat2)])
-        vmax = np.nanmax([np.nanmax(mat1), np.nanmax(mat2)])
-        norm = LogNorm(vmin=vmin, vmax=vmax) if log_scale else None
+    if log_scale and combined_all:
+        all_vals = np.concatenate([c[np.isfinite(c)].ravel() for c in combined_all])
+        vmin, vmax = all_vals.min(), all_vals.max()
+        norm = LogNorm(vmin=vmin, vmax=vmax)
     else:
         norm = None
-        vmin = vmax = None
 
-    # ----- Figure setup -----
-    fig, axes = plt.subplots(1, 3, figsize=figsize, gridspec_kw={'width_ratios': [1, 1, 1], 'wspace': 0.4})
-    labels = ['(a)', '(b)', '(c)']
+    # create the 3×N grid with tighter spacing
+    ncols = len(file_specs)
+    fig, axes = plt.subplots(
+        3, ncols, figsize=figsize,
+        # sharex='col',
+        gridspec_kw={'hspace': 0.3, 'wspace': 0.2}
+    )
 
-    # Panel (a): expectation vs steps
-    ax = axes[0]
-    if ts_tebd.size:
-        ax.plot(ts_tebd, obs_tebd, marker='^', linestyle='-', label=method1)
-    if ts_tdvp.size:
-        ax.plot(ts_tdvp, obs_tdvp, marker='o', linestyle='--', label=method2)
-    ax.set_xlabel('Trotter steps')
-    ax.set_ylabel('Expectation value')
-    if log_scale:
-        ax.set_yscale('log')
-    ax.legend(frameon=False, loc='upper left')
-    ax.text(-0.15, 1.05, labels[0], transform=ax.transAxes,
-            fontsize=9, fontweight='bold')
+    for col, (fname, title) in enumerate(file_specs):
+        with open(fname, 'rb') as f:
+            res = pickle.load(f)['results']
+        m1, m2 = methods
+        ts1, obs1 = extract_obs(res, m1)
+        ts2, obs2 = extract_obs(res, m2)
+        mat1 = extract_matrix(res, m1)
+        mat2 = extract_matrix(res, m2)
 
-    # Panel (b): Combined heatmap
-    ax = axes[1]
-    mat1_time_x = np.array(mat1.T)
-    mat2_time_x = np.array(mat2.T)
-    combined = np.vstack([mat2_time_x, mat1_time_x]) if mat1.size and mat2.size else np.empty((0, 0))
-    im = ax.imshow(combined, aspect='auto', origin='lower', cmap=cmap, vmin=2, vmax=threshold, norm=norm)
-    ax.axhline(y=mat1_time_x.shape[0] - 0.5, color='white', linewidth=1)
-    ax.set_ylabel('Bond index')
-    ax.set_xlabel('Trotter steps')
-    ax.text(-0.15, 1.05, labels[1], transform=ax.transAxes,
-            fontsize=9, fontweight='bold')
-    ax.text(0.0125, 0.95, method1, transform=ax.transAxes,
-            fontsize=8, verticalalignment='top', fontweight='bold', color='white')
-    ax.text(0.0125, 0.4, method2, transform=ax.transAxes,
-            fontsize=8, verticalalignment='bottom', fontweight='bold', color='white')
-    ax.set_xlim(0, 70)
-    # Shared colorbar
-    cbar_ax = fig.add_axes([0.615, 0.15, 0.015, 0.7])
-    fig.colorbar(im, cax=cbar_ax, label='Bond dim')
+        nan_rows = np.where(np.isnan(mat2).all(axis=1))[0]
+        cutoff = nan_rows[0]+1 if nan_rows.size else mat2.shape[0]
+        nan_rows = np.where(np.isnan(mat1).all(axis=1))[0]
+        cutoff_tebd = nan_rows[0] if nan_rows.size else mat1.shape[0]
 
-    # Panel (c): Memory/Compression placeholder
-    # ax = axes[2]
-    # tebd_total_bond = []
-    # tdvp_total_bond = []
-    # for i in range(mat1.shape[0]):
-    #     tebd_total_bond.append(np.sum(mat1[i, :]))
-    #     tdvp_total_bond.append(np.sum(mat2[i, :]))
-    
-    # ax.plot(ts_tebd, tebd_total_bond)
-    # ax.plot(ts_tdvp, tdvp_total_bond)
-    # ax.set_xlabel('Trotter steps')
-    # ax.set_ylabel('Ratio')
-    # ax.text(-0.15, 1.05, labels[2], transform=ax.transAxes,
-    #         fontsize=9, fontweight='bold')
-    # ax.text(0.01, 0.95, 'TEBD/TDVP', transform=ax.transAxes,
-    #         fontsize=8, verticalalignment='top', fontweight='bold')
-    # # ax.set_xticks([])
-    # # ax.set_yticks([])
+        # (a) expectation
+        ax0 = axes[0, col]
+        ax0.plot(ts1, obs1, '^--', label=m1, zorder=3, linewidth=1.5)
+        ax0.plot(ts2, obs2, 'o-', label=m2, zorder=2,  markeredgecolor='black', linewidth=1.5)
+        ax0.set_title(title, pad=6, fontsize=10)
 
-    # Panel (c): Memory usage in bytes
-    # Panel (c): Bond dimension (left) and memory (right)
-    ax = axes[2]
+        if log_scale:
+            ax0.set_yscale('log')
+        ax0.set_xlim(0, cutoff)
+        if col == 0:
+            ax0.set_ylabel('$\\langle X_{24} X_{25} \\rangle$')
+            ax0.legend(frameon=False, loc='lower center')
+        ax0.axvline(cutoff_tebd, color='gray', linestyle='--', lw=1)
 
-    # Compute total bond dimension per timestep
-    tebd_total_bond = [np.sum(row) for row in mat1]
-    tdvp_total_bond = [np.sum(row) for row in mat2]
+        if col == 0:
+            ax0.set_xticks([10, 20, 30, 40, 50, 60, 70])
+            ax0.set_xticklabels([10, 20, 30, 40, 50, 60, 70])
+        if col == 1:
+            ax0.set_xticks([5, 10, 15, 20, 25, 30])
+            ax0.set_xticklabels([5, 10, 15, 20, 25, 30])
+        # ax1.set_xlabel('Trotter steps')
+        if col == 2:
+            ax0.set_xlim(1, cutoff)
 
-    # Compute memory usage (as before)
-    def compute_mps_memory(bonds, bytes_per_complex=16, phys_dim=2):
-        total = 0
-        for j in range(len(bonds) - 1):
-            total += bonds[j] * phys_dim * bonds[j + 1] * bytes_per_complex
-        return total
+        # (b) heatmap
+        ax1 = axes[1, col]
+        combined = np.vstack([mat2.T, mat1.T]) if (mat1.size and mat2.size) else np.empty((0,0))
+        im = ax1.imshow(combined, origin='lower', aspect='auto',
+                        cmap=cmap_obj, interpolation='none', vmin=2, vmax=512)
+        ax1.axhline(mat1.shape[1]-0.5, color='white', lw=1)
+        ax1.set_xlim(0, cutoff)
+        if col == 0:
+            ax1.set_ylabel('Bond index')
+            ax1.set_xticks([10, 20, 30, 40, 50, 60, 70])
+            ax1.set_xticklabels([10, 20, 30, 40, 50, 60, 70])
+        if col == 1:
+            ax1.set_xticks([5, 10, 15, 20, 25, 30])
+            ax1.set_xticklabels([5, 10, 15, 20, 25, 30])
+        # ax1.set_xlabel('Trotter steps')
+        if col == 2:
+            ax1.set_xticks([1, 3, 5, 7])
+            ax1.set_xticklabels([2, 4, 6, 8])
+        ax1.set_yticks([0, mat1.shape[1]//2, mat1.shape[1]-3, mat1.shape[1]+3, 1.5*mat1.shape[1], 2*mat1.shape[1]-1])
+        ax1.set_yticklabels([1, mat1.shape[1]//2, mat1.shape[1], 1, mat1.shape[1]//2, mat1.shape[1]])
+        ax1.axvline(cutoff_tebd-0.5, color='gray', linestyle='--', lw=1)
 
-    tebd_memory_bytes = [compute_mps_memory(row) for row in mat1]
-    tdvp_memory_bytes = [compute_mps_memory(row) for row in mat2]
+        # --- right after your im = ax1.imshow(…) call ---
+        # annotate TEBD at the top‐left
+        ax1.text(
+            0.015,        # x position, 1% from left
+            0.95,        # y position, 95% from bottom (i.e. top)
+            m1,          # that's "TEBD"
+            transform=ax1.transAxes,
+            color='white',
+            fontsize=8,
+            fontweight='bold',
+            va='top',
+            ha='left'
+        )
+        # annotate TDVP just below center
+        ax1.text(
+            0.015,        # same x
+            0.425,        # 45% from bottom, just under the middle
+            m2,          # that's "TDVP"
+            transform=ax1.transAxes,
+            color='white',
+            fontsize=8,
+            fontweight='bold',
+            va='center',
+            ha='left'
+        )
+        # --- then the rest of your code continues ---
 
-    # Plot on primary y-axis: total bond
-    ax.plot(ts_tebd, tebd_total_bond, label="TEBD", color="tab:blue")
-    ax.plot(ts_tdvp, tdvp_total_bond, label="TDVP", color="tab:orange")
+        # (c) total bond
+        ax2 = axes[2, col]
+        tot1 = np.nansum(mat1**3, axis=1)
+        tot2 = np.nansum(mat2**3, axis=1)
+        mask1 = (ts1 < cutoff) & (tot1 > 0)
+        mask2 = (ts2 < cutoff) & (tot2 > 0)
+        ax2.plot(ts1[mask1], tot1[mask1], '^--', zorder=3, label="TEBD", linewidth=1.5)
+        ax2.plot(ts2[mask2], tot2[mask2], 'o-', zorder=2, markeredgecolor='black', label="TDVP", linewidth=1.5)
+        ax2.set_yscale('linear')
+        ax2.set_xlim(0, cutoff)
+        if col == 0:
+            ax2.set_ylabel('Runtime cost $\\sum_j \\chi_j^3$')
+        ax2.set_xlabel('Trotter steps')
+        ax2.axvline(cutoff_tebd, color='gray', linestyle='--', lw=1)
+        if col == 0:
+            ax2.set_xticks([10, 20, 30, 40, 50, 60, 70])
+            ax2.set_xticklabels([10, 20, 30, 40, 50, 60, 70])
+            ax2.legend(frameon=False, loc='upper left')
+        if col == 1:
+            ax2.set_xticks([5, 10, 15, 20, 25, 30])
+            ax2.set_xticklabels([5, 10, 15, 20, 25, 30])
+            # ax2.set_yticklabels([])
+        if col == 2:
+            ax2.set_xlim(1, cutoff)
+            # ax2.set_yticklabels([])
+        # ax1.set_xlabel('Trotter steps')
+        # if col == 2:
+        #     ax2.set_xticks([2, 4, 6, 8])
+        #     ax2.set_xticklabels([2, 4, 6, 8])
+        ax2.set_ylim(1, 4e9)
 
-    ax.set_xlabel('Trotter steps')
-    ax.set_ylabel('Total bond dimension')
-    ax.text(-0.15, 1.05, labels[2], transform=ax.transAxes,
-            fontsize=9, fontweight='bold')
-    ax.text(0.01, 0.95, 'TEBD/TDVP', transform=ax.transAxes,
-            fontsize=8, verticalalignment='top', fontweight='bold')
+    # inset colorbar in the last heatmap without shifting anything
+    ax_cb_target = axes[1, -1]
+    cax = inset_axes(ax_cb_target,
+                     width="10%", height="90%",
+                     loc='upper right', borderpad=0.1)
+    cb = fig.colorbar(im, cax=cax)
+    cb.ax.set_title('$\\chi$')
 
-    # Create right-side y-axis that maps bond sum → memory
-    def bond_to_memory(bond_sum):
-        # Estimate average memory from total bond dimension by scaling
-        # This is approximate, so take representative average
-        # We will use a linear scale: memory_bytes = a * bond_sum
-        return bond_sum * 49 * 2 * 16  # rough linear scaling, matches earlier analysis
+    cb.ax.tick_params(direction='out', length=3)
 
-    def memory_to_bond(mem_bytes):
-        return mem_bytes / (49 * 2 * 16)
+    # clean up spines & ticks
+    for ax in axes.flat:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(direction='out', length=3, width=1)
 
-    # Add memory as a secondary y-axis
-    secax = ax.secondary_yaxis('right', functions=(bond_to_memory, memory_to_bond))
-    secax.set_ylabel('Memory (bytes)')
-    from matplotlib.ticker import FuncFormatter
-    secax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f'{y/1e6:.1f} MB'))
+    # panel letters
+    fig.text(0.02, 0.95, '(a)', fontweight='bold', fontsize=10)
+    fig.text(0.02, 0.62, '(b)', fontweight='bold', fontsize=10)
+    fig.text(0.02, 0.29, '(c)', fontweight='bold', fontsize=10)
 
-    # Optional: legend
-    ax.legend(loc='upper left', fontsize=7)
+    # squeeze margins just a bit tighter
+    # plt.tight_layout(rect=[0,0,1,1], pad=1.0)
+    fig.savefig("results.pdf", format="pdf", dpi=600)
 
-    plt.tight_layout(rect=[0, 0, 0.6, 1])
     plt.show()
+
 
 if __name__ == "__main__":
     plot_bond_heatmaps()
