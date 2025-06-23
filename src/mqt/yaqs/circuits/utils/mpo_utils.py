@@ -110,7 +110,7 @@ def apply_gate(
         assert gate.sites[1] in {site0, site1}, "Two-qubit gate must be on the correct pair of sites."
 
     # For nearest-neighbor gates (theta.ndim == 6)
-    assert theta.ndim == 6, "Expected theta to have 6 dimensions, got %d" % theta.ndim
+    assert theta.ndim == 6, f"Expected theta to have 6 dimensions, got {theta.ndim}"
     theta = np.transpose(theta, (3, 4, 2, 0, 1, 5))
 
     if gate.name == "I":
