@@ -233,7 +233,7 @@ def test_strong_simulation_no_noise() -> None:
     state = MPS(length=num_qubits)
     measurements = [Observable(X(), num_qubits // 2)]
     sim_params = StrongSimParams(
-        measurements, num_traj=1, max_bond_dim=16, threshold=1e-12, window_size=0, get_state=True
+        measurements, num_traj=1, max_bond_dim=16, threshold=1e-12, get_state=True
     )
     simulator.run(state, circ, sim_params, noise_model=None)
     assert sim_params.output_state is not None

@@ -150,9 +150,9 @@ class PhysicsSimParams:
         elapsed_time: float,
         dt: float = 0.1,
         num_traj: int = 1000,
-        max_bond_dim: int = 2,
+        max_bond_dim: int = np.inf,
         min_bond_dim: int = 2,
-        threshold: float = 1e-6,
+        threshold: float = 1e-9,
         order: int = 1,
         *,
         sample_timesteps: bool = True,
@@ -252,10 +252,9 @@ class WeakSimParams:
     def __init__(
         self,
         shots: int,
-        max_bond_dim: int = 2,
+        max_bond_dim: int = np.inf,
         min_bond_dim: int = 2,
-        threshold: float = 1e-6,
-        window_size: int | None = 0,
+        threshold: float = 1e-9,
         *,
         get_state: bool = False,
     ) -> None:
@@ -273,8 +272,6 @@ class WeakSimParams:
             The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
         threshold : float, optional
             Accuracy threshold for truncating tensors, by default 1e-6.
-        window_size : int or None, optional
-            Window size for the simulation algorithm, by default None.
         get_state:
             If True, output MPS is returned.
         """
@@ -283,7 +280,6 @@ class WeakSimParams:
         self.max_bond_dim = max_bond_dim
         self.min_bond_dim = min_bond_dim
         self.threshold = threshold
-        self.window_size = window_size
         self.get_state = get_state
 
     def aggregate_measurements(self) -> None:
@@ -357,10 +353,9 @@ class StrongSimParams:
         self,
         observables: list[Observable],
         num_traj: int = 1000,
-        max_bond_dim: int = 2,
+        max_bond_dim: int = np.inf,
         min_bond_dim: int = 2,
-        threshold: float = 1e-6,
-        window_size: int | None = 0,
+        threshold: float = 1e-9,
         *,
         get_state: bool = False,
     ) -> None:
@@ -378,8 +373,6 @@ class StrongSimParams:
             Maximum bond dimension allowed in simulation, by default 2.
         threshold : float, optional
             Threshold for simulation accuracy, by default 1e-6.
-        window_size : int or None, optional
-            Window size for simulation, by default None.
         get_state:
             If True, output MPS is returned.
         """
@@ -391,7 +384,6 @@ class StrongSimParams:
         self.max_bond_dim = max_bond_dim
         self.min_bond_dim = min_bond_dim
         self.threshold = threshold
-        self.window_size = window_size
         self.get_state = get_state
 
     def aggregate_trajectories(self) -> None:
