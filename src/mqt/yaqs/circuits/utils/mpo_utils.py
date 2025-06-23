@@ -111,21 +111,22 @@ def apply_gate(
 
     # For nearest-neighbor gates (theta.ndim == 6)
     assert theta.ndim == 6, f"Expected theta to have 6 dimensions, got {theta.ndim}"
-    theta = np.transpose(theta, (3, 4, 2, 0, 1, 5))
+    if conjugate:
+        theta = np.transpose(theta, (3, 4, 2, 0, 1, 5))
 
     if gate.name == "I":
         pass  # Identity gate, no action needed.
     elif gate.interaction == 1:
         if gate.sites[0] == site0:
             if conjugate:
-                theta = oe.contract("ij, jklmno->iklmno", np.conj(gate.tensor), theta)
+                theta = oe.contract("ij, jklmno->iklmno", np.conj(gate.matrix), theta)
             else:
-                theta = oe.contract("ij, jklmno->iklmno", gate.tensor, theta)
+                theta = oe.contract("ij, jklmno->iklmno", gate.matrix, theta)
         elif gate.sites[0] == site1:
             if conjugate:
-                theta = oe.contract("ij, kjlmno->kilmno", np.conj(gate.tensor), theta)
+                theta = oe.contract("ij, kjlmno->kilmno", np.conj(gate.matrix), theta)
             else:
-                theta = oe.contract("ij, kjlmno->kilmno", gate.tensor, theta)
+                theta = oe.contract("ij, kjlmno->kilmno", gate.matrix, theta)
     elif gate.interaction == 2:
         if conjugate:
             theta = oe.contract("ijkl, klmnop->ijmnop", np.conj(gate.tensor), theta)
@@ -298,13 +299,13 @@ def apply_long_range_layer(mpo: MPO, dag1: DAGCircuit, dag2: DAGCircuit, thresho
                 tensor4 = np.transpose(mpo.tensors[overall_site + 1], (0, 2, 1, 3))
                 theta = oe.contract("abcd,edfg,chij,fjkl->aebhikgl", tensor1, tensor2, tensor3, tensor4)
             else:
-                mpo.rotate(conjugate=True)
+                mpo.rotate()
                 tensor1 = np.transpose(gate_mpo.tensors[site_gate_mpo], (0, 2, 1, 3))
                 tensor2 = np.transpose(gate_mpo.tensors[site_gate_mpo + 1], (0, 2, 1, 3))
                 tensor3 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 tensor4 = np.transpose(mpo.tensors[overall_site + 1], (0, 2, 1, 3))
                 theta = oe.contract("abcd,edfg,chij,fjkl->ikhbaelg", tensor1, tensor2, tensor3, tensor4)
-                mpo.rotate(conjugate=True)
+                mpo.rotate()
 
             dims = theta.shape
             theta = np.reshape(theta, (dims[0], dims[1], dims[2] * dims[3], dims[4], dims[5], dims[6] * dims[7]))
@@ -322,11 +323,11 @@ def apply_long_range_layer(mpo: MPO, dag1: DAGCircuit, dag2: DAGCircuit, thresho
                 tensor2 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 theta = oe.contract("abcd,cefg->abefdg", tensor1, tensor2)
             else:
-                mpo.rotate(conjugate=True)
+                mpo.rotate()
                 tensor1 = np.transpose(gate_mpo.tensors[site_gate_mpo], (0, 2, 1, 3))
                 tensor2 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 theta = oe.contract("abcd,cefg->febagd", tensor1, tensor2)
-                mpo.rotate(conjugate=True)
+                mpo.rotate()
 
             dims = theta.shape
             theta = np.reshape(theta, (dims[0], dims[1] * dims[2], dims[3], dims[4] * dims[5]))
