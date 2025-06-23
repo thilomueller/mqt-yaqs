@@ -20,10 +20,11 @@ checks for:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from qiskit import QuantumCircuit
 from qiskit.qasm2 import load
-from pathlib import Path
 
 from mqt.yaqs.circuits.equivalence_checker import run
 
