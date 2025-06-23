@@ -110,9 +110,8 @@ def apply_gate(
         assert gate.sites[1] in {site0, site1}, "Two-qubit gate must be on the correct pair of sites."
 
     # For nearest-neighbor gates (theta.ndim == 6)
-    assert theta.ndim == 6
-    if conjugate:
-        theta = np.transpose(theta, (3, 4, 2, 0, 1, 5))
+    assert theta.ndim == 6, "Expected theta to have 6 dimensions, got %d" % theta.ndim
+    theta = np.transpose(theta, (3, 4, 2, 0, 1, 5))
 
     if gate.name == "I":
         pass  # Identity gate, no action needed.
@@ -299,19 +298,18 @@ def apply_long_range_layer(mpo: MPO, dag1: DAGCircuit, dag2: DAGCircuit, thresho
                 tensor4 = np.transpose(mpo.tensors[overall_site + 1], (0, 2, 1, 3))
                 theta = oe.contract("abcd,edfg,chij,fjkl->aebhikgl", tensor1, tensor2, tensor3, tensor4)
             else:
-                mpo.rotate()
+                mpo.rotate(conjugate=True)
                 tensor1 = np.transpose(gate_mpo.tensors[site_gate_mpo], (0, 2, 1, 3))
                 tensor2 = np.transpose(gate_mpo.tensors[site_gate_mpo + 1], (0, 2, 1, 3))
                 tensor3 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 tensor4 = np.transpose(mpo.tensors[overall_site + 1], (0, 2, 1, 3))
-                theta = oe.contract("abcd,edfg,chij,fjkl->aebhikgl", tensor1, tensor2, tensor3, tensor4)
-                mpo.rotate()
-
-            theta = apply_temporal_zone(theta, dag1, [overall_site, overall_site + 1], conjugate=False)
-            theta = apply_temporal_zone(theta, dag2, [overall_site, overall_site + 1], conjugate=True)
+                theta = oe.contract('abcd,edfg,chij,fjkl->ikhbaelg', tensor1, tensor2, tensor3, tensor4)
+                mpo.rotate(conjugate=True)
 
             dims = theta.shape
             theta = np.reshape(theta, (dims[0], dims[1], dims[2] * dims[3], dims[4], dims[5], dims[6] * dims[7]))
+            theta = apply_temporal_zone(theta, dag1, [overall_site, overall_site + 1], conjugate=False)
+            theta = apply_temporal_zone(theta, dag2, [overall_site, overall_site + 1], conjugate=True)
             mpo.tensors[overall_site], mpo.tensors[overall_site + 1] = decompose_theta(theta, threshold)
 
             gate_mpo.tensors[site_gate_mpo] = None
@@ -324,11 +322,11 @@ def apply_long_range_layer(mpo: MPO, dag1: DAGCircuit, dag2: DAGCircuit, thresho
                 tensor2 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 theta = oe.contract("abcd,cefg->abefdg", tensor1, tensor2)
             else:
-                mpo.rotate()
+                mpo.rotate(conjugate=True)
                 tensor1 = np.transpose(gate_mpo.tensors[site_gate_mpo], (0, 2, 1, 3))
                 tensor2 = np.transpose(mpo.tensors[overall_site], (0, 2, 1, 3))
                 theta = oe.contract("abcd,cefg->febagd", tensor1, tensor2)
-                mpo.rotate()
+                mpo.rotate(conjugate=True)
 
             dims = theta.shape
             theta = np.reshape(theta, (dims[0], dims[1] * dims[2], dims[3], dims[4] * dims[5]))
