@@ -334,3 +334,77 @@ def generate_sim_data(
     return results
 
 
+def generate_sim_data_supplemental(
+    make_circ, make_args,
+    *,
+    timesteps,
+    min_bond_dim,
+    periodic=False,
+    break_on_exceed=False,
+    bond_dim_limit=None
+):
+    """
+    Generic driver computing TEBD/TDVP bond dims & expectation values
+    for a fixed max_bond and threshold.
+
+    make_circ(*make_args, nsteps, periodic=...) -> QuantumCircuit
+
+    Returns:
+      { "TEBD": [...], "TDVP": [...] }
+    Each entry is a tuple:
+      (timesteps, threshold, max_bond, bonds, exp_val)
+    """
+    results = {"TEBD": [], "TDVP": []}
+    mps_tebd = None
+    mps_tdvp = None
+
+    calculate_tebd = calculate_tdvp = True
+
+    # delta_ts = ts if i == 0 else ts - timesteps[i-1]
+    # incremental step count
+    # delta_ts = ts if i == 0 else ts - timesteps[i-1]
+    circ_step = make_circ(*make_args, timesteps=1, periodic=periodic)
+    basis_gates = ['cx', 'rx', 'rz']
+    circ_step = transpile(circ_step, basis_gates=basis_gates, optimization_level=3)
+
+    for i, ts in enumerate(timesteps):
+        print("Timesteps =", i)
+
+        # print(circ_step)
+        # TDVP
+        if calculate_tdvp:
+            mps_tdvp, bonds_tdvp, exp_tdvp = tdvp_simulator(
+                circ_step,
+                min_bond=min_bond_dim,
+                initial_state=mps_tdvp
+            )
+        else:
+            length = len(bonds_tdvp) if 'bonds_tdvp' in locals() else 0
+            bonds_tdvp = [np.nan] * length
+            exp_tdvp = None
+
+        # TEBD
+        if calculate_tebd:
+            mps_tebd, bonds_tebd, exp_tebd = tebd_simulator(
+                circ_step,
+                initial_state=mps_tebd
+            )
+        else:
+            length = len(bonds_tebd) if 'bonds_tebd' in locals() else 0
+            bonds_tebd = [np.nan] * length
+            exp_tebd = None
+
+        # record results
+        results["TDVP"].append((ts, bonds_tdvp, exp_tdvp))
+        results["TEBD"].append((ts, bonds_tebd, exp_tebd))
+        print("TEBD max", max(bonds_tebd), "TDVP max", max(bonds_tdvp))
+        # optional early stop if bond dims exceed limit
+        if break_on_exceed and bond_dim_limit is not None:
+            if calculate_tdvp and max(bonds_tdvp, default=0) >= bond_dim_limit:
+                calculate_tdvp = False
+            if calculate_tebd and max(bonds_tebd, default=0) >= bond_dim_limit:
+                calculate_tebd = False
+
+    return results
+
+
