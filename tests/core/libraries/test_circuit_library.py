@@ -179,7 +179,7 @@ def test_create_heisenberg_circuit_periodic_even() -> None:
     op_names = [instr.operation.name for instr in circ.data]
     for gate in ["rz", "rzz", "rxx", "ryy"]:
         assert gate in op_names, f"Gate {gate} not found in the circuit."
-    
+
     rzz_count = op_names.count("rzz")
     assert rzz_count == 4
 
@@ -199,10 +199,10 @@ def test_create_heisenberg_circuit_periodic_odd() -> None:
     op_names = [instr.operation.name for instr in circ.data]
     for gate in ["rz", "rzz", "rxx", "ryy"]:
         assert gate in op_names, f"Gate {gate} not found in the circuit."
-    
+
     rzz_count = op_names.count("rzz")
     assert rzz_count == 5
-  
+
 
 def test_create_2d_ising_circuit_2x3() -> None:
     """Test that create_2d_ising_circuit returns a valid circuit for a rectangular grid.
