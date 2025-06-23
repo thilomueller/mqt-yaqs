@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import pytest
 from qiskit import QuantumCircuit
+from qiskit.qasm2 import load
+from pathlib import Path
 
 from mqt.yaqs.circuits.equivalence_checker import run
 
@@ -119,3 +121,16 @@ def test_long_range_non_equivalence() -> None:
 
     result = run(qc1, qc2, threshold=1e-13, fidelity=1 - 1e-13)
     assert result["equivalent"] is False, "Extra gate should break equivalence."
+
+
+def test_large_equivalence() -> None:
+    """Test large-scale equivalence.
+
+    This test creates a large quantum circuit with multiple CNOT gates, Ry gates, and an Rzz gate.
+    This should verify nearly all parts of the equivalence checking algorithm.
+    """
+    qasm_path = Path(__file__).parent / "circuit.qasm"
+    qc = load(filename=str(qasm_path))
+
+    result = run(qc, qc)
+    assert result["equivalent"] is True, "Large scale test fails. Circuits should be equivalent."
