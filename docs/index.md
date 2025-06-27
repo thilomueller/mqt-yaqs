@@ -32,7 +32,7 @@ self
 :maxdepth: 2
 :caption: User Guide
 installation
-examples/physics_simulation
+examples/analog_simulation
 examples/strong_circuit_simulation
 examples/weak_circuit_simulation
 examples/equivalence_checking

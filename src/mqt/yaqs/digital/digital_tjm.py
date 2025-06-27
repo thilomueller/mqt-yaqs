@@ -5,7 +5,7 @@
 #
 # Licensed under the MIT License
 
-"""Circuit Tensor Jump Method.
+"""Digital Tensor Jump Method.
 
 This module provides functions for simulating quantum circuits using the Tensor Jump Method (TJM). It includes
 utilities for converting quantum circuits to DAG representations, processing gate layers, applying gates to
@@ -199,10 +199,10 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
         state.tensors[i] = short_state.tensors[i - window[0]]
 
 
-def circuit_tjm(
+def digital_tjm(
     args: tuple[int, MPS, NoiseModel | None, StrongSimParams | WeakSimParams, QuantumCircuit],
 ) -> NDArray[np.float64]:
-    """Circuit Tensor Jump Method.
+    """Digital Tensor Jump Method.
 
     Simulates a quantum circuit using the Tensor Jump Method.
 

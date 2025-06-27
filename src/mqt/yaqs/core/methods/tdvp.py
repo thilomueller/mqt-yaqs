@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import opt_einsum as oe
 
-from ..data_structures.simulation_parameters import PhysicsSimParams, StrongSimParams, WeakSimParams
+from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 from .matrix_exponential import expm_krylov
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 def split_mps_tensor(
     tensor: NDArray[np.complex128],
     svd_distribution: str,
-    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams,
+    sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
     *,
     dynamic: bool,
 ) -> tuple[NDArray[np.complex128], NDArray[np.complex128]]:
@@ -384,7 +384,7 @@ def update_bond(
 def single_site_tdvp(
     state: MPS,
     hamiltonian: MPO,
-    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams,
+    sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
     numiter_lanczos: int = 25,
 ) -> None:
     """Perform symmetric single-site Time-Dependent Variational Principle (TDVP) integration.
@@ -396,7 +396,7 @@ def single_site_tdvp(
     Args:
         state (MPS): The initial state represented as an MPS.
         hamiltonian (MPO): Hamiltonian represented as an MPO.
-        sim_params (PhysicsSimParams | StrongSimParams | WeakSimParams):
+        sim_params (AnalogSimParams | StrongSimParams | WeakSimParams):
             Simulation parameters containing the time step 'dt' (and possibly a threshold for SVD truncation).
         numiter_lanczos (int, optional): Number of Lanczos iterations for each local update. Defaults to 25.
 
@@ -492,7 +492,7 @@ def single_site_tdvp(
 def two_site_tdvp(
     state: MPS,
     hamiltonian: MPO,
-    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams,
+    sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
     numiter_lanczos: int = 25,
     *,
     dynamic: bool = False,
@@ -508,7 +508,7 @@ def two_site_tdvp(
     Args:
         state (MPS): The initial state represented as an MPS.
         hamiltonian (MPO): Hamiltonian represented as an MPO.
-        sim_params (PhysicsSimParams | StrongSimParams | WeakSimParams):
+        sim_params (AnalogSimParams | StrongSimParams | WeakSimParams):
             Simulation parameters containing the time step 'dt' and SVD threshold.
         numiter_lanczos (int, optional): Number of Lanczos iterations for each local update. Defaults to 25.
         dynamic: Determines if bond dimension is handled by dynamic TDVP (True) or truncation (False).
@@ -603,7 +603,7 @@ def two_site_tdvp(
 def local_dynamic_tdvp(
     state: MPS,
     hamiltonian: MPO,
-    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams,
+    sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
     numiter_lanczos: int = 25,
 ) -> None:
     """Perform a dynamic TDVP sweep: at each bond.
@@ -774,7 +774,7 @@ def local_dynamic_tdvp(
 
 
 def global_dynamic_tdvp(
-    state: MPS, hamiltonian: MPO, sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams
+    state: MPS, hamiltonian: MPO, sim_params: AnalogSimParams | StrongSimParams | WeakSimParams
 ) -> None:
     """Perform a dynamic Time-Dependent Variational Principle (TDVP) evolution of the system state.
 
@@ -786,7 +786,7 @@ def global_dynamic_tdvp(
     Args:
         state (MPS): The Matrix Product State representing the current state of the system.
         hamiltonian (MPO): The Matrix Product Operator representing the Hamiltonian of the system.
-        sim_params (PhysicsSimParams | StrongSimParams | WeakSimParams): Simulation parameters containing settings
+        sim_params (AnalogSimParams | StrongSimParams | WeakSimParams): Simulation parameters containing settings
             such as the maximum allowable bond dimension for the MPS.
     """
     current_max_bond_dim = state.write_max_bond_dim()

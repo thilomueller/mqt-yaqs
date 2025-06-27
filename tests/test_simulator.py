@@ -7,7 +7,7 @@
 
 """Tests for the simulator module in YAQS.
 
-This module verifies the functionality of the simulator by testing both physics (Hamiltonian)
+This module verifies the functionality of the simulator by testing both analog (Hamiltonian)
 and circuit simulation branches. It includes tests for identity circuits, two-qubit operations,
 long-range gate handling, weak and strong simulation modes, and error cases such as mismatched
 qubit counts.
@@ -25,8 +25,8 @@ from mqt.yaqs import simulator
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.simulation_parameters import (
+    AnalogSimParams,
     Observable,
-    PhysicsSimParams,
     StrongSimParams,
     WeakSimParams,
 )
@@ -34,12 +34,12 @@ from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 from mqt.yaqs.core.libraries.gate_library import XX, YY, ZZ, X, Z
 
 
-def test_physics_simulation() -> None:
-    """Test the branch for Hamiltonian simulation (physics simulation) using PhysicsSimParams.
+def test_analog_simulation() -> None:
+    """Test the branch for Hamiltonian simulation (analog simulation) using AnalogSimParams.
 
     This test creates an MPS of length 5 initialized to the "zeros" state and an Ising MPO operator.
     It also creates a NoiseModel with two processes ("relaxation" and "dephasing") and corresponding strengths.
-    With PhysicsSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
+    With AnalogSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
     simulator.run is called. The test then verifies that for each observable the results and trajectories have been
     correctly initialized and that the measurement results are approximately as expected.
     """
@@ -57,7 +57,7 @@ def test_physics_simulation() -> None:
     order = 2
 
     measurements = [Observable(Z(), site) for site in range(length)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps
     )
     gamma = 0.1
@@ -68,10 +68,10 @@ def test_physics_simulation() -> None:
     simulator.run(initial_state, H, sim_params, noise_model)
 
     for i, observable in enumerate(sim_params.observables):
-        assert observable.results is not None, "Results was not initialized for PhysicsSimParams."
-        assert observable.trajectories is not None, "Trajectories was not initialized for PhysicsSimParams 1."
-        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for PhysicsSimParams 2."
-        assert len(observable.results) == 1, "Results was not initialized for PhysicsSimParams."
+        assert observable.results is not None, "Results was not initialized for AnalogSimParams."
+        assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
+        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
         elif i == 1:
@@ -84,12 +84,12 @@ def test_physics_simulation() -> None:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
 
 
-def test_physics_simulation_parallel_off() -> None:
-    """Test the branch for Hamiltonian simulation (physics simulation) using PhysicsSimParams, parallelization off.
+def test_analog_simulation_parallel_off() -> None:
+    """Test the branch for Hamiltonian simulation (analog simulation) using AnalogSimParams, parallelization off.
 
     This test creates an MPS of length 5 initialized to the "zeros" state and an Ising MPO operator.
     It also creates a NoiseModel with two processes ("relaxation" and "dephasing") and corresponding strengths.
-    With PhysicsSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
+    With AnalogSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
     simulator.run is called. The test then verifies that for each observable the results and trajectories have been
     correctly initialized and that the measurement results are approximately as expected.
 
@@ -109,7 +109,7 @@ def test_physics_simulation_parallel_off() -> None:
     order = 2
 
     measurements = [Observable(Z(), [site]) for site in range(length)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps
     )
     gamma = 0.1
@@ -120,10 +120,10 @@ def test_physics_simulation_parallel_off() -> None:
     simulator.run(initial_state, H, sim_params, noise_model, parallel=False)
 
     for i, observable in enumerate(sim_params.observables):
-        assert observable.results is not None, "Results was not initialized for PhysicsSimParams."
-        assert observable.trajectories is not None, "Trajectories was not initialized for PhysicsSimParams 1."
-        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for PhysicsSimParams 2."
-        assert len(observable.results) == 1, "Results was not initialized for PhysicsSimParams."
+        assert observable.results is not None, "Results was not initialized for AnalogSimParams."
+        assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
+        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
         elif i == 1:
@@ -136,8 +136,8 @@ def test_physics_simulation_parallel_off() -> None:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
 
 
-def test_physics_simulation_get_state() -> None:
-    """Test the Hamiltonian simulation (physics simulation) using PhysicsSimParams without noise to get a statevector.
+def test_analog_simulation_get_state() -> None:
+    """Test the Hamiltonian simulation (analog simulation) using AnalogSimParams without noise to get a statevector.
 
     This test creates an MPS of length 2 initialized to the "zeros" state and an Ising MPO operator.
     With sample_timesteps set to False, the test verifies for two-site (order=2) and single-site (order=1) that the
@@ -157,7 +157,7 @@ def test_physics_simulation_get_state() -> None:
         threshold = 0
 
         measurements = [Observable(X(), length // 2)]
-        sim_params = PhysicsSimParams(
+        sim_params = AnalogSimParams(
             measurements,
             elapsed_time,
             dt,
@@ -213,10 +213,10 @@ def test_strong_simulation() -> None:
     simulator.run(state, circuit, sim_params, noise_model)
 
     for i, observable in enumerate(sim_params.observables):
-        assert observable.results is not None, "Results was not initialized for PhysicsSimParams."
-        assert observable.trajectories is not None, "Trajectories was not initialized for PhysicsSimParams 1."
-        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for PhysicsSimParams 2."
-        assert len(observable.results) == 1, "Results was not initialized for PhysicsSimParams."
+        assert observable.results is not None, "Results was not initialized for AnalogSimParams."
+        assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
+        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
         elif i == 1:
@@ -281,10 +281,10 @@ def test_strong_simulation_parallel_off() -> None:
     simulator.run(state, circuit, sim_params, noise_model, parallel=False)
 
     for i, observable in enumerate(sim_params.observables):
-        assert observable.results is not None, "Results was not initialized for PhysicsSimParams."
-        assert observable.trajectories is not None, "Trajectories was not initialized for PhysicsSimParams 1."
-        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for PhysicsSimParams 2."
-        assert len(observable.results) == 1, "Results was not initialized for PhysicsSimParams."
+        assert observable.results is not None, "Results was not initialized for AnalogSimParams."
+        assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
+        assert len(observable.trajectories) == num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
         elif i == 1:
@@ -438,7 +438,7 @@ def test_mismatch() -> None:
 
 
 def test_two_site_correlator_left_boundary() -> None:
-    """Tests the expectation value of a two-site correlator in physics simulation at the left boundary.
+    """Tests the expectation value of a two-site correlator in analog simulation at the left boundary.
 
     This test initializes an MPS in the |0> state and computes the expectation value of a two-site correlator
     at the left boundary.
@@ -456,7 +456,7 @@ def test_two_site_correlator_left_boundary() -> None:
     sample_timesteps = True
     max_bond_dim = 4
     observables = [Observable(XX(), [0, 1]), Observable(YY(), [0, 1]), Observable(ZZ(), [0, 1])]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         observables=observables,
         elapsed_time=elapsed_time,
         dt=dt,
@@ -605,7 +605,7 @@ def test_two_site_correlator_left_boundary() -> None:
 
 
 def test_two_site_correlator_center() -> None:
-    """Tests the expectation value of a two-site correlator in physics simulation at the center site.
+    """Tests the expectation value of a two-site correlator in analog simulation at the center site.
 
     This test initializes an MPS in the |0> state and computes the expectation value of a two-site correlator
     at the center of the chain.
@@ -627,7 +627,7 @@ def test_two_site_correlator_center() -> None:
         Observable(YY(), [L // 2, L // 2 + 1]),
         Observable(ZZ(), [L // 2, L // 2 + 1]),
     ]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         observables=observables,
         elapsed_time=elapsed_time,
         dt=dt,
@@ -776,7 +776,7 @@ def test_two_site_correlator_center() -> None:
 
 
 def test_two_site_correlator_right_boundary() -> None:
-    """Tests the expectation value of a two-site correlator in physics simulation at the right boundary.
+    """Tests the expectation value of a two-site correlator in analog simulation at the right boundary.
 
     This test initializes an MPS in the |0> state and computes the expectation value of a two-site correlator
     at the right boundary.
@@ -794,7 +794,7 @@ def test_two_site_correlator_right_boundary() -> None:
     sample_timesteps = True
     max_bond_dim = 4
     observables = [Observable(XX(), [L - 2, L - 1]), Observable(YY(), [L - 2, L - 1]), Observable(ZZ(), [L - 2, L - 1])]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         observables=observables,
         elapsed_time=elapsed_time,
         dt=dt,
