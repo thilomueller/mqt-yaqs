@@ -41,12 +41,14 @@ state = MPS(L, state="zeros")
 
 Define the noise model
 
-```{code-cell} ipython3
+````{code-cell} ipython3
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 
 gamma = 0.1
-noise_model = NoiseModel(["relaxation", "dephasing"], [gamma, gamma])
-```
+  noise_model = NoiseModel([
+      {"name": name, "sites": [i], "strength": gamma} for i in range(length) for name in ["relaxation", "dephasing"]
+  ])
+    ```
 
 Define the simulation parameters
 
@@ -103,3 +105,4 @@ cbar.ax.set_title("$\\langle X \\rangle$")
 
 plt.show()
 ```
+````
