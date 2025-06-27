@@ -74,7 +74,7 @@ def create_probability_distribution(
     Args:
         state: The Matrix Product State, assumed left-canonical at site 0 on entry.
         noise_model: The noise model as a list of process dicts, each with keys
-        "jump_operator", "strength", and "sites" (list of length 1 or 2).
+        "name", "strength", "sites", and "matrix" (list of length 1 or 2).
         dt : Time step for the evolution, used to scale the jump probabilities.
         sim_params: Simulation parameters, needed for splitting merged tensors (e.g., SVD threshold, bond dimension).
 
@@ -180,13 +180,13 @@ def stochastic_process(
     jump_dict = create_probability_distribution(state, noise_model, dt, sim_params)
     choices = list(range(len(jump_dict["probabilities"])))
     choice = rng.choice(choices, p=jump_dict["probabilities"])
-    jump_operator = jump_dict["jumps"][choice]
+    jump_op = jump_dict["jumps"][choice]
     sites = jump_dict["sites"][choice]
 
     if len(sites) == 1:
         # 1-site jump
         site = sites[0]
-        state.tensors[site] = oe.contract("ab, bcd->acd", jump_operator, state.tensors[site])
+        state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
     elif len(sites) == 2:
         # 2-site jump: merge, apply, split
         i, j = sites
@@ -195,7 +195,7 @@ def stochastic_process(
             msg = f"Only nearest-neighbor 2-site jumps are supported (got sites {i}, {j})"
             raise ValueError(msg)
         merged = merge_mps_tensors(state.tensors[i], state.tensors[j])
-        merged = oe.contract("ab, bcd->acd", jump_operator, merged)
+        merged = oe.contract("ab, bcd->acd", jump_op, merged)
         # For stochastic jumps, always contract singular values to the right
         tensor_left_new, tensor_right_new = split_mps_tensor(merged, "right", sim_params, dynamic=False)
         state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
