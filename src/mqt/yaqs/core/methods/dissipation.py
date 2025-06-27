@@ -27,14 +27,14 @@ from ..methods.tdvp import merge_mps_tensors, split_mps_tensor
 if TYPE_CHECKING:
     from ..data_structures.networks import MPS
     from ..data_structures.noise_model import NoiseModel
-    from ..data_structures.simulation_parameters import PhysicsSimParams, StrongSimParams, WeakSimParams
+    from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
 
 def apply_dissipation(
     state: MPS,
     noise_model: NoiseModel | None,
     dt: float,
-    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams,
+    sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
 ) -> None:
     """Apply dissipation to the system state using a given noise model and time step.
 
