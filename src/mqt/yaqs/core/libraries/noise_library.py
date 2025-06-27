@@ -64,7 +64,7 @@ class Dephasing:
     matrix = np.array([[1, 0], [0, -1]])
 
 
-class X:
+class BitFlip:
     """Class representing the Pauli-X (bit-flip) noise operator for a two-level system.
 
     Attributes:
@@ -75,7 +75,7 @@ class X:
     matrix = np.array([[0, 1], [1, 0]])
 
 
-class Y:
+class BitPhaseFlip:
     """Class representing the Pauli-Y noise operator for a two-level system.
 
     Attributes:
@@ -86,8 +86,8 @@ class Y:
     matrix = np.array([[0, -1j], [1j, 0]])
 
 
-class DoubleExcitation:
-    """Class representing the double excitation noise operator acting on two neighboring sites.
+class TwoSiteExcitation:
+    """Class representing the two-site excitation noise operator acting on two neighboring sites.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Excitation ⊗ Excitation.
@@ -96,8 +96,8 @@ class DoubleExcitation:
     matrix = np.kron(Excitation.matrix, Excitation.matrix)
 
 
-class DoubleRelaxation:
-    """Class representing the double relaxation noise operator acting on two neighboring sites.
+class TwoSiteRelaxation:
+    """Class representing the two-site relaxation noise operator acting on two neighboring sites.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Relaxation ⊗ Relaxation.
@@ -106,8 +106,8 @@ class DoubleRelaxation:
     matrix = np.kron(Relaxation.matrix, Relaxation.matrix)
 
 
-class DoubleDephasing:
-    """Class representing the double dephasing noise operator acting on two neighboring sites.
+class CrossTalk:
+    """Class representing the cross-talk operator acting on two neighboring sites.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Dephasing ⊗ Dephasing.
@@ -116,24 +116,24 @@ class DoubleDephasing:
     matrix = np.kron(Dephasing.matrix, Dephasing.matrix)
 
 
-class XX:
-    """Class representing the two-qubit Pauli-XX noise operator.
+class CrossTalk_X:
+    """Class representing the x-axis cross-talk noise operator.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product X ⊗ X.
     """
 
-    matrix = np.kron(X.matrix, X.matrix)
+    matrix = np.kron(BitFlip.matrix, BitFlip.matrix)
 
 
-class YY:
-    """Class representing the two-qubit Pauli-YY noise operator.
+class CrossTalk_Y:
+    """Class representing the y-axis cross-talk noise operator.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Y ⊗ Y.
     """
 
-    matrix = np.kron(Y.matrix, Y.matrix)
+    matrix = np.kron(BitPhaseFlip.matrix, BitPhaseFlip.matrix)
 
 
 class NoiseLibrary:
@@ -143,22 +143,23 @@ class NoiseLibrary:
         excitation: Class representing the excitation noise operator.
         relaxation: Class representing the relaxation noise operator.
         dephasing: Class representing the dephasing noise operator.
+        double_excitation: Class representing the double excitation noise operator.
+        double_relaxation: Class representing the double relaxation noise operator.
+        double_dephasing: Class representing the double dephasing noise operator.
         x: Class representing the Pauli-X noise operator.
         y: Class representing the Pauli-Y noise operator.
         xx: Class representing the two-qubit Pauli-XX noise operator.
         yy: Class representing the two-qubit Pauli-YY noise operator.
-        double_excitation: Class representing the double excitation noise operator.
-        double_relaxation: Class representing the double relaxation noise operator.
-        double_dephasing: Class representing the double dephasing noise operator.
     """
 
     excitation = Excitation
     relaxation = Relaxation
     dephasing = Dephasing
-    x = X
-    y = Y
-    xx = XX
-    yy = YY
-    double_excitation = DoubleExcitation
-    double_relaxation = DoubleRelaxation
-    double_dephasing = DoubleDephasing
+    bitflip = BitFlip
+    bitphaseflip = BitPhaseFlip
+    excitation_two = TwoSiteExcitation
+    relaxation_two = TwoSiteRelaxation
+    crosstalk = CrossTalk
+    crosstalk_x = CrossTalk_X
+    crosstalk_y = CrossTalk_Y
+
