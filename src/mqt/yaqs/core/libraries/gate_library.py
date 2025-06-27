@@ -841,11 +841,11 @@ class U2(BaseGate):
 
         # U2(φ,λ) = U3(π/2, φ, λ) up to global phase
         # matrix = 1/sqrt(2) * [[1, -e^{iλ}], [e^{iφ}, e^{i(φ+λ)}]]
-        inv_sqrt2 = 1/np.sqrt(2)
-        mat = inv_sqrt2 * np.array([
-            [1,                   -np.exp(1j * self.lam)],
-            [np.exp(1j * self.phi), np.exp(1j * (self.phi + self.lam))]
-        ], dtype=np.complex128)
+        inv_sqrt2 = 1 / np.sqrt(2)
+        mat = inv_sqrt2 * np.array(
+            [[1, -np.exp(1j * self.lam)], [np.exp(1j * self.phi), np.exp(1j * (self.phi + self.lam))]],
+            dtype=np.complex128,
+        )
 
         super().__init__(mat)
 

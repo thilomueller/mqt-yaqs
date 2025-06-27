@@ -304,11 +304,10 @@ def test_gate_u2() -> None:
     gate = GateLibrary.u2([phi, lam])
     gate.set_sites(0)  # For a single-qubit gate, only one site is needed.
 
-    inv_sqrt2 = 1/np.sqrt(2)
-    expected = inv_sqrt2 * np.array([
-            [1,                   -np.exp(1j * lam)],
-            [np.exp(1j * phi), np.exp(1j * (phi + lam))]
-        ], dtype=np.complex128)
+    inv_sqrt2 = 1 / np.sqrt(2)
+    expected = inv_sqrt2 * np.array(
+        [[1, -np.exp(1j * lam)], [np.exp(1j * phi), np.exp(1j * (phi + lam))]], dtype=np.complex128
+    )
     assert_allclose(gate.tensor, expected)
 
     base_gate = BaseGate.u([phi, lam])
