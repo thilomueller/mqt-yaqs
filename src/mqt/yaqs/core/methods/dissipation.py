@@ -36,22 +36,33 @@ def apply_dissipation(
     dt: float,
     sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams | None,
 ) -> None:
-    """Dissipative sweep: right-to-left, compatible with left-canonical MPS. Assumes state is left-canonical at start.
+    """Apply dissipation to the system state using a given noise model and time step.
 
-    This function applies dissipative evolution to an MPS state
-    by exponentiating weighted sums of jump operators derived from
-    the provided noise model. Both one-site and two-site dissipators
-    are handled, and the corresponding operators are applied to the
-    appropriate tensors via efficient tensor contractions.
-    The function iterates from right to left, updating the
-    MPS tensors and shifting the orthogonality center as needed.
+    This function modifies the state tensors of an MPS by applying a dissipative operator
+    that is calculated from the noise model's jump operators and strengths. The operator is
+    computed by exponentiating a matrix derived from these jump operators, and then applied to
+    each tensor in the state using an Einstein summation contraction.
+
+    Args:
+        state: The Matrix Product State representing the current state of the system.
+        noise_model): The noise model containing jump operators and their
+            corresponding strengths. If None or if all strengths are zero, no dissipation is applied.
+        dt: The time step for the evolution, used in the exponentiation of the dissipative operator.
+        sim_params: Simulation parameters that include settings.
+
+    Notes:
+        - If no noise is present (i.e. `noise_model` is None or all noise strengths are zero),
+          the function shifts the orthogonality center of the MPS tensors and returns early.
+        - The dissipation operator A is calculated as a sum over each jump operator, where each
+          term is given by (noise strength) * (conjugate transpose of the jump operator) multiplied
+          by the jump operator.
+        - The dissipative operator is computed using the matrix exponential `expm(-0.5 * dt * A)`.
+        - The operator is then applied to each tensor in the MPS via a contraction using `opt_einsum`.
     """
-    if noise_model is None or sim_params is None or all(proc["strength"] == 0 for proc in noise_model.processes):
+    if noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes):
         for i in reversed(range(state.length)):
             state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="QR")
         return
-
-    n_sites = state.length
 
     # Prepare: For each bond, collect all 2-site processes acting on that bond
     two_site_on_bond = defaultdict(list)
@@ -60,7 +71,7 @@ def apply_dissipation(
             bond = tuple(sorted(process["sites"]))  # e.g. (i-1, i)
             two_site_on_bond[bond].append(process)
 
-    for i in reversed(range(n_sites)):
+    for i in reversed(range(state.length)):
         # 1. Apply all 1-site dissipators on site i
         for process in noise_model.processes:
             if len(process["sites"]) == 1 and process["sites"][0] == i:
