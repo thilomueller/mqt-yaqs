@@ -116,7 +116,7 @@ class CrossTalk:
     matrix = np.kron(Dephasing.matrix, Dephasing.matrix)
 
 
-class CrossTalk_X:
+class CrossTalkX:
     """Class representing cross talk between neighboring sites along the x-axis.
 
     Attributes:
@@ -126,7 +126,7 @@ class CrossTalk_X:
     matrix = np.kron(BitFlip.matrix, BitFlip.matrix)
 
 
-class CrossTalk_Y:
+class CrossTalkY:
     """Class representing cross talk between neighboring sites along the y-axis.
 
     Attributes:
@@ -160,5 +160,5 @@ class NoiseLibrary:
     excitation_two = TwoSiteExcitation
     relaxation_two = TwoSiteRelaxation
     crosstalk = CrossTalk
-    crosstalk_x = CrossTalk_X
-    crosstalk_y = CrossTalk_Y
+    crosstalk_x = CrossTalkX
+    crosstalk_y = CrossTalkY

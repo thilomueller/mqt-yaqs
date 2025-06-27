@@ -34,7 +34,7 @@ def apply_dissipation(
     state: MPS,
     noise_model: NoiseModel | None,
     dt: float,
-    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams | None,
+    sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams,
 ) -> None:
     """Apply dissipation to the system state using a given noise model and time step.
 
@@ -45,7 +45,7 @@ def apply_dissipation(
 
     Args:
         state: The Matrix Product State representing the current state of the system.
-        noise_model): The noise model containing jump operators and their
+        noise_model: The noise model containing jump operators and their
             corresponding strengths. If None or if all strengths are zero, no dissipation is applied.
         dt: The time step for the evolution, used in the exponentiation of the dissipative operator.
         sim_params: Simulation parameters that include settings.
