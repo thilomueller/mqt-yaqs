@@ -76,7 +76,9 @@ def test_apply_dissipation_two_site_canonical_0() -> None:
     state = MPS(length=length, tensors=tensors, physical_dimensions=[pdim] * length)
 
     noise_model = NoiseModel([
-        {"name": name, "sites": [i, i+1], "strength": 0.1} for i in range(length-1) for name in ["crosstalk", "crosstalk_y"]
+        {"name": name, "sites": [i, i + 1], "strength": 0.1}
+        for i in range(length - 1)
+        for name in ["crosstalk", "crosstalk_y"]
     ])
     dt = 0.1
     sim_params = PhysicsSimParams(observables=[], elapsed_time=0.0, max_bond_dim=10, threshold=1e-10)
