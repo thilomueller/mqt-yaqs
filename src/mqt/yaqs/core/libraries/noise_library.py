@@ -20,11 +20,11 @@ import numpy as np
 
 
 class Excitation:
-    """Class representing the excitation noise operator for a two-level system.
+    """Class representing excitation noise.
 
     Attributes:
-        d (int): The dimension of the Hilbert space. Defaults to 2.
-        matrix (np.ndarray): A 2x2 matrix representing the excitation operator.
+        d: The dimension of the Hilbert space. Defaults to 2.
+        matrix: A 2x2 matrix representing the excitation operator.
             The matrix is constructed such that matrix[row, col] = 1 if row - col == 1, and 0 otherwise.
     """
 
@@ -37,7 +37,7 @@ class Excitation:
 
 
 class Relaxation:
-    """Class representing the relaxation noise operator for a two-level system.
+    """Class representing relaxation noise.
 
     Attributes:
         d (int): The dimension of the Hilbert space. Defaults to 2.
@@ -54,7 +54,7 @@ class Relaxation:
 
 
 class Dephasing:
-    """Class representing the dephasing noise operator for a two-level system.
+    """Class representing dephasing noise.
 
     Attributes:
         matrix (np.ndarray): A 2x2 matrix representing the dephasing operator,
@@ -65,7 +65,7 @@ class Dephasing:
 
 
 class BitFlip:
-    """Class representing the Pauli-X (bit-flip) noise operator for a two-level system.
+    """Class representing bitflip (Pauli-X) noise.
 
     Attributes:
         matrix (np.ndarray): A 2x2 matrix representing the Pauli-X operator,
@@ -76,7 +76,7 @@ class BitFlip:
 
 
 class BitPhaseFlip:
-    """Class representing the Pauli-Y noise operator for a two-level system.
+    """Class representing bit-phase flip (Pauli-Y) noise.
 
     Attributes:
         matrix (np.ndarray): A 2x2 matrix representing the Pauli-Y operator,
@@ -87,7 +87,7 @@ class BitPhaseFlip:
 
 
 class TwoSiteExcitation:
-    """Class representing the two-site excitation noise operator acting on two neighboring sites.
+    """Class representing two-site excitation noise.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Excitation ⊗ Excitation.
@@ -97,7 +97,7 @@ class TwoSiteExcitation:
 
 
 class TwoSiteRelaxation:
-    """Class representing the two-site relaxation noise operator acting on two neighboring sites.
+    """Class representing two-site relaxation noise.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Relaxation ⊗ Relaxation.
@@ -107,7 +107,7 @@ class TwoSiteRelaxation:
 
 
 class CrossTalk:
-    """Class representing the cross-talk operator acting on two neighboring sites.
+    """Class representing cross talk between neighboring sites along the z-axis.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Dephasing ⊗ Dephasing.
@@ -117,7 +117,7 @@ class CrossTalk:
 
 
 class CrossTalk_X:
-    """Class representing the x-axis cross-talk noise operator.
+    """Class representing cross talk between neighboring sites along the x-axis.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product X ⊗ X.
@@ -127,7 +127,7 @@ class CrossTalk_X:
 
 
 class CrossTalk_Y:
-    """Class representing the y-axis cross-talk noise operator.
+    """Class representing cross talk between neighboring sites along the y-axis.
 
     Attributes:
         matrix (np.ndarray): A 4x4 matrix representing the tensor product Y ⊗ Y.
@@ -137,19 +137,19 @@ class CrossTalk_Y:
 
 
 class NoiseLibrary:
-    """A library of noise operator classes.
+    """A library of noise processes.
 
     Attributes:
-        excitation: Class representing the excitation noise operator.
-        relaxation: Class representing the relaxation noise operator.
-        dephasing: Class representing the dephasing noise operator.
-        double_excitation: Class representing the double excitation noise operator.
-        double_relaxation: Class representing the double relaxation noise operator.
-        double_dephasing: Class representing the double dephasing noise operator.
-        x: Class representing the Pauli-X noise operator.
-        y: Class representing the Pauli-Y noise operator.
-        xx: Class representing the two-qubit Pauli-XX noise operator.
-        yy: Class representing the two-qubit Pauli-YY noise operator.
+        excitation: Excitation noise (0 --> 1).
+        relaxation: Relaxation noise (1 --> 0).
+        dephasing: Dephasing noise.
+        bitflip: Bitflip (Pauli-X) noise (0 --> 1, 1 --> 0).
+        bitphaseflip: Bit-phase flip (Pauli-Y) noise.
+        excitation_two: Two-site excitation noise (00 --> 11).
+        relaxation_two: Two-site relaxation noise (11 --> 00).
+        crosstalk: Cross talk between neighboring sites along the z-axis.
+        crosstalk_x: Cross talk between neighboring sites along the x-axis.
+        crosstalk_y: Cross talk between neighboring sites along the y-axis.
     """
 
     excitation = Excitation
