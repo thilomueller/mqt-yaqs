@@ -9,10 +9,10 @@
 
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING
 
 import numpy as np
-import copy
 
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
@@ -23,11 +23,11 @@ from mqt.yaqs.core.methods.stochastic_process import (
     stochastic_process,
 )
 
-
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 rng = np.random.default_rng()
+
 
 def crandn(
     size: int | tuple[int, ...], *args: int, seed: np.random.Generator | int | None = None
@@ -50,6 +50,7 @@ def crandn(
     # 1/sqrt(2) is a normalization factor
     return (rng.standard_normal(size) + 1j * rng.standard_normal(size)) / np.sqrt(2)
 
+
 def random_mps(shapes: list[tuple[int, int, int]], *, normalize: bool = True) -> MPS:
     """Create a random MPS with the given shapes.
 
@@ -67,7 +68,8 @@ def random_mps(shapes: list[tuple[int, int, int]], *, normalize: bool = True) ->
         mps.normalize()
     return mps
 
-def test_calculate_stochastic_factor_zero_norm():
+
+def test_calculate_stochastic_factor_zero_norm() -> None:
     """Test that the stochastic factor is zero for a norm-1 state at site 0.
 
     This test creates a normalized MPS and verifies that the stochastic factor
@@ -81,7 +83,7 @@ def test_calculate_stochastic_factor_zero_norm():
     assert np.isclose(factor, 0.0), "Stochastic factor should be zero for normalized state."
 
 
-def test_calculate_stochastic_factor_nontrivial():
+def test_calculate_stochastic_factor_nontrivial() -> None:
     """Test stochastic factor is correct for a non-unit norm at site 0.
 
     This test artificially rescales the first tensor of an MPS, resulting in a non-unit
@@ -95,7 +97,7 @@ def test_calculate_stochastic_factor_nontrivial():
     assert np.isclose(factor, expected), "Stochastic factor does not match expectation."
 
 
-def test_create_probability_distribution_no_noise():
+def test_create_probability_distribution_no_noise() -> None:
     """Test probability distribution is empty when no noise model is provided.
 
     This test passes an empty noise model to `create_probability_distribution` and verifies
@@ -110,7 +112,7 @@ def test_create_probability_distribution_no_noise():
     assert all(len(v) == 0 for v in out.values()), "Output should be empty with no noise."
 
 
-def test_create_probability_distribution_one_site():
+def test_create_probability_distribution_one_site() -> None:
     """Test probability distribution for a single 1-site jump operator.
 
     This test sets up a noise model with one local jump operator and checks that
@@ -134,7 +136,7 @@ def test_create_probability_distribution_one_site():
     assert out["strengths"][0] == 0.5
 
 
-def test_stochastic_process_no_jump():
+def test_stochastic_process_no_jump() -> None:
     """Test that stochastic_process returns the state unchanged if no jump occurs.
 
     This test applies `stochastic_process` with None type noise model,
@@ -152,7 +154,7 @@ def test_stochastic_process_no_jump():
         np.testing.assert_allclose(a, b)
 
 
-def test_stochastic_process_jump():
+def test_stochastic_process_jump() -> None:
     """Test that stochastic_process triggers a jump.
 
     This test that triggers a jump in `stochastic_process` by rescaling the first tensor, then
@@ -174,7 +176,7 @@ def test_stochastic_process_jump():
     assert different, "At least one tensor should have changed after jump."
 
 
-def test_create_probability_distribution_two_site():
+def test_create_probability_distribution_two_site() -> None:
     """Test probability distribution for a single 2-site jump operator.
 
     This test uses a noise model containing a single two-site jump process and checks
@@ -183,7 +185,7 @@ def test_create_probability_distribution_two_site():
     """
     state = random_mps([(2, 1, 2), (2, 2, 2), (2, 2, 1)])
     # 2x2 identity operator (for simplicity, but normally should be 4x4, depends on your merge op!)
-    id_op = np.eye(2)
+    np.eye(2)
     noise_model = NoiseModel([
         {"name": "crosstalk", "sites": [0, 1], "strength": 0.2},
     ])
