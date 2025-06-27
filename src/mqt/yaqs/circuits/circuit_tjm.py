@@ -236,12 +236,12 @@ def circuit_tjm(
             for node in group:
                 apply_two_qubit_gate(state, node, sim_params)
                 # Jump process occurs after each two-qubit gate
-                if noise_model is not None:
-                    apply_dissipation(state, noise_model, dt=1, sim_params=sim_params)
-                    state = stochastic_process(state, noise_model, dt=1, sim_params=sim_params)
-                else:
+                if noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes):
                     # Normalizes state
                     state.normalize(form="B", decomposition="QR")
+                else:
+                    apply_dissipation(state, noise_model, dt=1, sim_params=sim_params)
+                    state = stochastic_process(state, noise_model, dt=1, sim_params=sim_params)
 
                 dag.remove_op_node(node)
 
