@@ -105,3 +105,4 @@ cbar.ax.set_title("$\\langle X \\rangle$")
 
 plt.show()
 ```
+````
