@@ -45,8 +45,10 @@ Define the noise model
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 
 gamma = 0.1
-noise_model = NoiseModel(["relaxation", "dephasing"], [gamma, gamma])
-```
+  noise_model = NoiseModel([
+      {"name": name, "sites": [i], "strength": gamma} for i in range(length) for name in ["relaxation", "dephasing"]
+  ])
+    ```
 
 Define the simulation parameters
 
