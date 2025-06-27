@@ -400,6 +400,30 @@ class BaseGate:
         return Phase(params)
 
     @classmethod
+    def u(cls, params: list[Parameter]) -> U:
+        """Returns the U2 gate.
+
+        Args:
+            params (list[Parameter]): The rotation angle parameters.
+
+        Returns:
+            U: An instance of the U2 gate.
+        """
+        return U(params)
+
+    @classmethod
+    def u2(cls, params: list[Parameter]) -> U2:
+        """Returns the U2 gate.
+
+        Args:
+            params (list[Parameter]): The rotation angle parameters.
+
+        Returns:
+            U2: An instance of the U2 gate.
+        """
+        return U2(params)
+
+    @classmethod
     def u3(cls, params: list[Parameter]) -> U3:
         """Returns the U3 gate.
 
@@ -785,6 +809,84 @@ class Phase(BaseGate):
         """
         self.theta = params[0]
         mat = np.array([[1, 0], [0, np.exp(1j * self.theta)]])
+        super().__init__(mat)
+
+
+class U(BaseGate):
+    """Class representing a generic U(θ,φ,λ) single-qubit gate.
+
+    Attributes:
+        name (str): The name of the gate ("u").
+        matrix (ndarray[np.complex128]): The 2×2 matrix representation.
+        interaction (int): The interaction level (1 for single-qubit gates).
+        tensor (ndarray[np.complex128]): Tensor repr (same as matrix).
+        theta (float): first rotation angle.
+        phi (float): second rotation angle.
+        lam (float): third rotation angle.
+
+    Methods:
+        set_sites(*sites: int) -> None:
+            Sets the qubit(s) where the gate applies.
+    """
+    name = "u"
+
+    def __init__(self, params: list[Parameter]) -> None:
+        """Initializes the UGate.
+
+        Args:
+            params: list[Parameter]
+                A list of three rotation angles [theta, phi, lambda].
+        """
+        self.theta, self.phi, self.lam = params
+
+        # U(θ,φ,λ) = [[cos(θ/2), -e^{iλ} sin(θ/2)],
+        #             [e^{iφ} sin(θ/2), e^{i(φ+λ)} cos(θ/2)]]
+        mat = np.array([
+            [ np.cos(self.theta/2),
+             -np.exp(1j*self.lam)*np.sin(self.theta/2)],
+            [ np.exp(1j*self.phi)*np.sin(self.theta/2),
+              np.exp(1j*(self.phi + self.lam))*np.cos(self.theta/2)]
+        ], dtype=np.complex128)
+
+        super().__init__(mat)
+
+
+class U2(BaseGate):
+    """Class representing a U2 gate.
+
+    Attributes:
+        name (str): The name of the gate ("u2").
+        matrix (ndarray[np.complex128]): The 2×2 matrix representation of the gate.
+        interaction (int): The interaction level (1 for single-qubit gates).
+        tensor (ndarray[np.complex128]): The tensor representation of the gate (same as the matrix).
+        phi (float): The first rotation parameter.
+        lam (float): The second rotation parameter.
+
+    Methods:
+        set_sites(*sites: int) -> None:
+            Sets the site(s) where the gate is applied.
+    """
+
+    name = "u2"
+
+    def __init__(self, params: list[Parameter]) -> None:
+        """Initializes the U2 gate.
+
+        Args:
+            params: list[Parameter]
+                A list containing two rotation angles [phi, lambda].
+        """
+        # Unpack parameters
+        self.phi, self.lam = params
+
+        # U2(φ,λ) = U3(π/2, φ, λ) up to global phase
+        # matrix = 1/sqrt(2) * [[1, -e^{iλ}], [e^{iφ}, e^{i(φ+λ)}]]
+        inv_sqrt2 = 1/np.sqrt(2)
+        mat = inv_sqrt2 * np.array([
+            [1,                   -np.exp(1j * self.lam)],
+            [np.exp(1j * self.phi), np.exp(1j * (self.phi + self.lam))]
+        ], dtype=np.complex128)
+
         super().__init__(mat)
 
 
@@ -1330,6 +1432,8 @@ class GateLibrary:
     rx = Rx
     ry = Ry
     rz = Rz
+    u = U
+    u2 = U2
     u3 = U3
     cx = CX
     cz = CZ
@@ -1337,8 +1441,8 @@ class GateLibrary:
     rxx = Rxx
     ryy = Ryy
     rzz = Rzz
-    cphase = CPhase
-    phase = Phase
+    cp = CPhase
+    p = Phase
     destroy = Destroy
     create = Create
     xx = XX
