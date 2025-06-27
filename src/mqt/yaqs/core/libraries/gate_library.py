@@ -388,7 +388,7 @@ class BaseGate:
         return Rz(params)
 
     @classmethod
-    def phase(cls, params: list[Parameter]) -> Phase:
+    def p(cls, params: list[Parameter]) -> Phase:
         """Returns the Phase gate.
 
         Args:
@@ -401,13 +401,13 @@ class BaseGate:
 
     @classmethod
     def u(cls, params: list[Parameter]) -> U:
-        """Returns the U2 gate.
+        """Returns the U gate.
 
         Args:
-            params (list[Parameter]): The rotation angle parameters.
+            params: The rotation angle parameters.
 
         Returns:
-            U: An instance of the U2 gate.
+            U: An instance of the U gate.
         """
         return U(params)
 
@@ -422,18 +422,6 @@ class BaseGate:
             U2: An instance of the U2 gate.
         """
         return U2(params)
-
-    @classmethod
-    def u3(cls, params: list[Parameter]) -> U3:
-        """Returns the U3 gate.
-
-        Args:
-            params: The rotation angle parameters.
-
-        Returns:
-            U3: An instance of the U3 gate.
-        """
-        return U3(params)
 
     @classmethod
     def cx(cls) -> CX:
@@ -454,7 +442,7 @@ class BaseGate:
         return CZ()
 
     @classmethod
-    def cphase(cls, params: list[Parameter]) -> CPhase:
+    def cp(cls, params: list[Parameter]) -> CPhase:
         """Returns the CPhase gate.
 
         Args:
@@ -816,12 +804,12 @@ class U2(BaseGate):
     """Class representing a U2 gate.
 
     Attributes:
-        name (str): The name of the gate ("u2").
-        matrix (ndarray[np.complex128]): The 2×2 matrix representation of the gate.
-        interaction (int): The interaction level (1 for single-qubit gates).
-        tensor (ndarray[np.complex128]): The tensor representation of the gate (same as the matrix).
-        phi (float): The first rotation parameter.
-        lam (float): The second rotation parameter.
+        name: The name of the gate ("u2").
+        matrix: The 2x2 matrix representation of the gate.
+        interaction: The interaction level (1 for single-qubit gates).
+        tensor: The tensor representation of the gate (same as the matrix).
+        phi: The first rotation parameter.
+        lam: The second rotation parameter.
 
     Methods:
         set_sites(*sites: int) -> None:
@@ -839,8 +827,6 @@ class U2(BaseGate):
         """
         self.phi, self.lam = params
 
-        # U2(φ,λ) = U3(π/2, φ, λ) up to global phase
-        # matrix = 1/sqrt(2) * [[1, -e^{iλ}], [e^{iφ}, e^{i(φ+λ)}]]
         inv_sqrt2 = 1 / np.sqrt(2)
         mat = inv_sqrt2 * np.array(
             [[1, -np.exp(1j * self.lam)], [np.exp(1j * self.phi), np.exp(1j * (self.phi + self.lam))]],
