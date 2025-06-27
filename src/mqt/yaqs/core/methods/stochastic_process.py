@@ -72,10 +72,10 @@ def create_probability_distribution(
     the associated jump operators and their target site(s).
 
     Args:
-        state (MPS): The Matrix Product State, assumed left-canonical at site 0 on entry.
-        noise_model (NoiseModel | None): The noise model as a list of process dicts, each with keys
+        state: The Matrix Product State, assumed left-canonical at site 0 on entry.
+        noise_model: The noise model as a list of process dicts, each with keys
         "jump_operator", "strength", and "sites" (list of length 1 or 2).
-        dt (float): Time step for the evolution, used to scale the jump probabilities.
+        dt : Time step for the evolution, used to scale the jump probabilities.
         sim_params: Simulation parameters, needed for splitting merged tensors (e.g., SVD threshold, bond dimension).
 
     Returns:
@@ -91,33 +91,32 @@ def create_probability_distribution(
         return jump_dict
 
     dp_m_list = []
-    n_sites = state.length
 
-    for site in range(n_sites):
+    for site in range(state.length):
         # Shift ortho center to the right as needed (no shift for site 0)
-        if site not in {0, n_sites}:
+        if site not in {0, state.length}:
             state.shift_orthogonality_center_right(site - 1)
 
         # --- 1-site jumps at this site ---
         for process in noise_model.processes:
             if len(process["sites"]) == 1 and process["sites"][0] == site:
                 gamma = process["strength"]
-                jump_operator = process["jump_operator"]
+                jump_op = process["matrix"]
 
                 jumped_state = copy.deepcopy(state)
-                jumped_state.tensors[site] = oe.contract("ab, bcd->acd", jump_operator, state.tensors[site])
+                jumped_state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
                 dp_m = dt * gamma * jumped_state.norm(site)
                 dp_m_list.append(dp_m.real)
-                jump_dict["jumps"].append(jump_operator)
+                jump_dict["jumps"].append(jump_op)
                 jump_dict["strengths"].append(gamma)
                 jump_dict["sites"].append([site])
 
         # --- 2-site jumps starting at [site, site+1] ---
-        if site < n_sites - 1:
+        if site < state.length - 1:
             for process in noise_model.processes:
                 if len(process["sites"]) == 2 and process["sites"][0] == site and process["sites"][1] == site + 1:
                     gamma = process["strength"]
-                    jump_operator = process["jump_operator"]
+                    jump_op = process["matrix"]
 
                     jumped_state = copy.deepcopy(state)
                     # merge the tensors at site and site+1
@@ -125,7 +124,7 @@ def create_probability_distribution(
                     tensor_right = jumped_state.tensors[site + 1]
                     merged = merge_mps_tensors(tensor_left, tensor_right)
                     # apply the 2-site jump operator
-                    merged = oe.contract("ab, bcd->acd", jump_operator, merged)
+                    merged = oe.contract("ab, bcd->acd", jump_op, merged)
                     dp_m = dt * gamma * jumped_state.norm(site)
                     # split the tensor (always contract singular values right for probabilities)
                     tensor_left_new, tensor_right_new = split_mps_tensor(merged, "right", sim_params, dynamic=False)
@@ -133,7 +132,7 @@ def create_probability_distribution(
                     # compute the norm at `site`
 
                     dp_m_list.append(dp_m.real)
-                    jump_dict["jumps"].append(jump_operator)
+                    jump_dict["jumps"].append(jump_op)
                     jump_dict["strengths"].append(gamma)
                     jump_dict["sites"].append([site, site + 1])
 
@@ -159,9 +158,9 @@ def stochastic_process(
     with appropriate tensor contractions and normalization to ensure physical validity.
 
     Args:
-        state (MPS): The current Matrix Product State, left-canonical at site 0.
-        noise_model (NoiseModel | None): The noise model, or None for no jumps.
-        dt (float): The time step for the evolution.
+        state: The current Matrix Product State, left-canonical at site 0.
+        noise_model: The noise model, or None for no jumps.
+        dt: The time step for the evolution.
         sim_params: Simulation parameters (for splitting tensors, required for 2-site jumps).
 
     Returns:
