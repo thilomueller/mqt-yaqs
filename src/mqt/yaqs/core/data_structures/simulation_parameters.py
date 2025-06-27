@@ -9,7 +9,7 @@
 
 This module provides classes for representing observables and simulation parameters
 for quantum simulations. It defines the Observable class for measurement, as well as
-the PhysicsSimParams, WeakSimParams, and StrongSimParams classes for configuring simulation
+the AnalogSimParams, WeakSimParams, and StrongSimParams classes for configuring simulation
 runs. These classes encapsulate settings such as simulation time, time steps, bond dimension limits,
 thresholds, and window sizes, and they include methods for aggregating simulation results.
 """
@@ -56,7 +56,7 @@ class Observable:
     -------
     __init__(name: str, site: int) -> None
         Initializes the Observable with a name and site, and checks if the name is valid in the GateLibrary.
-    initialize(sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams) -> None
+    initialize(sim_params: AnalogSimParams | StrongSimParams | WeakSimParams) -> None
         Initializes the results and trajectories arrays based on the type of simulation parameters provided.
     """
 
@@ -82,15 +82,15 @@ class Observable:
         self.results: NDArray[np.float64] | None = None
         self.trajectories: NDArray[np.float64] | None = None
 
-    def initialize(self, sim_params: PhysicsSimParams | StrongSimParams | WeakSimParams) -> None:
+    def initialize(self, sim_params: AnalogSimParams | StrongSimParams | WeakSimParams) -> None:
         """Observable initialization before simulation.
 
         Initialize the observables based on the type of simulation.
         Parameters:
-        sim_params (PhysicsSimParams | StrongSimParams | WeakSimParams): The simulation parameters object
-        which can be of type PhysicsSimParams, StrongSimParams, or WeakSimParams.
+        sim_params (AnalogSimParams | StrongSimParams | WeakSimParams): The simulation parameters object
+        which can be of type AnalogSimParams, StrongSimParams, or WeakSimParams.
         """
-        if isinstance(sim_params, PhysicsSimParams):
+        if isinstance(sim_params, AnalogSimParams):
             if sim_params.sample_timesteps:
                 self.trajectories = np.empty((sim_params.num_traj, len(sim_params.times)), dtype=np.float64)
                 self.times = sim_params.times
@@ -106,10 +106,10 @@ class Observable:
             self.results = np.empty(1, dtype=np.float64)
 
 
-class PhysicsSimParams:
-    """Hamiltonian Simulation Parameters.
+class AnalogSimParams:
+    """Analog Simulation Parameters.
 
-    A class to represent the parameters for a physics simulation.
+    A class to represent the parameters for an analog simulation.
 
     Attributes:
     -----------
@@ -159,9 +159,9 @@ class PhysicsSimParams:
         evolution_mode: EvolutionMode = EvolutionMode.TDVP,
         get_state: bool = False,
     ) -> None:
-        """Physics simulation parameters initialization.
+        """Analog simulation parameters initialization.
 
-        Initializes parameters for a physics-based quantum simulation.
+        Initializes parameters for an analog quantum simulation.
 
         Parameters
         ----------

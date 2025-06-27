@@ -10,7 +10,7 @@
 This module implements the Tensor Jump Method (TJM) for simulating the dynamics of quantum many-body systems.
 It provides functions for initializing the sampling state with noise (via dissipation and stochastic processes),
 evolving the state through single-site and two-site TDVP updates, and sampling observable measurements over time.
-The functions physics_tjm_2 and physics_tjm_1 correspond to second-order and first-order evolution schemes,
+The functions analog_tjm_2 and analog_tjm_1 correspond to second-order and first-order evolution schemes,
 respectively, and return trajectories of expectation values for further analysis.
 """
 
@@ -32,10 +32,10 @@ if TYPE_CHECKING:
 
     from ..core.data_structures.networks import MPO, MPS
     from ..core.data_structures.noise_model import NoiseModel
-    from ..core.data_structures.simulation_parameters import PhysicsSimParams
+    from ..core.data_structures.simulation_parameters import AnalogSimParams
 
 
-def initialize(state: MPS, noise_model: NoiseModel | None, sim_params: PhysicsSimParams) -> MPS:
+def initialize(state: MPS, noise_model: NoiseModel | None, sim_params: AnalogSimParams) -> MPS:
     """Initialize the sampling MPS for second-order Trotterization.
 
     This function prepares the initial sampling MPS (denoted as Phi(0)) by applying a half time step of dissipation
@@ -44,7 +44,7 @@ def initialize(state: MPS, noise_model: NoiseModel | None, sim_params: PhysicsSi
     Args:
         state (MPS): The initial state of the system.
         noise_model (NoiseModel | None): The noise model to apply to the system.
-        sim_params (PhysicsSimParams): Simulation parameters including the time step (dt).
+        sim_params (AnalogSimParams): Simulation parameters including the time step (dt).
 
     Returns:
         MPS: The initialized sampling MPS Phi(0).
@@ -53,7 +53,7 @@ def initialize(state: MPS, noise_model: NoiseModel | None, sim_params: PhysicsSi
     return stochastic_process(state, noise_model, sim_params.dt)
 
 
-def step_through(state: MPS, hamiltonian: MPO, noise_model: NoiseModel | None, sim_params: PhysicsSimParams) -> MPS:
+def step_through(state: MPS, hamiltonian: MPO, noise_model: NoiseModel | None, sim_params: AnalogSimParams) -> MPS:
     """Perform a single time step evolution of the system state using the TJM.
 
     Corresponding to Fj in the TJM paper, this function evolves the state by applying dynamic TDVP,
@@ -63,7 +63,7 @@ def step_through(state: MPS, hamiltonian: MPO, noise_model: NoiseModel | None, s
         state (MPS): The current state of the system.
         hamiltonian (MPO): The Hamiltonian operator for the system.
         noise_model (NoiseModel | None): The noise model to apply to the system.
-        sim_params (PhysicsSimParams): Simulation parameters including the time step and measurement settings.
+        sim_params (AnalogSimParams): Simulation parameters including the time step and measurement settings.
 
     Returns:
         MPS: The updated state after one time step evolution.
@@ -80,7 +80,7 @@ def sample(
     phi: MPS,
     hamiltonian: MPO,
     noise_model: NoiseModel | None,
-    sim_params: PhysicsSimParams,
+    sim_params: AnalogSimParams,
     results: NDArray[np.float64],
     j: int,
 ) -> None:
@@ -94,7 +94,7 @@ def sample(
         phi (MPS): The sampling MPS prior to measurement.
         hamiltonian (MPO): The Hamiltonian operator for the system.
         noise_model (NoiseModel | None): The noise model to apply during evolution.
-        sim_params (PhysicsSimParams): Simulation parameters including time step and measurement settings.
+        sim_params (AnalogSimParams): Simulation parameters including time step and measurement settings.
         results (NDArray[np.float64]): An array to store the measured observable values.
         j (int): The time step or shot index at which the measurement is recorded.
 
@@ -138,7 +138,7 @@ def sample(
             results[obs_index, 0] = temp_state.expect(observable)
 
 
-def physics_tjm_2(args: tuple[int, MPS, NoiseModel | None, PhysicsSimParams, MPO]) -> NDArray[np.float64]:
+def analog_tjm_2(args: tuple[int, MPS, NoiseModel | None, AnalogSimParams, MPO]) -> NDArray[np.float64]:
     """Run a single trajectory of the TJM using a two-site evolution scheme.
 
     This function executes a full trajectory by evolving the initial state,
@@ -150,7 +150,7 @@ def physics_tjm_2(args: tuple[int, MPS, NoiseModel | None, PhysicsSimParams, MPO
             - int: Trajectory identifier.
             - MPS: The initial state of the system.
             - NoiseModel | None: The noise model to be applied (if any).
-            - PhysicsSimParams: Simulation parameters (including time step, SVD threshold, etc.).
+            - AnalogSimParams: Simulation parameters (including time step, SVD threshold, etc.).
             - MPO: The Hamiltonian operator represented as an MPO.
 
     Returns:
@@ -181,7 +181,7 @@ def physics_tjm_2(args: tuple[int, MPS, NoiseModel | None, PhysicsSimParams, MPO
     return results
 
 
-def physics_tjm_1(args: tuple[int, MPS, NoiseModel | None, PhysicsSimParams, MPO]) -> NDArray[np.float64]:
+def analog_tjm_1(args: tuple[int, MPS, NoiseModel | None, AnalogSimParams, MPO]) -> NDArray[np.float64]:
     """Run a single trajectory of the TJM using a one-site evolution scheme.
 
     This function evolves the state with a one-site TDVP update, applying noise (if provided)
@@ -192,7 +192,7 @@ def physics_tjm_1(args: tuple[int, MPS, NoiseModel | None, PhysicsSimParams, MPO
             - int: Trajectory identifier.
             - MPS: The initial state of the system.
             - NoiseModel | None: The noise model to be applied (if any).
-            - PhysicsSimParams: Simulation parameters including the time step and measurement settings.
+            - AnalogSimParams: Simulation parameters including the time step and measurement settings.
             - MPO: The Hamiltonian operator represented as an MPO.
 
     Returns:

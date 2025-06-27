@@ -36,7 +36,7 @@ import pytest
 from scipy.linalg import expm
 
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
-from mqt.yaqs.core.data_structures.simulation_parameters import Observable, PhysicsSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import Observable, AnalogSimParams
 from mqt.yaqs.core.libraries.gate_library import X, Z
 from mqt.yaqs.core.methods.tdvp import (
     global_dynamic_tdvp,
@@ -68,7 +68,7 @@ def test_split_mps_tensor_left_right_sqrt() -> None:
     A = rng.random(size=(4, 3, 5))
     # Placeholder
     measurements = [Observable(Z(), site) for site in range(1)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements,
         elapsed_time=0.2,
         dt=0.1,
@@ -102,7 +102,7 @@ def test_split_mps_tensor_invalid_shape() -> None:
     A = rng.random(size=(3, 3, 5))
     # Placeholder
     measurements = [Observable(Z(), site) for site in range(1)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements,
         elapsed_time=0.2,
         dt=0.1,
@@ -233,7 +233,7 @@ def test_single_site_tdvp() -> None:
     """Test the single_site_TDVP function.
 
     This test initializes an Ising MPO and an MPS of length 5 (initialized to 'zeros'),
-    along with PhysicsSimParams configured for a single trajectory update.
+    along with AnalogSimParams configured for a single trajectory update.
     It runs single_site_TDVP and verifies that the MPS remains of the same length, all tensors are numpy arrays,
     and the MPS is left in a canonical form with the orthogonality center at site 0.
     """
@@ -244,7 +244,7 @@ def test_single_site_tdvp() -> None:
     H.init_ising(L, J, g)
     state = MPS(L, state="zeros")
     measurements = [Observable(Z(), site) for site in range(L)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements,
         elapsed_time=0.2,
         dt=0.1,
@@ -267,7 +267,7 @@ def test_single_site_tdvp() -> None:
 def test_two_site_tdvp() -> None:
     """Test the two_site_TDVP function.
 
-    This test initializes an Ising MPO and an MPS of length 5, sets up PhysicsSimParams,
+    This test initializes an Ising MPO and an MPS of length 5, sets up AnalogSimParams,
     and runs two_site_TDVP. It checks that the MPS retains the correct number of tensors,
     that all tensors remain numpy arrays, and that the MPS is in canonical form with the orthogonality center at site 0.
     """
@@ -279,7 +279,7 @@ def test_two_site_tdvp() -> None:
     state = MPS(L, state="zeros")
     ref_mps = deepcopy(state)
     measurements = [Observable(Z(), site) for site in range(L)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements,
         elapsed_time=0.2,
         dt=0.1,
@@ -336,7 +336,7 @@ def test_dynamic_tdvp_one_site() -> None:
     threshold = 1e-6
     order = 1
     measurements = [Observable(X(), site) for site in range(L)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements,
         elapsed_time,
         dt,
@@ -382,7 +382,7 @@ def test_dynamic_tdvp_two_site() -> None:
     threshold = 1e-6
     order = 1
     measurements = [Observable(X(), site) for site in range(L)]
-    sim_params = PhysicsSimParams(
+    sim_params = AnalogSimParams(
         measurements,
         elapsed_time,
         dt,

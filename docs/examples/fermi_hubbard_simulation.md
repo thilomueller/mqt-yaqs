@@ -14,8 +14,8 @@ mystnb:
 
 # Fermi Hubbard Simulation
 
-This example demonstrates how to run a Hamiltonian simulation using the YAQS simulator with a 2D Fermi-Hubbard model.
-An Fermi-Hubbard circuit is created and an initial MPS is prepared in the domain wall state.
+This example demonstrates how to run a simulation using the YAQS simulator.
+A Fermi-Hubbard circuit is created and an initial MPS is prepared in the domain wall state.
 The simulation parameters (using StrongSimParams) are defined and the simulation is run. Afterwards, the occupation probability $\braket{n_{i,\sigma}} = \frac{1}{2} \left( 1 - \braket{Z_{i,\sigma}} \right)$ is calculated for each site.
 
 ```{code-cell} ipython3

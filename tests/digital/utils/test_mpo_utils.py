@@ -31,8 +31,8 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.converters import circuit_to_dag
 
-from mqt.yaqs.circuits.utils.dag_utils import select_starting_point
-from mqt.yaqs.circuits.utils.mpo_utils import (
+from mqt.yaqs.digital.utils.dag_utils import select_starting_point
+from mqt.yaqs.digital.utils.mpo_utils import (
     apply_gate,
     apply_layer,
     apply_long_range_layer,
