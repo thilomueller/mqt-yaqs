@@ -310,7 +310,7 @@ def test_gate_u2() -> None:
     )
     assert_allclose(gate.tensor, expected)
 
-    base_gate = BaseGate.u([phi, lam])
+    base_gate = BaseGate.u2([phi, lam])
     assert_array_equal(gate.matrix, base_gate.matrix)
 
 
