@@ -32,10 +32,10 @@ from typing import TYPE_CHECKING
 from qiskit.circuit import QuantumCircuit
 from tqdm import tqdm
 
-from .digital.digital_tjm import digital_tjm
+from .analog.analog_tjm import analog_tjm_1, analog_tjm_2
 from .core.data_structures.networks import MPO
 from .core.data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
-from .analog.analog_tjm import analog_tjm_1, analog_tjm_2
+from .digital.digital_tjm import digital_tjm
 
 if TYPE_CHECKING:
     from .core.data_structures.networks import MPS

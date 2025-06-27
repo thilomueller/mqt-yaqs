@@ -25,8 +25,8 @@ from mqt.yaqs import simulator
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.simulation_parameters import (
-    Observable,
     AnalogSimParams,
+    Observable,
     StrongSimParams,
     WeakSimParams,
 )

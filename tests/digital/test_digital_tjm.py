@@ -31,17 +31,17 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.converters import circuit_to_dag
 
+from mqt.yaqs.core.data_structures.networks import MPS
+from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams, WeakSimParams
+from mqt.yaqs.core.libraries.gate_library import GateLibrary, X, Z
 from mqt.yaqs.digital.digital_tjm import (
     apply_single_qubit_gate,
     apply_two_qubit_gate,
     apply_window,
-    digital_tjm,
     construct_generator_mpo,
+    digital_tjm,
     process_layer,
 )
-from mqt.yaqs.core.data_structures.networks import MPS
-from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams, WeakSimParams
-from mqt.yaqs.core.libraries.gate_library import GateLibrary, X, Z
 
 
 def test_process_layer() -> None:

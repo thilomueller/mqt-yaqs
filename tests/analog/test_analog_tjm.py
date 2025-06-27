@@ -33,11 +33,11 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from mqt.yaqs.analog.analog_tjm import analog_tjm_1, analog_tjm_2, initialize, step_through
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
-from mqt.yaqs.core.data_structures.simulation_parameters import Observable, AnalogSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable
 from mqt.yaqs.core.libraries.gate_library import X, Z
-from mqt.yaqs.analog.analog_tjm import initialize, analog_tjm_1, analog_tjm_2, step_through
 
 
 def test_initialize() -> None:

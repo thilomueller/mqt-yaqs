@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from mqt.yaqs.core.data_structures.simulation_parameters import Observable, AnalogSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable
 from mqt.yaqs.core.libraries.gate_library import Z
 from mqt.yaqs.core.methods.decompositions import left_qr, right_qr, right_svd, truncated_right_svd
 
