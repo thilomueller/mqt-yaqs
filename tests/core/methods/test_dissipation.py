@@ -58,7 +58,7 @@ def test_apply_dissipation_two_site_canonical_0() -> None:
     """Test that apply_dissipation correctly shifts the MPS to be site-canonical at site 0.
 
     This test constructs a simple product-state MPS of length 3, where each tensor is of shape (pdim, 1, 1),
-    representing an unentangled state. A minimal NoiseModel with one jump operator is created with a small strength,
+    representing an unentangled state. A minimal NoiseModel with two 2-site jump operators is created with a small strength,
     and apply_dissipation is applied with a small time step dt. Finally, the test checks that the orthogonality
     center of the MPS is shifted to site 0, as expected.
     """
