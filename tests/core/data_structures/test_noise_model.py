@@ -46,8 +46,8 @@ def test_noise_model_creation() -> None:
     assert model.processes[1]["strength"] == 0.05
     assert model.processes[0]["sites"] == [0]
     assert model.processes[1]["sites"] == [1]
-    assert model.processes[0]["jump_operator"].shape == (2, 2)
-    assert model.processes[1]["jump_operator"].shape == (2, 2)
+    assert model.processes[0]["matrix"].shape == (2, 2)
+    assert model.processes[1]["matrix"].shape == (2, 2)
 
 
 def test_noise_model_assertion() -> None:
