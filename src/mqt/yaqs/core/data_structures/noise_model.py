@@ -27,10 +27,10 @@ class NoiseModel:
     """A class to represent a noise model with arbitrary-site jump operators.
 
     Each process is a dict with:
-        - name (str): process name or identifier
-        - sites (list of int): indices of sites this process acts on
-        - strength (float): noise strength
-        - jump_operator (np.ndarray): matrix representing the operator on those sites
+        - name: process name or identifier
+        - sites: indices of sites this process acts on
+        - strength: noise strength
+        - jump_operator: matrix representing the operator on those sites
     """
 
     def __init__(self, processes: list[dict[str, Any]] | None = None) -> None:
@@ -51,8 +51,7 @@ class NoiseModel:
         """Retrieve the operator from NoiseLibrary, possibly as a tensor product if needed.
 
         Args:
-            name (str): Name of the noise process (e.g., 'xx', 'zz').
-            num_sites (int): Number of sites this operator acts on.
+            name: Name of the noise process (e.g., 'xx', 'zz').
 
         Returns:
             np.ndarray: The matrix representation of the operator.
