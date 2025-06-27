@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -234,12 +234,12 @@ def test_gate_phase() -> None:
     is computed correctly. It also confirms that the tensor equals the matrix.
     """
     theta = np.pi / 3
-    gate = GateLibrary.phase([theta])
+    gate = GateLibrary.p([theta])
     gate.set_sites(4)
     assert gate.sites == [4]
     assert_array_equal(gate.tensor, gate.matrix)
 
-    base_gate = BaseGate.phase([theta])
+    base_gate = BaseGate.p([theta])
     assert_array_equal(gate.matrix, base_gate.matrix)
 
 
@@ -293,16 +293,37 @@ def test_gate_rz() -> None:
     assert_array_equal(gate.matrix, base_gate.matrix)
 
 
-def test_gate_u3() -> None:
-    """Test the U3 gate.
+def test_gate_u2() -> None:
+    """Test the U2 gate.
 
     This test sets the parameters (theta, phi, lambda) for the U3 gate and verifies that its tensor,
+    which is equivalent to the 2x2 unitary matrix representation, matches the expected matrix.
+    """
+    phi = np.pi / 4
+    lam = np.pi / 3
+    gate = GateLibrary.u2([phi, lam])
+    gate.set_sites(0)  # For a single-qubit gate, only one site is needed.
+
+    inv_sqrt2 = 1 / np.sqrt(2)
+    expected = inv_sqrt2 * np.array(
+        [[1, -np.exp(1j * lam)], [np.exp(1j * phi), np.exp(1j * (phi + lam))]], dtype=np.complex128
+    )
+    assert_allclose(gate.tensor, expected)
+
+    base_gate = BaseGate.u2([phi, lam])
+    assert_array_equal(gate.matrix, base_gate.matrix)
+
+
+def test_gate_u() -> None:
+    """Test the U gate.
+
+    This test sets the parameters (theta, phi, lambda) for the U gate and verifies that its tensor,
     which is equivalent to the 2x2 unitary matrix representation, matches the expected matrix.
     """
     theta = np.pi / 2
     phi = np.pi / 4
     lam = np.pi / 3
-    gate = GateLibrary.u3([theta, phi, lam])
+    gate = GateLibrary.u([theta, phi, lam])
     gate.set_sites(0)  # For a single-qubit gate, only one site is needed.
 
     expected = np.array([
@@ -312,7 +333,7 @@ def test_gate_u3() -> None:
 
     assert_allclose(gate.tensor, expected)
 
-    base_gate = BaseGate.u3([theta, phi, lam])
+    base_gate = BaseGate.u([theta, phi, lam])
     assert_array_equal(gate.matrix, base_gate.matrix)
 
 
@@ -435,12 +456,12 @@ def test_gate_cphase_forward() -> None:
     It verifies that the tensor, when reshaped to (2,2,2,2), matches the expected matrix.
     """
     theta = np.pi / 2
-    gate = GateLibrary.cphase([theta])
+    gate = GateLibrary.cp([theta])
     gate.set_sites(0, 1)  # Forward order
     expected: NDArray[np.complex128] = np.reshape(gate.matrix, (2, 2, 2, 2))
     assert_array_equal(gate.tensor, expected)
 
-    base_gate = BaseGate.cphase([theta])
+    base_gate = BaseGate.cp([theta])
     assert_array_equal(gate.matrix, base_gate.matrix)
 
 
@@ -451,7 +472,7 @@ def test_gate_cphase_reverse() -> None:
     It then verifies that the tensor is correctly transposed (axes (1,0,3,2)) relative to the forward order.
     """
     theta = np.pi / 2
-    gate = GateLibrary.cphase([theta])
+    gate = GateLibrary.cp([theta])
     gate.set_sites(1, 0)  # Reverse order; tensor should be transposed on (1,0,3,2)
     expected: NDArray[np.complex128] = np.reshape(gate.matrix, (2, 2, 2, 2))
     expected = np.transpose(expected, (1, 0, 3, 2))
