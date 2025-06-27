@@ -16,7 +16,7 @@ import numpy as np
 
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
-from mqt.yaqs.core.data_structures.simulation_parameters import PhysicsSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams
 from mqt.yaqs.core.methods.stochastic_process import (
     calculate_stochastic_factor,
     create_probability_distribution,
@@ -107,7 +107,7 @@ def test_create_probability_distribution_no_noise() -> None:
     state = random_mps([(2, 1, 2), (2, 2, 2), (2, 2, 1)])
     noise_model = NoiseModel([])
     dt = 0.1
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
+    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
     out = create_probability_distribution(state, noise_model, dt, sim_params)
     assert all(len(v) == 0 for v in out.values()), "Output should be empty with no noise."
 
@@ -126,7 +126,7 @@ def test_create_probability_distribution_one_site() -> None:
         {"name": "relaxation", "sites": [1], "strength": 0.5, "matrix": id_op},
     ])
     dt = 0.1
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
+    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
     out = create_probability_distribution(state, noise_model, dt, sim_params)
     # One jump, one site
     assert len(out["jumps"]) == 1
@@ -145,7 +145,7 @@ def test_stochastic_process_no_jump() -> None:
     state = random_mps([(2, 1, 2), (2, 2, 2), (2, 2, 1)])
     noise_model = None
     dt = 0.1
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
+    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
     new_state = stochastic_process(state, noise_model, dt, sim_params)
     # Should still be the same type
     assert isinstance(new_state, MPS)
@@ -166,7 +166,7 @@ def test_stochastic_process_jump() -> None:
         {"name": "bitflip", "sites": [0], "strength": 1000.0},
     ])
     dt = 0.1
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
+    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
     state_copy = copy.deepcopy(state)
     new_state = stochastic_process(state_copy, noise_model, dt, sim_params)
     # Should still be the same type
@@ -190,7 +190,7 @@ def test_create_probability_distribution_two_site() -> None:
         {"name": "crosstalk", "sites": [0, 1], "strength": 0.2},
     ])
     dt = 0.1
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
+    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
     out = create_probability_distribution(state, noise_model, dt, sim_params)
     assert len(out["jumps"]) == 1
     assert out["sites"][0] == [0, 1]
