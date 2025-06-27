@@ -207,6 +207,9 @@ def create_heisenberg_circuit(
             circ.rxx(theta=theta_xx, qubit1=L - 2, qubit2=L - 1)
             circ.barrier()
 
+        if periodic and L > 1:
+            circ.rxx(theta=theta_xx, qubit1=0, qubit2=L - 1)
+
         # YY application
         for site in range(L // 2):
             circ.ryy(theta=theta_yy, qubit1=2 * site, qubit2=2 * site + 1)
