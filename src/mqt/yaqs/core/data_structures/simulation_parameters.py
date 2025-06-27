@@ -9,7 +9,7 @@
 
 This module provides classes for representing observables and simulation parameters
 for quantum simulations. It defines the Observable class for measurement, as well as
-the AnalogSimParams, WeakSimParams, and StrongSimParams classes for configuring simulation
+the PhysicsSimParams, WeakSimParams, and StrongSimParams classes for configuring simulation
 runs. These classes encapsulate settings such as simulation time, time steps, bond dimension limits,
 thresholds, and window sizes, and they include methods for aggregating simulation results.
 """
@@ -21,6 +21,8 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from mqt.yaqs.core.libraries.gate_library import GateLibrary
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -75,7 +77,7 @@ class Observable:
         AssertionError
             If the provided `name` is not a valid attribute in the GateLibrary.
         """
-        # assert name in ObservablesLibrary
+        assert hasattr(GateLibrary, gate.name), f"Observable {gate.name} not found in GateLibrary."
         self.gate = copy.deepcopy(gate)
         self.sites = sites
         self.gate.set_sites(self.sites)
@@ -159,9 +161,9 @@ class AnalogSimParams:
         evolution_mode: EvolutionMode = EvolutionMode.TDVP,
         get_state: bool = False,
     ) -> None:
-        """Analog simulation parameters initialization.
+        """Physics simulation parameters initialization.
 
-        Initializes parameters for an analog quantum simulation.
+        Initializes parameters for a physics-based quantum simulation.
 
         Parameters
         ----------
