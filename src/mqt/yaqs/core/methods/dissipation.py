@@ -76,31 +76,30 @@ def apply_dissipation(
         for process in noise_model.processes:
             if len(process["sites"]) == 1 and process["sites"][0] == i:
                 gamma = process["strength"]
-                jump_operator = process["jump_operator"]
-                mat = np.conj(jump_operator).T @ jump_operator
-                dissipative_operator = expm(-0.5 * dt * gamma * mat)
-                state.tensors[i] = oe.contract("ab, bcd->acd", dissipative_operator, state.tensors[i])
+                jump_op_mat = process["matrix"]
+                mat = np.conj(jump_op_mat).T @ jump_op_mat
+                dissipative_op = expm(-0.5 * dt * gamma * mat)
+                state.tensors[i] = oe.contract("ab, bcd->acd", dissipative_op, state.tensors[i])
 
             bond = (i - 1, i)
             processes_here = two_site_on_bond.get(bond, [])
-            len(processes_here)
 
         # 2. Apply all 2-site dissipators acting on sites (i-1, i)
         if i != 0:
             for process in processes_here:
                 gamma = process["strength"]
-                jump_operator = process["jump_operator"]
-                mat = np.conj(jump_operator).T @ jump_operator
-                dissipative_operator = expm(-0.5 * dt * gamma * mat)
+                jump_op_mat = process["matrix"]
+                mat = np.conj(jump_op_mat).T @ jump_op_mat
+                dissipative_op = expm(-0.5 * dt * gamma * mat)
 
                 merged_tensor = merge_mps_tensors(state.tensors[i - 1], state.tensors[i])
-                merged_tensor = oe.contract("ab, bcd->acd", dissipative_operator, merged_tensor)
+                merged_tensor = oe.contract("ab, bcd->acd", dissipative_op, merged_tensor)
 
                 # singular values always contracted right
-                # since ortho center is shifter to the left after loop
+                # since ortho center is shifted to the left after loop
                 tensor_right, tensor_left = split_mps_tensor(merged_tensor, "right", sim_params, dynamic=False)
                 state.tensors[i - 1], state.tensors[i] = tensor_right, tensor_left
 
         # Shift orthogonality center
         if i != 0:
-            state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
+            state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="QR")
