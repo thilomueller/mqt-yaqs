@@ -67,8 +67,6 @@ def random_mps(shapes: list[tuple[int, int, int]], *, normalize: bool = True) ->
         mps.normalize()
     return mps
 
-
-
 def test_calculate_stochastic_factor_zero_norm():
     """Test that the stochastic factor is zero for a norm-1 state at site 0.
 
@@ -195,7 +193,3 @@ def test_create_probability_distribution_two_site():
     assert len(out["jumps"]) == 1
     assert out["sites"][0] == [0, 1]
     assert np.isclose(sum(out["probabilities"]), 1.0)
-
-if __name__ == "__main__":
-    test_stochastic_process_jump()
-    test_create_probability_distribution_two_site()
