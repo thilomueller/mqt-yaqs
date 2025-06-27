@@ -162,4 +162,3 @@ class NoiseLibrary:
     crosstalk = CrossTalk
     crosstalk_x = CrossTalk_X
     crosstalk_y = CrossTalk_Y
-

@@ -59,7 +59,7 @@ class NoiseModel:
                 assert "sites" in proc, "Each process must have a 'sites' key"
                 assert "strength" in proc, "Each process must have a 'strength' key"
                 # Try to look up the operator if not explicitly provided
-                if "matrix" not in proc.keys():
+                if "matrix" not in proc:
                     proc["matrix"] = self.get_operator(proc["name"])
                 self.processes.append(proc)
 
