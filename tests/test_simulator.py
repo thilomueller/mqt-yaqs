@@ -197,7 +197,7 @@ def test_strong_simulation() -> None:
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=10)
     circuit.measure_all()
 
-    num_traj = 10
+    num_traj = 50
     max_bond_dim = 4
 
     measurements = [Observable(Z(), site) for site in range(num_qubits)]
