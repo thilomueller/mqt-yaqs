@@ -251,6 +251,19 @@ class BaseGate:
         """
         return self.__mul__(other)
 
+    def __matmul__(self, other: BaseGate) -> BaseGate:
+        """Matrix multiplication using @ operator.
+
+        Args:
+            other: The other gate to multiply.
+
+        Returns:
+            BaseGate: A new BaseGate resulting from matrix multiplication.
+        """
+        if self.interaction != other.interaction:
+            raise ValueError("Cannot matrix-multiply gates with different interaction levels")
+        return BaseGate(self.matrix @ other.matrix)
+
     def dag(self) -> BaseGate:
         """Returns the conjugate transpose (dagger) of the gate.
 
@@ -604,6 +617,18 @@ class Destroy(BaseGate):
         mat = np.array([[0, 1], [0, 0]])
         super().__init__(mat)
 
+    def set_dim(self, d: int) -> None:
+        """Sets number of levels in annihilation operator
+        Args:
+            d: Physical dimension
+        """
+        mat = np.zeros((d, d))
+        for row, array in enumerate(mat):
+            for col, _ in enumerate(array):
+                if row - col == 1:
+                    mat[row][col] = 1
+        super().__init__(mat)
+
 
 class Create(BaseGate):
     """Class representing the Create (creation) gate.
@@ -626,6 +651,17 @@ class Create(BaseGate):
         mat = np.array([[0, 0], [1, 0]])
         super().__init__(mat)
 
+    def set_dim(self, d: int) -> None:
+        """Sets number of levels in annihilation operator
+        Args:
+            d: Physical dimension
+        """
+        mat = np.zeros((d, d))
+        for row, array in enumerate(mat):
+            for col, _ in enumerate(array):
+                if col - row == 1:
+                    mat[row][col] = 1
+        super().__init__(mat)
 
 class Id(BaseGate):
     """Class representing the identity (Id) gate.
