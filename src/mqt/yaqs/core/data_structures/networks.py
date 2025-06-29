@@ -913,11 +913,9 @@ class MPO:
                             qubit_freq: float, resonator_freq: float,
                             anharmonicity: float, coupling: float):
 
-        b = Destroy()
-        b.set_dim(qubit_dim)
+        b = Destroy(qubit_dim)
         b_dag = b.dag()
-        a = Destroy()
-        a. set_dim(resonator_dim)
+        a = Destroy(resonator_dim)
         a_dag = a.dag()
 
         id_q = np.eye(qubit_dim, dtype=complex)

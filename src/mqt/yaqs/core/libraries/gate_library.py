@@ -325,22 +325,26 @@ class BaseGate:
         return H()
 
     @classmethod
-    def destroy(cls) -> Destroy:
+    def destroy(cls, d: int=2) -> Destroy:
         """Returns the Destroy gate.
 
+        Args:
+            d: number of levels
         Returns:
             Destroy: An instance of the Destroy gate.
         """
-        return Destroy()
+        return Destroy(d)
 
     @classmethod
-    def create(cls) -> Create:
+    def create(cls, d: int=2) -> Create:
         """Returns the Create gate.
 
+        Args:
+            d: number of levels
         Returns:
             Create: An instance of the Create gate.
         """
-        return Create()
+        return Create(d)
 
     @classmethod
     def id(cls) -> Id:
@@ -508,6 +512,38 @@ class BaseGate:
         return Rzz(params)
 
 
+    @classmethod
+    def p0(cls) -> P0:
+        """Returns the P0 projector.
+
+        Returns:
+            P0: An instance of the P0 gate.
+        """
+        return P0()
+
+    @classmethod
+    def p1(cls) -> P1:
+        """Returns the P1 projector.
+
+        Returns:
+            P1: An instance of the P1 gate.
+        """
+        return P1()
+
+
+    @classmethod
+    def pn(cls, n: int, d: int) -> Pn:
+        """Returns the Pn projector.
+
+        Args:
+            n: projector level
+            d: number of levels in local Hilbert space
+        Returns:
+            Pn: An instance of the Pn gate.
+        """
+        return Pn(n, d)
+
+
 class X(BaseGate):
     """Class representing the Pauli-X (NOT) gate.
 
@@ -612,20 +648,15 @@ class Destroy(BaseGate):
 
     name = "destroy"
 
-    def __init__(self) -> None:
-        """Initializes the Destroy gate."""
-        mat = np.array([[0, 1], [0, 0]])
-        super().__init__(mat)
-
-    def set_dim(self, d: int) -> None:
-        """Sets number of levels in annihilation operator
+    def __init__(self, d: int=2) -> None:
+        """Initializes the Destroy gate.
         Args:
             d: Physical dimension
         """
         mat = np.zeros((d, d))
         for row, array in enumerate(mat):
             for col, _ in enumerate(array):
-                if row - col == 1:
+                if col - row == 1:
                     mat[row][col] = 1
         super().__init__(mat)
 
@@ -646,20 +677,15 @@ class Create(BaseGate):
 
     name = "create"
 
-    def __init__(self) -> None:
-        """Initializes the Create gate."""
-        mat = np.array([[0, 0], [1, 0]])
-        super().__init__(mat)
-
-    def set_dim(self, d: int) -> None:
-        """Sets number of levels in annihilation operator
+    def __init__(self, d: int=2) -> None:
+        """Initializes the Create gate.
         Args:
             d: Physical dimension
         """
         mat = np.zeros((d, d))
         for row, array in enumerate(mat):
             for col, _ in enumerate(array):
-                if col - row == 1:
+                if row - col == 1:
                     mat[row][col] = 1
         super().__init__(mat)
 
@@ -1377,6 +1403,84 @@ class ZZ(BaseGate):
         super().__init__(mat)
 
 
+class P0(BaseGate):
+    """Class representing the projector onto |0⟩⟨0|.
+
+    Attributes:
+        name: The name of the gate ("p0").
+        matrix: The 2x2 matrix representation of the projector.
+        interaction: The interaction level (1 for single-qubit projectors).
+        tensor: The tensor representation of the projector (same as the matrix).
+
+    Methods:
+        set_sites(*sites: int) -> None:
+            Sets the site(s) where the projector is applied.
+    """
+
+    name = "p0"
+
+    def __init__(self) -> None:
+        """Initializes the |0⟩⟨0| projector."""
+        mat = np.array([[1, 0], [0, 0]], dtype=complex)
+        super().__init__(mat)
+
+
+class P1(BaseGate):
+    """Class representing the projector onto |1⟩⟨1|.
+
+    Attributes:
+        name: The name of the gate ("p1").
+        matrix: The 2x2 matrix representation of the projector.
+        interaction: The interaction level (1 for single-qubit projectors).
+        tensor: The tensor representation of the projector (same as the matrix).
+
+    Methods:
+        set_sites(*sites: int) -> None:
+            Sets the site(s) where the projector is applied.
+    """
+
+    name = "p1"
+
+    def __init__(self) -> None:
+        """Initializes the |1⟩⟨1| projector."""
+        mat = np.array([[0, 0], [0, 1]], dtype=complex)
+        super().__init__(mat)
+
+
+class Pn(BaseGate):
+    """Class representing a projector onto Fock state |n⟩⟨n|.
+
+    This gate is useful for simulating level population observables in multi-level systems like transmons.
+
+    Attributes:
+        name: The name of the gate (e.g., "p1" for the |1⟩⟨1| projector).
+        matrix: The dxd matrix representation of the projector.
+        interaction: The interaction level (1 for single-site operators).
+        tensor: The tensor representation of the projector (same as the matrix).
+
+    Methods:
+        set_sites(*sites: int) -> None:
+            Sets the site(s) where the projector is applied.
+    """
+
+    def __init__(self, n: int, d: int) -> None:
+        """Initializes the |n⟩⟨n| projector for a d-level system.
+
+        Args:
+            n: The Fock level to project onto (0 <= n < d).
+            d: The dimension of the Hilbert space (e.g., 3 for a transmon).
+
+        Raises:
+            ValueError: If n is out of bounds for the given dimension.
+        """
+        if not (0 <= n < d):
+            raise ValueError(f"Invalid projection level {n} for dimension {d}")
+        mat = np.zeros((d, d), dtype=complex)
+        mat[n, n] = 1
+        self.name = f"p{n}"
+        super().__init__(mat)
+
+
 class GateLibrary:
     """A collection of quantum gate classes for use in simulations.
 
@@ -1425,3 +1529,6 @@ class GateLibrary:
     xx = XX
     yy = YY
     zz = ZZ
+    p0 = P0
+    p1 = P1
+    pn = Pn
