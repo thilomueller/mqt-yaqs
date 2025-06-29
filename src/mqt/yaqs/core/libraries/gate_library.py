@@ -260,8 +260,6 @@ class BaseGate:
         Returns:
             BaseGate: A new BaseGate resulting from matrix multiplication.
         """
-        if self.interaction != other.interaction:
-            raise ValueError("Cannot matrix-multiply gates with different interaction levels")
         return BaseGate(self.matrix @ other.matrix)
 
     def dag(self) -> BaseGate:
@@ -325,7 +323,7 @@ class BaseGate:
         return H()
 
     @classmethod
-    def destroy(cls, d: int=2) -> Destroy:
+    def destroy(cls, d: int = 2) -> Destroy:
         """Returns the Destroy gate.
 
         Args:
@@ -336,7 +334,7 @@ class BaseGate:
         return Destroy(d)
 
     @classmethod
-    def create(cls, d: int=2) -> Create:
+    def create(cls, d: int = 2) -> Create:
         """Returns the Create gate.
 
         Args:
@@ -511,7 +509,6 @@ class BaseGate:
         """
         return Rzz(params)
 
-
     @classmethod
     def p0(cls) -> P0:
         """Returns the P0 projector.
@@ -529,7 +526,6 @@ class BaseGate:
             P1: An instance of the P1 gate.
         """
         return P1()
-
 
     @classmethod
     def pn(cls, n: int, d: int) -> Pn:
@@ -648,10 +644,11 @@ class Destroy(BaseGate):
 
     name = "destroy"
 
-    def __init__(self, d: int=2) -> None:
+    def __init__(self, d: int = 2) -> None:
         """Initializes the Destroy gate.
+
         Args:
-            d: Physical dimension
+            d: Physical dimension.
         """
         mat = np.zeros((d, d))
         for row, array in enumerate(mat):
@@ -677,10 +674,11 @@ class Create(BaseGate):
 
     name = "create"
 
-    def __init__(self, d: int=2) -> None:
+    def __init__(self, d: int = 2) -> None:
         """Initializes the Create gate.
+
         Args:
-            d: Physical dimension
+            d: Physical dimension.
         """
         mat = np.zeros((d, d))
         for row, array in enumerate(mat):
@@ -688,6 +686,7 @@ class Create(BaseGate):
                 if row - col == 1:
                     mat[row][col] = 1
         super().__init__(mat)
+
 
 class Id(BaseGate):
     """Class representing the identity (Id) gate.
@@ -1474,7 +1473,8 @@ class Pn(BaseGate):
             ValueError: If n is out of bounds for the given dimension.
         """
         if not (0 <= n < d):
-            raise ValueError(f"Invalid projection level {n} for dimension {d}")
+            msg = f"Invalid projection level {n} for dimension {d}"
+            raise ValueError(msg)
         mat = np.zeros((d, d), dtype=complex)
         mat[n, n] = 1
         self.name = f"p{n}"
