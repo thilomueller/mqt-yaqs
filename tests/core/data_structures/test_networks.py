@@ -368,7 +368,7 @@ def test_check_if_identity() -> None:
 ##############################################################################
 
 
-@pytest.mark.parametrize("state", ["zeros", "ones", "x+", "x-", "y+", "y-", "Neel", "wall"])
+@pytest.mark.parametrize("state", ["zeros", "ones", "x+", "x-", "y+", "y-", "Neel", "wall", "basis"])
 def test_mps_initialization(state: str) -> None:
     """Test that MPS initializes with the correct chain length, physical dimensions, and tensor shapes.
 
@@ -380,17 +380,53 @@ def test_mps_initialization(state: str) -> None:
     """
     length = 4
     pdim = 2
-    mps = MPS(length=length, physical_dimensions=[pdim] * length, state=state)
+    basis_string = "1001"
+
+    if state == "basis":
+        mps = MPS(length=length, physical_dimensions=[pdim] * length, state=state, basis_string=basis_string)
+    else:
+        mps = MPS(length=length, physical_dimensions=[pdim] * length, state=state)
 
     assert mps.length == length
     assert len(mps.tensors) == length
     assert all(d == pdim for d in mps.physical_dimensions)
 
-    for tensor in mps.tensors:
+    for i, tensor in enumerate(mps.tensors):
+        # Check tensor shape
         assert tensor.ndim == 3
-        assert tensor.shape[0] == pdim
-        assert tensor.shape[1] == 1
-        assert tensor.shape[2] == 1
+        assert tensor.shape == (pdim, 1, 1)
+
+        # Validate state-specific behavior
+        vec = tensor[:, 0, 0]
+        if state == "zeros":
+            expected = np.array([1, 0], dtype=complex)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "ones":
+            expected = np.array([0, 1], dtype=complex)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "x+":
+            expected = np.array([1, 1], dtype=complex) / np.sqrt(2)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "x-":
+            expected = np.array([1, -1], dtype=complex) / np.sqrt(2)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "y+":
+            expected = np.array([1, 1j], dtype=complex) / np.sqrt(2)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "y-":
+            expected = np.array([1, -1j], dtype=complex) / np.sqrt(2)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "Neel":
+            expected = np.array([1, 0], dtype=complex) if i % 2 else np.array([0, 1], dtype=complex)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "wall":
+            expected = np.array([1, 0], dtype=complex) if i < length // 2 else np.array([0, 1], dtype=complex)
+            np.testing.assert_allclose(vec, expected)
+        elif state == "basis":
+            bit = int(basis_string[i])
+            expected = np.zeros(pdim, dtype=complex)
+            expected[bit] = 1
+            np.testing.assert_allclose(vec, expected)
 
 
 def test_mps_custom_tensors() -> None:
