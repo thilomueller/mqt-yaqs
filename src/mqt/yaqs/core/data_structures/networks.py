@@ -198,15 +198,12 @@ class MPS:
         if pad is not None:
             self.pad_bond_dimension(pad)
 
-    def init_mps_from_basis(self, basis_string: str, physical_dimensions: list[int]) -> list[np.ndarray]:
+    def init_mps_from_basis(self, basis_string: str, physical_dimensions: list[int]) -> None:
         """Initialize a list of MPS tensors representing a product state from a basis string.
 
         Args:
             basis_string: A string like "0101" indicating the computational basis state.
-            physical dimensions: The physical dimension of each site (e.g. 2 for qubits, 3+ for qudits).
-
-        Returns:
-            A list of MPS tensors.
+            physical_dimensions: The physical dimension of each site (e.g. 2 for qubits, 3+ for qudits).
         """
         assert len(basis_string) == len(physical_dimensions)
         for site, char in enumerate(basis_string):
