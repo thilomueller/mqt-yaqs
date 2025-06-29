@@ -114,6 +114,7 @@ class MPS:
             String used to initialize the state in a specific computational basis.
             This should generally be in the form of 0s and 1s, e.g., "0101" for a 4-qubit state.
             For mixed-dimensional systems, this can be increased to 2, 3, ... etc.
+
         Raises:
         ------
         AssertionError
