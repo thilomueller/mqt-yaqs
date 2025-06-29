@@ -82,6 +82,7 @@ class MPS:
         physical_dimensions: list[int] | None = None,
         state: str = "zeros",
         pad: int | None = None,
+        basis_string: str | None = None,
     ) -> None:
         """Initializes a Matrix Product State (MPS).
 
@@ -105,8 +106,14 @@ class MPS:
             - "Neel": Alternating pattern |0101...⟩.
             - "wall": Domain wall at given site |000111>
             - "random": Initializes each qubit randomly.
+            - "basis": Initializes a qubit in an input computational basis.
             Default is "zeros".
-
+        pad: int, optional
+            Pads the state with extra zeros to increase bond dimension. Can increase numerical stability.
+        basis_string: str, optional
+            String used to initialize the state in a specific computational basis.
+            This should generally be in the form of 0s and 1s, e.g., "0101" for a 4-qubit state.
+            For mixed-dimensional systems, this can be increased to 2, 3, ... etc.
         Raises:
         ------
         AssertionError
@@ -172,6 +179,10 @@ class MPS:
                     rng = np.random.default_rng()
                     vector[0] = rng.random()
                     vector[1] = 1 - vector[0]
+                elif state == "basis":
+                    assert basis_string is not None, "basis_string must be provided for 'basis' state initialization."
+                    self.init_mps_from_basis(basis_string, self.physical_dimensions)
+                    break
                 else:
                     msg = "Invalid state string"
                     raise ValueError(msg)
@@ -185,6 +196,23 @@ class MPS:
                 self.normalize()
         if pad is not None:
             self.pad_bond_dimension(pad)
+
+    def init_mps_from_basis(self, basis_string: str, physical_dimensions: list[int]) -> list[np.ndarray]:
+        """Initialize a list of MPS tensors representing a product state from a basis string.
+
+        Args:
+            basis_string: A string like "0101" indicating the computational basis state.
+            physical dimensions: The physical dimension of each site (e.g. 2 for qubits, 3+ for qudits).
+
+        Returns:
+            A list of MPS tensors.
+        """
+        assert len(basis_string) == len(physical_dimensions)
+        for site, char in enumerate(basis_string):
+            idx = int(char)
+            tensor = np.zeros((physical_dimensions[site], 1, 1), dtype=complex)
+            tensor[idx, 0, 0] = 1.0
+            self.tensors.append(tensor)
 
     def pad_bond_dimension(self, target_dim: int) -> None:
         """Pad MPS with extra zeros to increase bond dims.
