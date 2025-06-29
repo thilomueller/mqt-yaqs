@@ -24,7 +24,7 @@ import numpy as np
 import opt_einsum as oe
 from tqdm import tqdm
 
-from ..libraries.gate_library import X, Y, Z
+from ..libraries.gate_library import X, Y, Z, Destroy, Create
 from ..methods.decompositions import right_qr, two_site_svd
 
 if TYPE_CHECKING:
@@ -797,7 +797,6 @@ class MPO:
             g (float): The coupling constant for the field.
         """
         physical_dimension = 2
-        np.zeros((physical_dimension, physical_dimension), dtype=complex)
         identity = np.eye(physical_dimension, dtype=complex)
         x = X().matrix
         if length == 1:
@@ -883,6 +882,65 @@ class MPO:
             self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
         self.length = length
         self.physical_dimension = physical_dimension
+
+    def init_coupled_transmon(self, length: int, qubit_dim: int, resonator_dim: int,
+                            qubit_freq: float, resonator_freq: float,
+                            anharmonicity: float, coupling: float):
+
+        b = Destroy()
+        b.set_dim(qubit_dim)
+        b_dag = b.dag()
+        a = Destroy()
+        a. set_dim(resonator_dim)
+        a_dag = a.dag()
+
+        id_q = np.eye(qubit_dim, dtype=complex)
+        id_r = np.eye(resonator_dim, dtype=complex)
+        zero_q = np.zeros_like(id_q)
+        zero_r = np.zeros_like(id_r)
+
+        n_q = b_dag.matrix @ b.matrix
+        n_r = a_dag.matrix @ a.matrix
+        H_q = qubit_freq * n_q + (anharmonicity / 2) * n_q @ (n_q - id_q)
+        H_r = resonator_freq * n_r
+
+        X_q = b.matrix + b_dag.matrix
+        X_r = a.matrix + a_dag.matrix
+
+        self.tensors = []
+
+        for i in range(length):
+            if i % 2 == 0:
+                # Qubit site
+                if i == 0:
+                    tensor = np.array([[H_q, id_q, coupling * X_q, id_q]], dtype=object)  # shape (1,4,d,d)
+                elif i == length - 1:
+                    tensor = np.array([[id_q], [coupling * X_q], [id_q], [H_q]], dtype=object)  # shape (4,1,d,d)
+                else:
+                    tensor = np.empty((4, 4, qubit_dim, qubit_dim), dtype=object)
+                    tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
+                    tensor[0, 0] = H_q
+                    tensor[0, 1] = id_q
+                    tensor[0, 2] = coupling * X_q
+                    tensor[0, 3] = id_q
+                    tensor[3, 3] = id_q
+            else:
+                # Resonator site
+                tensor = np.empty((4, 4, resonator_dim, resonator_dim), dtype=object)
+                tensor[:, :] = [[zero_r for _ in range(4)] for _ in range(4)]
+                tensor[0, 0] = id_r
+                tensor[1, 2] = H_r
+                tensor[2, 0] = X_r
+                tensor[3, 1] = coupling * X_r
+                tensor[3, 3] = id_r
+
+            # Transpose to (phys_out, phys_in, left, right)
+            tensor = np.transpose(tensor, (2, 3, 0, 1))
+            self.tensors.append(tensor)
+
+        self.length = length
+        self.physical_dimension = qubit_dim
+
 
     def init_identity(self, length: int, physical_dimension: int = 2) -> None:
         """Initialize identity MPO.
