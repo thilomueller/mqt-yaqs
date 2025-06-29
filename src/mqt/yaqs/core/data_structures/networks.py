@@ -24,7 +24,7 @@ import numpy as np
 import opt_einsum as oe
 from tqdm import tqdm
 
-from ..libraries.gate_library import X, Y, Z, Destroy, Create
+from ..libraries.gate_library import Destroy, X, Y, Z
 from ..methods.decompositions import right_qr, two_site_svd
 
 if TYPE_CHECKING:
@@ -911,7 +911,7 @@ class MPO:
 
     def init_coupled_transmon(self, length: int, qubit_dim: int, resonator_dim: int,
                             qubit_freq: float, resonator_freq: float,
-                            anharmonicity: float, coupling: float):
+                            anharmonicity: float, coupling: float) -> None:
 
         b = Destroy(qubit_dim)
         b_dag = b.dag()
@@ -925,11 +925,11 @@ class MPO:
 
         n_q = b_dag.matrix @ b.matrix
         n_r = a_dag.matrix @ a.matrix
-        H_q = qubit_freq * n_q + (anharmonicity / 2) * n_q @ (n_q - id_q)
-        H_r = resonator_freq * n_r
+        h_q = qubit_freq * n_q + (anharmonicity / 2) * n_q @ (n_q - id_q)
+        h_r = resonator_freq * n_r
 
-        X_q = b.matrix + b_dag.matrix
-        X_r = a.matrix + a_dag.matrix
+        x_q = b.matrix + b_dag.matrix
+        x_r = a.matrix + a_dag.matrix
 
         self.tensors = []
 
@@ -937,15 +937,15 @@ class MPO:
             if i % 2 == 0:
                 # Qubit site
                 if i == 0:
-                    tensor = np.array([[H_q, id_q, coupling * X_q, id_q]], dtype=object)  # shape (1,4,d,d)
+                    tensor = np.array([[h_q, id_q, coupling * x_q, id_q]], dtype=object)  # shape (1,4,d,d)
                 elif i == length - 1:
-                    tensor = np.array([[id_q], [coupling * X_q], [id_q], [H_q]], dtype=object)  # shape (4,1,d,d)
+                    tensor = np.array([[id_q], [coupling * x_q], [id_q], [h_q]], dtype=object)  # shape (4,1,d,d)
                 else:
                     tensor = np.empty((4, 4, qubit_dim, qubit_dim), dtype=object)
                     tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
-                    tensor[0, 0] = H_q
+                    tensor[0, 0] = h_q
                     tensor[0, 1] = id_q
-                    tensor[0, 2] = coupling * X_q
+                    tensor[0, 2] = coupling * x_q
                     tensor[0, 3] = id_q
                     tensor[3, 3] = id_q
             else:
@@ -953,9 +953,9 @@ class MPO:
                 tensor = np.empty((4, 4, resonator_dim, resonator_dim), dtype=object)
                 tensor[:, :] = [[zero_r for _ in range(4)] for _ in range(4)]
                 tensor[0, 0] = id_r
-                tensor[1, 2] = H_r
-                tensor[2, 0] = X_r
-                tensor[3, 1] = coupling * X_r
+                tensor[1, 2] = h_r
+                tensor[2, 0] = x_r
+                tensor[3, 1] = coupling * x_r
                 tensor[3, 3] = id_r
 
             # Transpose to (phys_out, phys_in, left, right)
@@ -964,7 +964,6 @@ class MPO:
 
         self.length = length
         self.physical_dimension = qubit_dim
-
 
     def init_identity(self, length: int, physical_dimension: int = 2) -> None:
         """Initialize identity MPO.
