@@ -197,7 +197,7 @@ def stochastic_process(
         merged = merge_mps_tensors(state.tensors[i], state.tensors[j])
         merged = oe.contract("ab, bcd->acd", jump_op, merged)
         # For stochastic jumps, always contract singular values to the right
-        tensor_left_new, tensor_right_new = split_mps_tensor(merged, "right", sim_params,  [state.physical_dimensions[i], state.physical_dimensions[j]], dynamic=False)
+        tensor_left_new, tensor_right_new = split_mps_tensor(merged, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[j]], dynamic=False)
         state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
     else:
         msg = "Jump operator must act on 1 or 2 sites."

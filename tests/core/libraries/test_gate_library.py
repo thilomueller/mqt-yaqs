@@ -510,7 +510,7 @@ def test_gate_constructor() -> None:
     # Testing error messages for invalid matrices
     non_square_matrix = np.array([[1, 2, 3], [4, 5, 6]])
 
-    non_power_of_2_matrix = np.array([[1, 2, 3], [3, 4, 5], [5, 6, 7]])
+    np.array([[1, 2, 3], [3, 4, 5], [5, 6, 7]])
 
     # Test for non-square matrix
     with pytest.raises(ValueError, match="Matrix must be square"):

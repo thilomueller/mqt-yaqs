@@ -75,7 +75,7 @@ def split_mps_tensor(
     # the left virtual dimension next to the first physical index: (d0, D0, d1, D2)
     d_left = physical_dimensions[0]
     d_right = physical_dimensions[1]
-    if tensor.shape[0] != d_left*d_right:
+    if tensor.shape[0] != d_left * d_right:
         msg = "The first dimension of the tensor must be a combination of the given physical dimensions."
         raise ValueError(msg)
     tensor_reshaped = tensor.reshape(d_left, d_right, tensor.shape[1], tensor.shape[2])
@@ -572,7 +572,7 @@ def two_site_tdvp(
     )
     # Only a single sweep is needed for circuits
     if isinstance(sim_params, (WeakSimParams, StrongSimParams)):
-        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params,  [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
+        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
         return
 
     state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
@@ -758,7 +758,7 @@ def local_dynamic_tdvp(
             merged_tensor = update_site(
                 left_blocks[i - 1], right_blocks[i], merged_mpo, merged_tensor, 0.5 * sim_params.dt, numiter_lanczos
             )
-            state.tensors[i - 1], state.tensors[i] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i-1], state.physical_dimensions[i]], dynamic=True)
+            state.tensors[i - 1], state.tensors[i] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i - 1], state.physical_dimensions[i]], dynamic=True)
             right_blocks[i - 1] = update_right_environment(
                 state.tensors[i], state.tensors[i], hamiltonian.tensors[i], right_blocks[i]
             )

@@ -664,7 +664,9 @@ class MPS:
         return results
 
     def project_onto_bitstring(self, bitstring: str) -> float:
-        """Project the MPS onto a given bitstring in the computational basis
+        """ Projection-valued measurement
+        
+        Project the MPS onto a given bitstring in the computational basis
         and return the squared norm (i.e., probability of that outcome).
 
         This is equivalent to computing ⟨bitstring|ψ⟩⟨ψ|bitstring⟩.
@@ -704,7 +706,6 @@ class MPS:
                 )
 
         return total_norm**2
-
 
     def norm(self, site: int | None = None) -> np.float64:
         """Norm calculation.

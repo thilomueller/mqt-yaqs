@@ -62,7 +62,7 @@ class Observable:
         Initializes the results and trajectories arrays based on the type of simulation parameters provided.
     """
 
-    def __init__(self, gate: BaseGate | str, sites: int | list[int] | None=None) -> None:
+    def __init__(self, gate: BaseGate | str, sites: int | list[int] | None = None) -> None:
         """Initializes an Observable instance.
 
         Parameters

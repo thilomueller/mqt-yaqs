@@ -546,6 +546,7 @@ class BaseGate:
         """
         return PVM(bitstring)
 
+
 class X(BaseGate):
     """Class representing the Pauli-X (NOT) gate.
 
@@ -1486,8 +1487,9 @@ class Pn(BaseGate):
         self.name = f"p{n}"
         super().__init__(mat)
 
+
 class PVM(BaseGate):
-    """Class representing a projection-valued measurement
+    """Class representing a projection-valued measurement.
 
     Attributes:
         name: The name of the gate ("pvm").
@@ -1498,6 +1500,7 @@ class PVM(BaseGate):
     def __init__(self, bitstring: str) -> None:
         """Initializes the projection."""
         self.bitstring = bitstring
+
 
 class GateLibrary:
     """A collection of quantum gate classes for use in simulations.
