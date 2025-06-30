@@ -1501,6 +1501,11 @@ class PVM(BaseGate):
         """Initializes the projection."""
         self.bitstring = bitstring
 
+        # Identity array as placeholder for compatibility
+        mat = np.array([[1, 0],
+                        [0, 1]])
+        super().__init__(mat)
+
 
 class GateLibrary:
     """A collection of quantum gate classes for use in simulations.
