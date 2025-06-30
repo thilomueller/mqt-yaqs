@@ -154,10 +154,6 @@ class BaseGate:
 
         log = np.log2(mat.shape[0])
 
-        if log.is_integer() is False:
-            msg = "Matrix must have a size that is a power of 2"
-            raise ValueError(msg)
-
         self.matrix = mat
         self.tensor = mat
         self.interaction = int(log)
