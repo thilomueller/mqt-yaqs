@@ -1502,8 +1502,7 @@ class PVM(BaseGate):
         self.bitstring = bitstring
 
         # Identity array as placeholder for compatibility
-        mat = np.array([[1, 0],
-                        [0, 1]])
+        mat = np.array([[1, 0], [0, 1]])
         super().__init__(mat)
 
 
