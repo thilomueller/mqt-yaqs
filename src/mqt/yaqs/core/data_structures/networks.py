@@ -562,7 +562,9 @@ class MPS:
 
         return self.scalar_product(temp_state, sites)
 
-    def evaluate_observables(self, sim_params: AnalogSimParams | StrongSimParams, results: NDArray, column_index: int = 0) -> None:
+    def evaluate_observables(
+        self, sim_params: AnalogSimParams | StrongSimParams, results: NDArray, column_index: int = 0
+    ) -> None:
         """Evaluate and record expectation values of observables for a given MPS state.
 
         This method performs a deep copy of the current MPS (`self`) and iterates over
