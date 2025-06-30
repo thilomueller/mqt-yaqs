@@ -195,7 +195,7 @@ class AnalogSimParams:
         """
         assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), "We currently have not implemented mixed observable and projective-measurement simulation."
         self.observables = observables
-        if self.observables[0].gate.name != "pvm":
+        if self.observables and self.observables[0].gate.name != "pvm":
             self.sorted_observables = sorted(
                 observables, key=lambda obs: obs.sites[0] if isinstance(obs.sites, list) else obs.sites
             )
@@ -388,7 +388,7 @@ class StrongSimParams:
         """
         assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), "We currently have not implemented mixed observable and projective-measurement simulation."
         self.observables = observables
-        if self.observables[0].gate.name != "pvm":
+        if self.observables and self.observables[0].gate.name != "pvm":
             self.sorted_observables = sorted(
                 observables, key=lambda obs: obs.sites[0] if isinstance(obs.sites, list) else obs.sites
             )
