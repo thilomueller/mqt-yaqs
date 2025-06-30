@@ -193,7 +193,9 @@ class AnalogSimParams:
         get_state :
             If True, output MPS is returned.
         """
-        assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), "We currently have not implemented mixed observable and projective-measurement simulation."
+        assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
+            "We currently have not implemented mixed observable and projective-measurement simulation."
+        )
         self.observables = observables
         if self.observables and self.observables[0].gate.name != "pvm":
             self.sorted_observables = sorted(
@@ -386,7 +388,9 @@ class StrongSimParams:
         get_state:
             If True, output MPS is returned.
         """
-        assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), "We currently have not implemented mixed observable and projective-measurement simulation."
+        assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
+            "We currently have not implemented mixed observable and projective-measurement simulation."
+        )
         self.observables = observables
         if self.observables and self.observables[0].gate.name != "pvm":
             self.sorted_observables = sorted(

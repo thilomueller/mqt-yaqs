@@ -960,9 +960,16 @@ class MPO:
         self.length = length
         self.physical_dimension = physical_dimension
 
-    def init_coupled_transmon(self, length: int, qubit_dim: int, resonator_dim: int,
-                            qubit_freq: float, resonator_freq: float,
-                            anharmonicity: float, coupling: float) -> None:
+    def init_coupled_transmon(
+        self,
+        length: int,
+        qubit_dim: int,
+        resonator_dim: int,
+        qubit_freq: float,
+        resonator_freq: float,
+        anharmonicity: float,
+        coupling: float,
+    ) -> None:
         """Coupled Transmon MPO.
 
         Initializes an MPO representation of a 1D chain of coupled transmon qubits

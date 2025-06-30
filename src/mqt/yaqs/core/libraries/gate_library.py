@@ -524,16 +524,16 @@ class BaseGate:
         return P1()
 
     @classmethod
-    def pn(cls, n: int, d: int) -> Pn:
-        """Returns the Pn projector.
+    def on(cls, n: int, d: int) -> On:
+        """Returns the On projector.
 
         Args:
             n: projector level
             d: number of levels in local Hilbert space
         Returns:
-            Pn: An instance of the Pn gate.
+            On: An instance of the On gate.
         """
-        return Pn(n, d)
+        return On(n, d)
 
     @classmethod
     def pvm(cls, bitstring: str) -> PVM:
@@ -1453,7 +1453,7 @@ class P1(BaseGate):
         super().__init__(mat)
 
 
-class Pn(BaseGate):
+class On(BaseGate):
     """Class representing a projector onto Fock state |n⟩⟨n|.
 
     This gate is useful for simulating level population observables in multi-level systems like transmons.
@@ -1552,5 +1552,5 @@ class GateLibrary:
     zz = ZZ
     p0 = P0
     p1 = P1
-    pn = Pn
+    on = On
     pvm = PVM

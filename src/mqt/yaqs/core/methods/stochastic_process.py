@@ -127,7 +127,13 @@ def create_probability_distribution(
                     merged = oe.contract("ab, bcd->acd", jump_op, merged)
                     dp_m = dt * gamma * jumped_state.norm(site)
                     # split the tensor (always contract singular values right for probabilities)
-                    tensor_left_new, tensor_right_new = split_mps_tensor(merged, "right", sim_params, [state.physical_dimensions[site], state.physical_dimensions[site + 1]], dynamic=False)
+                    tensor_left_new, tensor_right_new = split_mps_tensor(
+                        merged,
+                        "right",
+                        sim_params,
+                        [state.physical_dimensions[site], state.physical_dimensions[site + 1]],
+                        dynamic=False,
+                    )
                     jumped_state.tensors[site], jumped_state.tensors[site + 1] = tensor_left_new, tensor_right_new
                     # compute the norm at `site`
 
@@ -197,7 +203,9 @@ def stochastic_process(
         merged = merge_mps_tensors(state.tensors[i], state.tensors[j])
         merged = oe.contract("ab, bcd->acd", jump_op, merged)
         # For stochastic jumps, always contract singular values to the right
-        tensor_left_new, tensor_right_new = split_mps_tensor(merged, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[j]], dynamic=False)
+        tensor_left_new, tensor_right_new = split_mps_tensor(
+            merged, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[j]], dynamic=False
+        )
         state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
     else:
         msg = "Jump operator must act on 1 or 2 sites."

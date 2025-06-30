@@ -547,7 +547,13 @@ def two_site_tdvp(
         merged_tensor = update_site(
             left_blocks[i], right_blocks[i + 1], merged_mpo, merged_tensor, 0.5 * sim_params.dt, numiter_lanczos
         )
-        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
+        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
+            merged_tensor,
+            "right",
+            sim_params,
+            [state.physical_dimensions[i], state.physical_dimensions[i + 1]],
+            dynamic=dynamic,
+        )
         left_blocks[i + 1] = update_left_environment(
             state.tensors[i], state.tensors[i], hamiltonian.tensors[i], left_blocks[i]
         )
@@ -572,10 +578,22 @@ def two_site_tdvp(
     )
     # Only a single sweep is needed for circuits
     if isinstance(sim_params, (WeakSimParams, StrongSimParams)):
-        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
+        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
+            merged_tensor,
+            "right",
+            sim_params,
+            [state.physical_dimensions[i], state.physical_dimensions[i + 1]],
+            dynamic=dynamic,
+        )
         return
 
-    state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
+    state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
+        merged_tensor,
+        "left",
+        sim_params,
+        [state.physical_dimensions[i], state.physical_dimensions[i + 1]],
+        dynamic=dynamic,
+    )
     right_blocks[i] = update_right_environment(
         state.tensors[i + 1], state.tensors[i + 1], hamiltonian.tensors[i + 1], right_blocks[i + 1]
     )
@@ -595,7 +613,13 @@ def two_site_tdvp(
         merged_tensor = update_site(
             left_blocks[i], right_blocks[i + 1], merged_mpo, merged_tensor, 0.5 * sim_params.dt, numiter_lanczos
         )
-        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
+        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
+            merged_tensor,
+            "left",
+            sim_params,
+            [state.physical_dimensions[i], state.physical_dimensions[i + 1]],
+            dynamic=dynamic,
+        )
         right_blocks[i] = update_right_environment(
             state.tensors[i + 1], state.tensors[i + 1], hamiltonian.tensors[i + 1], right_blocks[i + 1]
         )
@@ -681,7 +705,13 @@ def local_dynamic_tdvp(
                 left_blocks[i], right_blocks[i + 1], merged_mpo, merged_tensor, 0.5 * sim_params.dt, numiter_lanczos
             )
 
-            state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=True)
+            state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
+                merged_tensor,
+                "right",
+                sim_params,
+                [state.physical_dimensions[i], state.physical_dimensions[i + 1]],
+                dynamic=True,
+            )
             right_blocks[i] = update_right_environment(
                 state.tensors[i + 1], state.tensors[i + 1], hamiltonian.tensors[i + 1], right_blocks[i + 1]
             )
@@ -695,7 +725,13 @@ def local_dynamic_tdvp(
             merged_tensor = update_site(
                 left_blocks[i], right_blocks[i + 1], merged_mpo, merged_tensor, 0.5 * sim_params.dt, numiter_lanczos
             )
-            state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=True)
+            state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
+                merged_tensor,
+                "right",
+                sim_params,
+                [state.physical_dimensions[i], state.physical_dimensions[i + 1]],
+                dynamic=True,
+            )
             left_blocks[i + 1] = update_left_environment(
                 state.tensors[i], state.tensors[i], hamiltonian.tensors[i], left_blocks[i]
             )
@@ -758,7 +794,13 @@ def local_dynamic_tdvp(
             merged_tensor = update_site(
                 left_blocks[i - 1], right_blocks[i], merged_mpo, merged_tensor, 0.5 * sim_params.dt, numiter_lanczos
             )
-            state.tensors[i - 1], state.tensors[i] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i - 1], state.physical_dimensions[i]], dynamic=True)
+            state.tensors[i - 1], state.tensors[i] = split_mps_tensor(
+                merged_tensor,
+                "left",
+                sim_params,
+                [state.physical_dimensions[i - 1], state.physical_dimensions[i]],
+                dynamic=True,
+            )
             right_blocks[i - 1] = update_right_environment(
                 state.tensors[i], state.tensors[i], hamiltonian.tensors[i], right_blocks[i]
             )
