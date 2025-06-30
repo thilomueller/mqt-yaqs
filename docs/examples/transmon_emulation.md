@@ -112,8 +112,11 @@ mystnb:
 
 import matplotlib.pyplot as plt
 
+leakage = [1 for _ in measurements[0].results]
 for measurement in measurements:
+    leakage -= measurement.results
     plt.plot(measurement.results, label=measurement.gate.bitstring)
+plt.plot(leakage, label="Leakage")
 
 plt.xlabel("Timestep")
 plt.ylabel("Probability")
