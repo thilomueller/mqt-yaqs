@@ -82,6 +82,7 @@ class Observable:
         assert hasattr(GateLibrary, gate.name), f"Observable {gate.name} not found in GateLibrary."
         self.gate = copy.deepcopy(gate)
         if gate.name != "pvm":
+            assert sites is not None
             self.sites = sites
             self.gate.set_sites(self.sites)
         self.results: NDArray[np.float64] | None = None
@@ -363,7 +364,7 @@ class StrongSimParams:
 
     def __init__(
         self,
-        observables: list[Observable] | list[str],
+        observables: list[Observable],
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,

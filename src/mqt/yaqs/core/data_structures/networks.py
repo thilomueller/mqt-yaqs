@@ -590,7 +590,8 @@ class MPS:
 
             # Copying done to stop the state from messing up its own canonical form
             exp = self.local_expect(observable, sites_list)
-        else:
+        elif observable.gate.name == 'pvm':
+            assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
             exp = self.project_onto_bitstring(observable.gate.bitstring)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
@@ -663,7 +664,7 @@ class MPS:
         results[basis_state] = results.get(basis_state, 0) + 1
         return results
 
-    def project_onto_bitstring(self, bitstring: str) -> float:
+    def project_onto_bitstring(self, bitstring: str) -> np.complex128:
         """Projection-valued measurement.
 
         Project the MPS onto a given bitstring in the computational basis
@@ -694,9 +695,9 @@ class MPS:
             projected_tensor = oe.contract("a, acd->cd", selected_state, tensor)
 
             # Compute norm of projected tensor
-            norm = np.linalg.norm(projected_tensor)
+            norm = float(np.linalg.norm(projected_tensor))
             if norm == 0:
-                return 0.0
+                return np.complex128(0.0)
             total_norm *= norm
 
             # Normalize and propagate
@@ -705,7 +706,7 @@ class MPS:
                     1 / norm * oe.contract("ab, cbd->cad", projected_tensor, temp_state.tensors[site + 1])
                 )
 
-        return total_norm**2
+        return np.complex128(total_norm**2)
 
     def norm(self, site: int | None = None) -> np.float64:
         """Norm calculation.
