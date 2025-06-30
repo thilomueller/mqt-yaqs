@@ -570,21 +570,24 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
-        sites_list = None
-        if isinstance(observable.sites, int):
-            sites_list = [observable.sites]
-        elif isinstance(observable.sites, list):
-            sites_list = observable.sites
+        if observable.gate.name != "pvm":
+            sites_list = None
+            if isinstance(observable.sites, int):
+                sites_list = [observable.sites]
+            elif isinstance(observable.sites, list):
+                sites_list = observable.sites
 
-        assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
+            assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
 
-        assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
+            assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
 
-        for s in sites_list:
-            assert s in range(self.length), f"Observable acting on non-existing site: {s}"
+            for s in sites_list:
+                assert s in range(self.length), f"Observable acting on non-existing site: {s}"
 
-        # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expect(observable, sites_list)
+            # Copying done to stop the state from messing up its own canonical form
+            exp = self.local_expect(observable, sites_list)
+        else:
+            exp = self.project_onto_bitstring(observable.gate.bitstring)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
@@ -655,6 +658,49 @@ class MPS:
         basis_state = self.measure_single_shot()
         results[basis_state] = results.get(basis_state, 0) + 1
         return results
+
+    def project_onto_bitstring(self, bitstring: str) -> float:
+        """Project the MPS onto a given bitstring in the computational basis
+        and return the squared norm (i.e., probability of that outcome).
+
+        This is equivalent to computing ⟨bitstring|ψ⟩⟨ψ|bitstring⟩.
+
+        Args:
+            bitstring (str): Bitstring to project onto (little-endian: site 0 is first char).
+
+        Returns:
+            float: Probability of obtaining the given bitstring under projective measurement.
+        """
+        assert len(bitstring) == self.length, "Bitstring length must match number of sites"
+        temp_state = copy.deepcopy(self)
+        total_norm = 1.0
+
+        for site, char in enumerate(bitstring):
+            state_index = int(char)
+            tensor = temp_state.tensors[site]
+            local_dim = self.physical_dimensions[site]
+            assert 0 <= state_index < local_dim, f"Invalid state index {state_index} at site {site}"
+
+            selected_state = np.zeros(local_dim)
+            selected_state[state_index] = 1
+
+            # Project tensor
+            projected_tensor = oe.contract("a, acd->cd", selected_state, tensor)
+
+            # Compute norm of projected tensor
+            norm = np.linalg.norm(projected_tensor)
+            if norm == 0:
+                return 0.0
+            total_norm *= norm
+
+            # Normalize and propagate
+            if site != self.length - 1:
+                temp_state.tensors[site + 1] = (
+                    1 / norm * oe.contract("ab, cbd->cad", projected_tensor, temp_state.tensors[site + 1])
+                )
+
+        return total_norm**2
+
 
     def norm(self, site: int | None = None) -> np.float64:
         """Norm calculation.
