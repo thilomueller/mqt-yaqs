@@ -590,7 +590,7 @@ class MPS:
 
             # Copying done to stop the state from messing up its own canonical form
             exp = self.local_expect(observable, sites_list)
-        elif observable.gate.name == 'pvm':
+        elif observable.gate.name == "pvm":
             assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
             exp = self.project_onto_bitstring(observable.gate.bitstring)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
