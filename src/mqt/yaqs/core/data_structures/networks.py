@@ -30,7 +30,7 @@ from ..methods.decompositions import right_qr, two_site_svd
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from .simulation_parameters import Observable
+    from .simulation_parameters import AnalogSimParams, Observable, StrongSimParams
 
 
 class MPS:
@@ -561,6 +561,30 @@ class MPS:
             temp_state.tensors[j] = b_new
 
         return self.scalar_product(temp_state, sites)
+
+    def evaluate_observables(self, sim_params: AnalogSimParams | StrongSimParams, results: NDArray, column_index: int = 0) -> None:
+        """Evaluate and record expectation values of observables for a given MPS state.
+
+        This method performs a deep copy of the current MPS (`self`) and iterates over
+        the observables defined in the `sim_params` object. For each observable, it ensures
+        the orthogonality center of the MPS is correctly positioned before computing the
+        expectation value, which is then stored in the corresponding column of the `results` array.
+
+        Parameters:
+            sim_params: Simulation parameters containing a list of sorted observables.
+            results: 2D array where results[observable_index, column_index] stores expectation values.
+            column_index: The time or trajectory index indicating which column of the result array to fill.
+        """
+        temp_state = copy.deepcopy(self)
+        last_site = 0
+        for obs_index, observable in enumerate(sim_params.sorted_observables):
+            if observable.gate.name != "pvm":
+                idx = observable.sites[0] if isinstance(observable.sites, list) else observable.sites
+                if idx > last_site:
+                    for site in range(last_site, idx):
+                        temp_state.shift_orthogonality_center_right(site)
+                    last_site = idx
+            results[obs_index, column_index] = temp_state.expect(observable)
 
     def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.

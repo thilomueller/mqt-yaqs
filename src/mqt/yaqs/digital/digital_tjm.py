@@ -254,19 +254,9 @@ def digital_tjm(
         return state.measure_shots(shots=1)
     # StrongSimParams
     results = np.zeros((len(sim_params.observables), 1))
-    temp_state = copy.deepcopy(state)
+
+    state.evaluate_observables(sim_params, results)
     if sim_params.get_state:
         sim_params.output_state = state
 
-    last_site = 0
-    for obs_index, observable in enumerate(sim_params.sorted_observables):
-        if isinstance(observable.sites, list):
-            idx = observable.sites[0]
-        elif isinstance(observable.sites, int):
-            idx = observable.sites
-        if idx > last_site:
-            for site in range(last_site, idx):
-                temp_state.shift_orthogonality_center_right(site)
-            last_site = idx
-        results[obs_index, 0] = temp_state.expect(observable)
     return results

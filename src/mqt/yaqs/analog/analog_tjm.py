@@ -111,33 +111,9 @@ def sample(
         sim_params.output_state = psi
 
     if sim_params.sample_timesteps:
-        temp_state = copy.deepcopy(psi)
-        last_site = 0
-        for obs_index, observable in enumerate(sim_params.sorted_observables):
-            if observable.gate.name != "pvm":
-                if isinstance(observable.sites, list):
-                    idx = observable.sites[0]
-                elif isinstance(observable.sites, int):
-                    idx = observable.sites
-                if idx > last_site:
-                    for site in range(last_site, idx):
-                        temp_state.shift_orthogonality_center_right(site)
-                    last_site = idx
-            results[obs_index, j] = temp_state.expect(observable)
+        psi.evaluate_observables(sim_params, results, j)
     else:
-        temp_state = copy.deepcopy(psi)
-        last_site = 0
-        for obs_index, observable in enumerate(sim_params.sorted_observables):
-            if observable.gate.name != "pvm":
-                if isinstance(observable.sites, list):
-                    idx = observable.sites[0]
-                elif isinstance(observable.sites, int):
-                    idx = observable.sites
-                if idx > last_site:
-                    for site in range(last_site, idx):
-                        temp_state.shift_orthogonality_center_right(site)
-                    last_site = idx
-            results[obs_index, 0] = temp_state.expect(observable)
+        psi.evaluate_observables(sim_params, results)
 
 
 def analog_tjm_2(args: tuple[int, MPS, NoiseModel | None, AnalogSimParams, MPO]) -> NDArray[np.float64]:
@@ -221,33 +197,9 @@ def analog_tjm_1(args: tuple[int, MPS, NoiseModel | None, AnalogSimParams, MPO])
             state = stochastic_process(state, noise_model, sim_params.dt, sim_params)
 
         if sim_params.sample_timesteps:
-            temp_state = copy.deepcopy(state)
-            last_site = 0
-            for obs_index, observable in enumerate(sim_params.sorted_observables):
-                if observable.gate.name != "pvm":
-                    if isinstance(observable.sites, list):
-                        idx = observable.sites[0]
-                    elif isinstance(observable.sites, int):
-                        idx = observable.sites
-                    if idx > last_site:
-                        for site in range(last_site, idx):
-                            temp_state.shift_orthogonality_center_right(site)
-                        last_site = idx
-                results[obs_index, j] = temp_state.expect(observable)
+            state.evaluate_observables(sim_params, results, j)
         elif j == len(sim_params.times) - 1:
-            temp_state = copy.deepcopy(state)
-            last_site = 0
-            for obs_index, observable in enumerate(sim_params.sorted_observables):
-                if observable.gate.name != "pvm":
-                    if isinstance(observable.sites, list):
-                        idx = observable.sites[0]
-                    elif isinstance(observable.sites, int):
-                        idx = observable.sites
-                    if idx > last_site:
-                        for site in range(last_site, idx):
-                            temp_state.shift_orthogonality_center_right(site)
-                        last_site = idx
-                results[obs_index, 0] = temp_state.expect(observable)
+            state.evaluate_observables(sim_params, results)
 
     if sim_params.get_state:
         sim_params.output_state = state
