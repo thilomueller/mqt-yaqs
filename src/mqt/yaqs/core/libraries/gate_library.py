@@ -1453,41 +1453,6 @@ class P1(BaseGate):
         super().__init__(mat)
 
 
-class On(BaseGate):
-    """Class representing a projector onto Fock state |n⟩⟨n|.
-
-    This gate is useful for simulating level population observables in multi-level systems like transmons.
-
-    Attributes:
-        name: The name of the gate (e.g., "p1" for the |1⟩⟨1| projector).
-        matrix: The dxd matrix representation of the projector.
-        interaction: The interaction level (1 for single-site operators).
-        tensor: The tensor representation of the projector (same as the matrix).
-
-    Methods:
-        set_sites(*sites: int) -> None:
-            Sets the site(s) where the projector is applied.
-    """
-
-    def __init__(self, n: int, d: int) -> None:
-        """Initializes the |n⟩⟨n| projector for a d-level system.
-
-        Args:
-            n: The Fock level to project onto (0 <= n < d).
-            d: The dimension of the Hilbert space (e.g., 3 for a transmon).
-
-        Raises:
-            ValueError: If n is out of bounds for the given dimension.
-        """
-        if not (0 <= n < d):
-            msg = f"Invalid projection level {n} for dimension {d}"
-            raise ValueError(msg)
-        mat = np.zeros((d, d), dtype=complex)
-        mat[n, n] = 1
-        self.name = f"p{n}"
-        super().__init__(mat)
-
-
 class PVM(BaseGate):
     """Class representing a projection-valued measurement.
 
@@ -1556,5 +1521,4 @@ class GateLibrary:
     zz = ZZ
     p0 = P0
     p1 = P1
-    on = On
     pvm = PVM
