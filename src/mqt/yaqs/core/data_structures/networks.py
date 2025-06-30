@@ -79,7 +79,7 @@ class MPS:
         self,
         length: int,
         tensors: list[NDArray[np.complex128]] | None = None,
-        physical_dimensions: list[int] | None = None,
+        physical_dimensions: list[int] | int | None = None,
         state: str = "zeros",
         pad: int | None = None,
         basis_string: str | None = None,
@@ -88,14 +88,14 @@ class MPS:
 
         Parameters
         ----------
-        length : int
+        length :
             Number of sites (qubits) in the MPS.
-        tensors : list[NDArray[np.complex128]], optional
+        tensors :
             Predefined tensors representing the MPS. Must match `length` if provided.
             If None, tensors are initialized according to `state`.
-        physical_dimensions : list[int], optional
+        physical_dimensions :
             Physical dimension for each site. Defaults to qubit systems (dimension 2) if None.
-        state : str, optional
+        state :
             Initial state configuration. Valid options include:
             - "zeros": Initializes all qubits to |0⟩.
             - "ones": Initializes all qubits to |1⟩.
@@ -108,9 +108,9 @@ class MPS:
             - "random": Initializes each qubit randomly.
             - "basis": Initializes a qubit in an input computational basis.
             Default is "zeros".
-        pad: int, optional
+        pad:
             Pads the state with extra zeros to increase bond dimension. Can increase numerical stability.
-        basis_string: str, optional
+        basis_string:
             String used to initialize the state in a specific computational basis.
             This should generally be in the form of 0s and 1s, e.g., "0101" for a 4-qubit state.
             For mixed-dimensional systems, this can be increased to 2, 3, ... etc.
@@ -134,6 +134,10 @@ class MPS:
             self.physical_dimensions = []
             for _ in range(self.length):
                 self.physical_dimensions.append(2)
+        elif isinstance(physical_dimensions, int):
+            self.physical_dimensions = []
+            for _ in range(self.length):
+                self.physical_dimensions.append(physical_dimensions)
         else:
             self.physical_dimensions = physical_dimensions
         assert len(self.physical_dimensions) == length
