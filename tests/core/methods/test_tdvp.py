@@ -78,8 +78,9 @@ def test_split_mps_tensor_left_right_sqrt() -> None:
         threshold=1e-16,
         order=1,
     )
+    physical_dimensions = [A.shape[0] // 2, A.shape[0] // 2]
     for distr in ["left", "right", "sqrt"]:
-        A0, A1 = split_mps_tensor(A, svd_distribution=distr, sim_params=sim_params, dynamic=False)
+        A0, A1 = split_mps_tensor(A, svd_distribution=distr, sim_params=sim_params, physical_dimensions=physical_dimensions, dynamic=False)
         # A0 should have shape (2, 3, r) and A1 should have shape (2, r, 5), where r is the effective rank.
         assert A0.ndim == 3
         assert A1.ndim == 3
@@ -112,8 +113,9 @@ def test_split_mps_tensor_invalid_shape() -> None:
         threshold=1e-8,
         order=1,
     )
-    with pytest.raises(ValueError, match=r"The first dimension of the tensor must be divisible by 2."):
-        split_mps_tensor(A, svd_distribution="left", sim_params=sim_params, dynamic=False)
+    physical_dimensions = [3, 3]
+    with pytest.raises(ValueError, match=r"The first dimension of the tensor must be a combination of the given physical dimensions."):
+        split_mps_tensor(A, svd_distribution="left", sim_params=sim_params, physical_dimensions=physical_dimensions, dynamic=False)
 
 
 def test_merge_mps_tensors() -> None:

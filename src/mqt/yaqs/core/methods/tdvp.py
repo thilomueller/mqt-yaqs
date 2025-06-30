@@ -572,7 +572,7 @@ def two_site_tdvp(
     )
     # Only a single sweep is needed for circuits
     if isinstance(sim_params, (WeakSimParams, StrongSimParams)):
-        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params, dynamic=dynamic)
+        state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "right", sim_params,  [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
         return
 
     state.tensors[i], state.tensors[i + 1] = split_mps_tensor(merged_tensor, "left", sim_params, [state.physical_dimensions[i], state.physical_dimensions[i + 1]], dynamic=dynamic)
