@@ -664,8 +664,8 @@ class MPS:
         return results
 
     def project_onto_bitstring(self, bitstring: str) -> float:
-        """ Projection-valued measurement
-        
+        """Projection-valued measurement.
+
         Project the MPS onto a given bitstring in the computational basis
         and return the squared norm (i.e., probability of that outcome).
 
@@ -963,7 +963,35 @@ class MPO:
     def init_coupled_transmon(self, length: int, qubit_dim: int, resonator_dim: int,
                             qubit_freq: float, resonator_freq: float,
                             anharmonicity: float, coupling: float) -> None:
+        """Coupled Transmon MPO.
 
+        Initializes an MPO representation of a 1D chain of coupled transmon qubits
+        and resonators.
+
+        The chain alternates between transmon qubits (even indices) and resonators
+        (odd indices), with each qubit coupled to its neighboring resonators via
+        dipole-like interaction terms.
+
+        Parameters:
+            length: Total number of sites in the chain (should be even).
+                        Qubit sites are placed at even indices, resonators at odd.
+            qubit_dim: Local Hilbert space dimension of each transmon qubit.
+            resonator_dim: Local Hilbert space dimension of each resonator.
+            qubit_freq: Bare frequency of the transmon qubits.
+            resonator_freq: Bare frequency of the resonators.
+            anharmonicity: Strength of the anharmonic (nonlinear) term
+                                for each transmon, typically negative.
+            coupling : Strength of the qubit-resonator coupling term.
+
+        Notes:
+            - The Hamiltonian for each qubit is modeled as a Duffing oscillator:
+                H_q = ω_q * n_q + (alpha/2) * n_q (n_q - 1)
+            - Each resonator is a harmonic oscillator:
+                H_r = ω_r * n_r
+            - The interaction is implemented via dipole coupling:
+                H_int = g * (b + b†)(a + a†)
+            - The MPO bond dimension is 4.
+        """
         b = Destroy(qubit_dim)
         b_dag = b.dag()
         a = Destroy(resonator_dim)
