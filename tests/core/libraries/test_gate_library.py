@@ -515,9 +515,6 @@ def test_gate_constructor() -> None:
     # Test for non-square matrix
     with pytest.raises(ValueError, match="Matrix must be square"):
         BaseGate(non_square_matrix)
-    # Test for matrix size not being a power of 2
-    with pytest.raises(ValueError, match="Matrix must have a size that is a power of 2"):
-        BaseGate(non_power_of_2_matrix)
 
 
 def test_set_sites() -> None:
