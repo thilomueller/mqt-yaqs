@@ -1051,21 +1051,29 @@ class MPO:
                 # Qubit site
                 if i == 0:
                     # Qubit 0: left edge
-                    tensor = np.array([[
-                        h_q,               # (0,0): on-site Hamiltonian
-                        id_q,              # (0,1): pass identity right
-                        coupling * x_q,    # (0,2): pass coupling operator right
-                        id_q               # (0,3): tail end (unused)
-                    ]], dtype=object)  # shape (1, 4, d, d)
+                    tensor = np.array(
+                        [
+                            [
+                                h_q,  # (0,0): on-site Hamiltonian
+                                id_q,  # (0,1): pass identity right
+                                coupling * x_q,  # (0,2): pass coupling operator right
+                                id_q,  # (0,3): tail end (unused)
+                            ]
+                        ],
+                        dtype=object,
+                    )  # shape (1, 4, d, d)
 
-                elif i == length-1:
+                elif i == length - 1:
                     # Qubit 1: right edge
-                    tensor = np.array([
-                        [id_q],              # (0,0): tail end
-                        [coupling * x_q],    # (1,0): coupled input from resonator
-                        [id_q],              # (2,0): pass-through
-                        [h_q]                # (3,0): on-site Hamiltonian
-                    ], dtype=object)  # shape (4, 1, d, d)
+                    tensor = np.array(
+                        [
+                            [id_q],  # (0,0): tail end
+                            [coupling * x_q],  # (1,0): coupled input from resonator
+                            [id_q],  # (2,0): pass-through
+                            [h_q],  # (3,0): on-site Hamiltonian
+                        ],
+                        dtype=object,
+                    )  # shape (4, 1, d, d)
 
                 else:
                     tensor = np.empty((4, 4, qubit_dim, qubit_dim), dtype=object)
