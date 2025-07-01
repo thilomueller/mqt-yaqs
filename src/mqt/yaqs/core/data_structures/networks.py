@@ -1041,8 +1041,8 @@ class MPO:
         h_q = qubit_freq * n_q + (anharmonicity / 2) * n_q @ (n_q - id_q)
         h_r = resonator_freq * n_r
 
-        x_q = b.matrix + b_dag.matrix
-        x_r = a.matrix + a_dag.matrix
+        x_q = b_dag.matrix + b.matrix
+        x_r = a_dag.matrix + a.matrix
 
         self.tensors = []
 
@@ -1050,9 +1050,23 @@ class MPO:
             if i % 2 == 0:
                 # Qubit site
                 if i == 0:
-                    tensor = np.array([[h_q, id_q, coupling * x_q, id_q]], dtype=object)  # shape (1,4,d,d)
-                elif i == length - 1:
-                    tensor = np.array([[id_q], [coupling * x_q], [id_q], [h_q]], dtype=object)  # shape (4,1,d,d)
+                    # Qubit 0: left edge
+                    tensor = np.array([[
+                        h_q,               # (0,0): on-site Hamiltonian
+                        id_q,              # (0,1): pass identity right
+                        coupling * x_q,    # (0,2): pass coupling operator right
+                        id_q               # (0,3): tail end (unused)
+                    ]], dtype=object)  # shape (1, 4, d, d)
+
+                elif i == length-1:
+                    # Qubit 1: right edge
+                    tensor = np.array([
+                        [id_q],              # (0,0): tail end
+                        [coupling * x_q],    # (1,0): coupled input from resonator
+                        [id_q],              # (2,0): pass-through
+                        [h_q]                # (3,0): on-site Hamiltonian
+                    ], dtype=object)  # shape (4, 1, d, d)
+
                 else:
                     tensor = np.empty((4, 4, qubit_dim, qubit_dim), dtype=object)
                     tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
@@ -1065,11 +1079,24 @@ class MPO:
                 # Resonator site
                 tensor = np.empty((4, 4, resonator_dim, resonator_dim), dtype=object)
                 tensor[:, :] = [[zero_r for _ in range(4)] for _ in range(4)]
+
                 tensor[0, 0] = id_r
                 tensor[1, 2] = h_r
                 tensor[2, 0] = x_r
-                tensor[3, 1] = coupling * x_r
+                tensor[3, 1] = x_r
                 tensor[3, 3] = id_r
+                # tensor[0, 0] = id_r               # (0,0): identity pass-through
+                # tensor[1, 1] = id_r               # (1,1): for qubit-0 → resonator path
+                # tensor[2, 2] = id_r               # (2,2): for resonator → qubit-1 path
+                # tensor[3, 3] = id_r               # (3,3): identity tail
+
+                # tensor[0, 1] = x_r                # (0,1): apply x_r from left coupling
+                # tensor[1, 3] = id_r               # (1,3): pass through to end
+
+                # tensor[0, 2] = x_r                # (0,2): apply x_r from right coupling
+                # tensor[2, 3] = id_r               # (2,3): pass through to end
+
+                # tensor[0, 3] = h_r                # (0,3): on-site Hamiltonian (could be optional)
 
             # Transpose to (phys_out, phys_in, left, right)
             tensor = np.transpose(tensor, (2, 3, 0, 1))
