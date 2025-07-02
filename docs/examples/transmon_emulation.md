@@ -24,13 +24,13 @@ An MPO Hamiltonian is initialized using a coupled transmon-resonator model. An M
 import numpy as np
 from mqt.yaqs.core.data_structures.networks import MPO
 
-length = 3  # Qubit - Resonator - Qubit
+length = 3 # Qubit - resonator - qubit
 qubit_dim = 2
 resonator_dim = 2
-w_q = 5.0 / (2 * np.pi)
-w_r = 5.0 / (2 * np.pi)
-alpha = -0.32
-g = 0.1
+w_q = 4/(2*np.pi)
+w_r = 4/(2*np.pi)
+alpha = 0
+g = 0.5/(2*np.pi)
 
 H_0 = MPO()
 H_0.init_coupled_transmon(
@@ -40,7 +40,7 @@ H_0.init_coupled_transmon(
     qubit_freq=w_q,
     resonator_freq=w_r,
     anharmonicity=alpha,
-    coupling=g
+    coupling=g  # T_swap = pi/2g
 )
 ```
 
@@ -71,13 +71,13 @@ noise_model = NoiseModel([
 ```{code-cell} ipython3
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, AnalogSimParams
 
-elapsed_time = np.pi / g  # 2 * T_swap
-dt = elapsed_time / 100
-num_traj = 100
-max_bond_dim = 2**length
-threshold = 1e-6
-order = 2
+elapsed_time = np.pi/(2*g) # T_swap
+dt = elapsed_time/100
 sample_timesteps = True
+num_traj = 1
+max_bond_dim = 2**length
+threshold = 0
+order = 1
 
 # Measure all computational basis states
 bitstrings = ["000", "001", "010", "011", "100", "101", "110", "111"]
