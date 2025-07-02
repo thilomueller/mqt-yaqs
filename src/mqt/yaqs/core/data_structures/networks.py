@@ -1072,7 +1072,8 @@ class MPO:
                     tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
                     tensor[0, 0] = h_q
                     tensor[0, 1] = id_q
-                    tensor[0, 2] = coupling * x_q
+                    tensor[0, 2] = coupling * x_q # right resonator
+                    tensor[1, 3] = coupling * x_q # left resonator
                     tensor[0, 3] = id_q
                     tensor[3, 3] = id_q
             else:
@@ -1085,18 +1086,6 @@ class MPO:
                 tensor[2, 0] = x_r
                 tensor[3, 1] = x_r
                 tensor[3, 3] = id_r
-                # tensor[0, 0] = id_r               # (0,0): identity pass-through
-                # tensor[1, 1] = id_r               # (1,1): for qubit-0 → resonator path
-                # tensor[2, 2] = id_r               # (2,2): for resonator → qubit-1 path
-                # tensor[3, 3] = id_r               # (3,3): identity tail
-
-                # tensor[0, 1] = x_r                # (0,1): apply x_r from left coupling
-                # tensor[1, 3] = id_r               # (1,3): pass through to end
-
-                # tensor[0, 2] = x_r                # (0,2): apply x_r from right coupling
-                # tensor[2, 3] = id_r               # (2,3): pass through to end
-
-                # tensor[0, 3] = h_r                # (0,3): on-site Hamiltonian (could be optional)
 
             # Transpose to (phys_out, phys_in, left, right)
             tensor = np.transpose(tensor, (2, 3, 0, 1))
