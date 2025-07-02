@@ -524,18 +524,6 @@ class BaseGate:
         return P1()
 
     @classmethod
-    def on(cls, n: int, d: int) -> On:
-        """Returns the On projector.
-
-        Args:
-            n: projector level
-            d: number of levels in local Hilbert space
-        Returns:
-            On: An instance of the On gate.
-        """
-        return On(n, d)
-
-    @classmethod
     def pvm(cls, bitstring: str) -> PVM:
         """Returns the projection-valued measurement projector.
 
