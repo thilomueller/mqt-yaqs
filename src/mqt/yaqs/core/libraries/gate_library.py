@@ -657,11 +657,8 @@ class Destroy(BaseGate):
         Args:
             d: Physical dimension.
         """
-        mat = np.zeros((d, d))
-        for row, array in enumerate(mat):
-            for col, _ in enumerate(array):
-                if col - row == 1:
-                    mat[row][col] = 1
+        mat = np.diag(np.sqrt(np.arange(1, d)), k=1)
+
         super().__init__(mat)
 
 
@@ -687,11 +684,8 @@ class Create(BaseGate):
         Args:
             d: Physical dimension.
         """
-        mat = np.zeros((d, d))
-        for row, array in enumerate(mat):
-            for col, _ in enumerate(array):
-                if row - col == 1:
-                    mat[row][col] = 1
+        mat = np.diag(np.sqrt(np.arange(1, d)), k=-1)
+
         super().__init__(mat)
 
 
