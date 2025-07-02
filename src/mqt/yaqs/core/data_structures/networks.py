@@ -1080,8 +1080,8 @@ class MPO:
                     tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
                     tensor[0, 0] = h_q
                     tensor[0, 1] = id_q
-                    tensor[0, 2] = coupling * x_q # right resonator
-                    tensor[1, 3] = coupling * x_q # left resonator
+                    tensor[0, 2] = coupling * x_q  # right resonator
+                    tensor[1, 3] = coupling * x_q  # left resonator
                     tensor[0, 3] = id_q
                     tensor[3, 3] = id_q
             else:

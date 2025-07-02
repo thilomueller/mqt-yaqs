@@ -981,13 +981,13 @@ def test_transmon_simulation() -> None:
 
     This test creates a mixed-dimensional coupled transmon system and implements a SWAP gate.
     """
-    length = 3 # Qubit - resonator - qubit
+    length = 3  # Qubit - resonator - qubit
     qubit_dim = 3
     resonator_dim = 3
-    w_q = 4/(2*np.pi)
-    w_r = 4/(2*np.pi)
-    alpha = -0.3/(2*np.pi)
-    g = 0.5/(2*np.pi)
+    w_q = 4 / (2 * np.pi)
+    w_r = 4 / (2 * np.pi)
+    alpha = -0.3 / (2 * np.pi)
+    g = 0.5 / (2 * np.pi)
 
     H_0 = MPO()
     H_0.init_coupled_transmon(
@@ -997,12 +997,12 @@ def test_transmon_simulation() -> None:
         qubit_freq=w_q,
         resonator_freq=w_r,
         anharmonicity=alpha,
-        coupling=g, 
+        coupling=g,
     )
 
     state = MPS(length, state="basis", basis_string="100", physical_dimensions=[qubit_dim, resonator_dim, qubit_dim])
-    elapsed_time = np.pi/(np.sqrt(2)*g) # T_swap
-    dt = elapsed_time/100
+    elapsed_time = np.pi / (np.sqrt(2) * g)  # T_swap
+    dt = elapsed_time / 100
     sample_timesteps = False
     num_traj = 1
     max_bond_dim = 2**length
@@ -1021,10 +1021,16 @@ def test_transmon_simulation() -> None:
         if measurement.gate.bitstring == "111":
             np.testing.assert_array_less(np.max(measurement.results), 1e-2), "Unexpectedly large population in 111."
         if measurement.gate.bitstring == "100":
-            np.testing.assert_allclose(measurement.results[-1], 0, atol=2e-2), "Excitation still found in left transmon."
+            (
+                np.testing.assert_allclose(measurement.results[-1], 0, atol=2e-2),
+                "Excitation still found in left transmon.",
+            )
         if measurement.gate.bitstring == "001":
             np.testing.assert_allclose(measurement.results[-1], 1, atol=1e-1), "Excitation missing in right transmon."
         if measurement.gate.bitstring == "010":
-            np.testing.assert_allclose(measurement.results[-1], 0, atol=2e-2), "Excitation in resonator despite resonance."
+            (
+                np.testing.assert_allclose(measurement.results[-1], 0, atol=2e-2),
+                "Excitation in resonator despite resonance.",
+            )
 
     np.testing.assert_array_less(leakage, 5e-2), "Unexpectedly large leakage"
