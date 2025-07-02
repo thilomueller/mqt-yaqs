@@ -1015,22 +1015,31 @@ def test_transmon_simulation() -> None:
         measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps
     )
     simulator.run(state, H_0, sim_params, noise_model=None)
-    leakage = [1 for _ in measurements[0].results]
-    for measurement in measurements:
-        leakage -= measurement.results
-        if measurement.gate.bitstring == "111":
-            np.testing.assert_array_less(np.max(measurement.results), 1e-2), "Unexpectedly large population in 111."
-        if measurement.gate.bitstring == "100":
-            (
-                np.testing.assert_allclose(measurement.results[-1], 0, atol=2e-2),
-                "Excitation still found in left transmon.",
-            )
-        if measurement.gate.bitstring == "001":
-            np.testing.assert_allclose(measurement.results[-1], 1, atol=1e-1), "Excitation missing in right transmon."
-        if measurement.gate.bitstring == "010":
-            (
-                np.testing.assert_allclose(measurement.results[-1], 0, atol=2e-2),
-                "Excitation in resonator despite resonance.",
-            )
 
-    np.testing.assert_array_less(leakage, 5e-2), "Unexpectedly large leakage"
+    res0 = measurements[0].results
+    assert res0 is not None, "Expected results to be set by simulator.run"
+    # Initialize leakage as a numpy array of ones:
+    leakage = np.ones_like(res0)
+
+    for meas in measurements:
+        # Narrow results from Optional[...] to actual array
+        res = meas.results
+        assert hasattr(meas.gate, "bitstring")
+        assert res is not None, f"No results for bitstring {meas.gate.bitstring!r}"
+
+        # subtract elementwise
+        leakage -= res
+
+        # use meas.bitstring, not meas.gate.bitstring
+        if meas.gate.bitstring == "111":
+            # small pop in 111
+            np.testing.assert_array_less(np.max(res), 1e-2)
+        elif meas.gate.bitstring == "100":
+            np.testing.assert_allclose(res[-1], 0, atol=2e-2)
+        elif meas.gate.bitstring == "001":
+            np.testing.assert_allclose(res[-1], 1, atol=1e-1)
+        elif meas.gate.bitstring == "010":
+            np.testing.assert_allclose(res[-1], 0, atol=2e-2)
+
+    # finally check total leakage
+    np.testing.assert_array_less(leakage, 5e-2)
