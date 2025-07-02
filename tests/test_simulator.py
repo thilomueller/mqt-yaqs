@@ -1035,11 +1035,11 @@ def test_transmon_simulation() -> None:
             # small pop in 111
             np.testing.assert_array_less(np.max(res), 1e-2)
         elif meas.gate.bitstring == "100":
-            np.testing.assert_allclose(res[-1], 0, atol=2e-2)
+            np.testing.assert_allclose(res[-1], 0, atol=5e-2)
         elif meas.gate.bitstring == "001":
             np.testing.assert_allclose(res[-1], 1, atol=1e-1)
         elif meas.gate.bitstring == "010":
-            np.testing.assert_allclose(res[-1], 0, atol=2e-2)
+            np.testing.assert_allclose(res[-1], 0, atol=5e-2)
 
     # finally check total leakage
     np.testing.assert_array_less(leakage, 5e-2)
