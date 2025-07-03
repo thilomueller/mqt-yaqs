@@ -974,3 +974,72 @@ def test_two_site_correlator_center_circuit() -> None:
     np.testing.assert_allclose(sim_params.observables[0].results, expected_xx, atol=2e-3)
     np.testing.assert_allclose(sim_params.observables[1].results, expected_yy, atol=2e-3)
     np.testing.assert_allclose(sim_params.observables[2].results, expected_zz, atol=2e-3)
+
+
+def test_transmon_simulation() -> None:
+    """Tests if a SWAP gate is implemented correctly.
+
+    This test creates a mixed-dimensional coupled transmon system and implements a SWAP gate.
+    """
+    length = 3  # Qubit - resonator - qubit
+    qubit_dim = 3
+    resonator_dim = 3
+    w_q = 4 / (2 * np.pi)
+    w_r = 4 / (2 * np.pi)
+    alpha = -0.3 / (2 * np.pi)
+    g = 0.5 / (2 * np.pi)
+
+    H_0 = MPO()
+    H_0.init_coupled_transmon(
+        length=length,
+        qubit_dim=qubit_dim,
+        resonator_dim=resonator_dim,
+        qubit_freq=w_q,
+        resonator_freq=w_r,
+        anharmonicity=alpha,
+        coupling=g,
+    )
+
+    state = MPS(length, state="basis", basis_string="100", physical_dimensions=[qubit_dim, resonator_dim, qubit_dim])
+    elapsed_time = np.pi / (np.sqrt(2) * g)  # T_swap
+    dt = elapsed_time / 1000
+    sample_timesteps = False
+    num_traj = 1
+    max_bond_dim = 2**length
+    threshold = 0
+    order = 1
+
+    measurements = [Observable(bitstring) for bitstring in ["000", "001", "010", "011", "100", "101", "110", "111"]]
+
+    sim_params = AnalogSimParams(
+        measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps
+    )
+    simulator.run(state, H_0, sim_params, noise_model=None)
+
+    res0 = measurements[0].results
+    assert res0 is not None, "Expected results to be set by simulator.run"
+    # Initialize leakage as a numpy array of ones:
+    leakage = np.ones_like(res0)
+
+    for meas in measurements:
+        # Narrow results from Optional[...] to actual array
+        res = meas.results
+        assert hasattr(meas.gate, "bitstring")
+        assert res is not None, f"No results for bitstring {meas.gate.bitstring!r}"
+
+        # subtract elementwise
+        leakage -= res
+
+        # use meas.bitstring, not meas.gate.bitstring
+        if meas.gate.bitstring == "111":
+            # small pop in 111
+            np.testing.assert_array_less(np.max(res), 1e-2)
+        elif meas.gate.bitstring == "100":
+            np.testing.assert_allclose(res[-1], 0, atol=5e-2)
+        elif meas.gate.bitstring == "001":
+            np.testing.assert_allclose(res[-1], 1, atol=1e-1)
+        elif meas.gate.bitstring == "010":
+            np.testing.assert_allclose(res[-1], 0, atol=5e-2)
+
+    # finally check total leakage
+    np.testing.assert_array_less(leakage, 5e-2)

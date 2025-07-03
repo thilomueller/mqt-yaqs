@@ -24,13 +24,13 @@ import numpy as np
 import opt_einsum as oe
 from tqdm import tqdm
 
-from ..libraries.gate_library import X, Y, Z
+from ..libraries.gate_library import Destroy, X, Y, Z
 from ..methods.decompositions import right_qr, two_site_svd
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from .simulation_parameters import Observable
+    from .simulation_parameters import AnalogSimParams, Observable, StrongSimParams
 
 
 class MPS:
@@ -79,7 +79,7 @@ class MPS:
         self,
         length: int,
         tensors: list[NDArray[np.complex128]] | None = None,
-        physical_dimensions: list[int] | None = None,
+        physical_dimensions: list[int] | int | None = None,
         state: str = "zeros",
         pad: int | None = None,
         basis_string: str | None = None,
@@ -88,14 +88,14 @@ class MPS:
 
         Parameters
         ----------
-        length : int
+        length :
             Number of sites (qubits) in the MPS.
-        tensors : list[NDArray[np.complex128]], optional
+        tensors :
             Predefined tensors representing the MPS. Must match `length` if provided.
             If None, tensors are initialized according to `state`.
-        physical_dimensions : list[int], optional
+        physical_dimensions :
             Physical dimension for each site. Defaults to qubit systems (dimension 2) if None.
-        state : str, optional
+        state :
             Initial state configuration. Valid options include:
             - "zeros": Initializes all qubits to |0⟩.
             - "ones": Initializes all qubits to |1⟩.
@@ -108,9 +108,9 @@ class MPS:
             - "random": Initializes each qubit randomly.
             - "basis": Initializes a qubit in an input computational basis.
             Default is "zeros".
-        pad: int, optional
+        pad:
             Pads the state with extra zeros to increase bond dimension. Can increase numerical stability.
-        basis_string: str, optional
+        basis_string:
             String used to initialize the state in a specific computational basis.
             This should generally be in the form of 0s and 1s, e.g., "0101" for a 4-qubit state.
             For mixed-dimensional systems, this can be increased to 2, 3, ... etc.
@@ -134,6 +134,10 @@ class MPS:
             self.physical_dimensions = []
             for _ in range(self.length):
                 self.physical_dimensions.append(2)
+        elif isinstance(physical_dimensions, int):
+            self.physical_dimensions = []
+            for _ in range(self.length):
+                self.physical_dimensions.append(physical_dimensions)
         else:
             self.physical_dimensions = physical_dimensions
         assert len(self.physical_dimensions) == length
@@ -558,6 +562,32 @@ class MPS:
 
         return self.scalar_product(temp_state, sites)
 
+    def evaluate_observables(
+        self, sim_params: AnalogSimParams | StrongSimParams, results: NDArray, column_index: int = 0
+    ) -> None:
+        """Evaluate and record expectation values of observables for a given MPS state.
+
+        This method performs a deep copy of the current MPS (`self`) and iterates over
+        the observables defined in the `sim_params` object. For each observable, it ensures
+        the orthogonality center of the MPS is correctly positioned before computing the
+        expectation value, which is then stored in the corresponding column of the `results` array.
+
+        Parameters:
+            sim_params: Simulation parameters containing a list of sorted observables.
+            results: 2D array where results[observable_index, column_index] stores expectation values.
+            column_index: The time or trajectory index indicating which column of the result array to fill.
+        """
+        temp_state = copy.deepcopy(self)
+        last_site = 0
+        for obs_index, observable in enumerate(sim_params.sorted_observables):
+            if observable.gate.name != "pvm":
+                idx = observable.sites[0] if isinstance(observable.sites, list) else observable.sites
+                if idx > last_site:
+                    for site in range(last_site, idx):
+                        temp_state.shift_orthogonality_center_right(site)
+                    last_site = idx
+            results[obs_index, column_index] = temp_state.expect(observable)
+
     def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.
 
@@ -570,21 +600,25 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
-        sites_list = None
-        if isinstance(observable.sites, int):
-            sites_list = [observable.sites]
-        elif isinstance(observable.sites, list):
-            sites_list = observable.sites
+        if observable.gate.name != "pvm":
+            sites_list = None
+            if isinstance(observable.sites, int):
+                sites_list = [observable.sites]
+            elif isinstance(observable.sites, list):
+                sites_list = observable.sites
 
-        assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
+            assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
 
-        assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
+            assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
 
-        for s in sites_list:
-            assert s in range(self.length), f"Observable acting on non-existing site: {s}"
+            for s in sites_list:
+                assert s in range(self.length), f"Observable acting on non-existing site: {s}"
 
-        # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expect(observable, sites_list)
+            # Copying done to stop the state from messing up its own canonical form
+            exp = self.local_expect(observable, sites_list)
+        elif observable.gate.name == "pvm":
+            assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
+            exp = self.project_onto_bitstring(observable.gate.bitstring)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
@@ -655,6 +689,50 @@ class MPS:
         basis_state = self.measure_single_shot()
         results[basis_state] = results.get(basis_state, 0) + 1
         return results
+
+    def project_onto_bitstring(self, bitstring: str) -> np.complex128:
+        """Projection-valued measurement.
+
+        Project the MPS onto a given bitstring in the computational basis
+        and return the squared norm (i.e., probability of that outcome).
+
+        This is equivalent to computing ⟨bitstring|ψ⟩⟨ψ|bitstring⟩.
+
+        Args:
+            bitstring (str): Bitstring to project onto (little-endian: site 0 is first char).
+
+        Returns:
+            float: Probability of obtaining the given bitstring under projective measurement.
+        """
+        assert len(bitstring) == self.length, "Bitstring length must match number of sites"
+        temp_state = copy.deepcopy(self)
+        total_norm = 1.0
+
+        for site, char in enumerate(bitstring):
+            state_index = int(char)
+            tensor = temp_state.tensors[site]
+            local_dim = self.physical_dimensions[site]
+            assert 0 <= state_index < local_dim, f"Invalid state index {state_index} at site {site}"
+
+            selected_state = np.zeros(local_dim)
+            selected_state[state_index] = 1
+
+            # Project tensor
+            projected_tensor = oe.contract("a, acd->cd", selected_state, tensor)
+
+            # Compute norm of projected tensor
+            norm = float(np.linalg.norm(projected_tensor))
+            if norm == 0:
+                return np.complex128(0.0)
+            total_norm *= norm
+
+            # Normalize and propagate
+            if site != self.length - 1:
+                temp_state.tensors[site + 1] = (
+                    1 / norm * oe.contract("ab, cbd->cad", projected_tensor, temp_state.tensors[site + 1])
+                )
+
+        return np.complex128(total_norm**2)
 
     def norm(self, site: int | None = None) -> np.float64:
         """Norm calculation.
@@ -823,7 +901,6 @@ class MPO:
             g (float): The coupling constant for the field.
         """
         physical_dimension = 2
-        np.zeros((physical_dimension, physical_dimension), dtype=complex)
         identity = np.eye(physical_dimension, dtype=complex)
         x = X().matrix
         if length == 1:
@@ -909,6 +986,121 @@ class MPO:
             self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
         self.length = length
         self.physical_dimension = physical_dimension
+
+    def init_coupled_transmon(
+        self,
+        length: int,
+        qubit_dim: int,
+        resonator_dim: int,
+        qubit_freq: float,
+        resonator_freq: float,
+        anharmonicity: float,
+        coupling: float,
+    ) -> None:
+        """Coupled Transmon MPO.
+
+        Initializes an MPO representation of a 1D chain of coupled transmon qubits
+        and resonators.
+
+        The chain alternates between transmon qubits (even indices) and resonators
+        (odd indices), with each qubit coupled to its neighboring resonators via
+        dipole-like interaction terms.
+
+        Parameters:
+            length: Total number of sites in the chain (should be even).
+                        Qubit sites are placed at even indices, resonators at odd.
+            qubit_dim: Local Hilbert space dimension of each transmon qubit.
+            resonator_dim: Local Hilbert space dimension of each resonator.
+            qubit_freq: Bare frequency of the transmon qubits.
+            resonator_freq: Bare frequency of the resonators.
+            anharmonicity: Strength of the anharmonic (nonlinear) term
+                                for each transmon, typically negative.
+            coupling : Strength of the qubit-resonator coupling term.
+
+        Notes:
+            - The Hamiltonian for each qubit is modeled as a Duffing oscillator:
+                H_q = ω_q * n_q + (alpha/2) * n_q (n_q - 1)
+            - Each resonator is a harmonic oscillator:
+                H_r = ω_r * n_r
+            - The interaction is implemented via dipole coupling:
+                H_int = g * (b + b†)(a + a†)
+            - The MPO bond dimension is 4.
+        """
+        b = Destroy(qubit_dim)
+        b_dag = b.dag()
+        a = Destroy(resonator_dim)
+        a_dag = a.dag()
+
+        id_q = np.eye(qubit_dim, dtype=complex)
+        id_r = np.eye(resonator_dim, dtype=complex)
+        zero_q = np.zeros_like(id_q)
+        zero_r = np.zeros_like(id_r)
+
+        n_q = b_dag.matrix @ b.matrix
+        n_r = a_dag.matrix @ a.matrix
+        h_q = qubit_freq * n_q + (anharmonicity / 2) * n_q @ (n_q - id_q)
+        h_r = resonator_freq * n_r
+
+        x_q = b_dag.matrix + b.matrix
+        x_r = a_dag.matrix + a.matrix
+
+        self.tensors = []
+
+        for i in range(length):
+            if i % 2 == 0:
+                # Qubit site
+                if i == 0:
+                    # Qubit 0: left edge
+                    tensor = np.array(
+                        [
+                            [
+                                h_q,  # (0,0): on-site Hamiltonian
+                                id_q,  # (0,1): pass identity right
+                                coupling * x_q,  # (0,2): pass coupling operator right
+                                id_q,  # (0,3): tail end (unused)
+                            ]
+                        ],
+                        dtype=object,
+                    )  # shape (1, 4, d, d)
+
+                elif i == length - 1:
+                    # Qubit 1: right edge
+                    tensor = np.array(
+                        [
+                            [id_q],  # (0,0): tail end
+                            [coupling * x_q],  # (1,0): coupled input from resonator
+                            [id_q],  # (2,0): pass-through
+                            [h_q],  # (3,0): on-site Hamiltonian
+                        ],
+                        dtype=object,
+                    )  # shape (4, 1, d, d)
+
+                else:
+                    tensor = np.empty((4, 4, qubit_dim, qubit_dim), dtype=object)
+                    tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
+                    tensor[0, 0] = h_q
+                    tensor[0, 1] = id_q
+                    tensor[0, 2] = coupling * x_q  # right resonator
+                    tensor[1, 3] = coupling * x_q  # left resonator
+                    tensor[0, 3] = id_q
+                    tensor[3, 3] = id_q
+            else:
+                # Resonator site
+                tensor = np.empty((4, 4, resonator_dim, resonator_dim), dtype=object)
+                tensor[:, :] = [[zero_r for _ in range(4)] for _ in range(4)]
+
+                tensor[0, 0] = id_r
+                tensor[1, 2] = h_r
+                tensor[2, 0] = x_r
+                tensor[3, 1] = x_r
+                tensor[3, 3] = id_r
+
+            # Transpose to (phys_out, phys_in, left, right)
+            tensor = np.transpose(tensor, (2, 3, 0, 1))
+            self.tensors.append(tensor)
+
+        self.length = length
+        self.physical_dimension = qubit_dim
 
     def init_identity(self, length: int, physical_dimension: int = 2) -> None:
         """Initialize identity MPO.

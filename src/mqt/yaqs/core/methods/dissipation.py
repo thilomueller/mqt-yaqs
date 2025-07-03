@@ -97,8 +97,14 @@ def apply_dissipation(
 
                 # singular values always contracted right
                 # since ortho center is shifted to the left after loop
-                tensor_right, tensor_left = split_mps_tensor(merged_tensor, "right", sim_params, dynamic=False)
-                state.tensors[i - 1], state.tensors[i] = tensor_right, tensor_left
+                tensor_left, tensor_right = split_mps_tensor(
+                    merged_tensor,
+                    "right",
+                    sim_params,
+                    [state.physical_dimensions[i - 1], state.physical_dimensions[i]],
+                    dynamic=False,
+                )
+                state.tensors[i - 1], state.tensors[i] = tensor_left, tensor_right
 
         # Shift orthogonality center
         if i != 0:
