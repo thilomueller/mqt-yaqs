@@ -1002,7 +1002,7 @@ def test_transmon_simulation() -> None:
 
     state = MPS(length, state="basis", basis_string="100", physical_dimensions=[qubit_dim, resonator_dim, qubit_dim])
     elapsed_time = np.pi / (np.sqrt(2) * g)  # T_swap
-    dt = elapsed_time / 100
+    dt = elapsed_time / 1000
     sample_timesteps = False
     num_traj = 1
     max_bond_dim = 2**length
