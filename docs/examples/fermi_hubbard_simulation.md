@@ -59,11 +59,12 @@ state = MPS(num_qubits, state='wall', pad=32)
 Define the simulation parameters
 
 ```{code-cell} ipython3
+from mqt.yaqs.core.libraries.gate_library import Z
 N = 1
 max_bond_dim = 16
 threshold = 1e-6
 window_size = 0
-measurements = [Observable('z', site) for site in range(num_qubits)]
+measurements = [Observable(Z(), [site]) for site in range(num_qubits)]
 ```
 
 Run the simulation for the specified time
