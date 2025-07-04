@@ -12,7 +12,7 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-# Quantum Circuit Equivalence Checking
+# Equivalence Checking
 
 This script demonstrates how to create a TwoLocal quantum circuit, assign random parameters,
 measure the circuit, and then transpile it into a different basis. The original and transpiled

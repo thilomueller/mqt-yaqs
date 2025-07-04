@@ -12,7 +12,7 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-# Weak Quantum Circuit Simulation (Shots)
+# Weak Circuit Simulation (Shots)
 
 This module demonstrates how to run a weak simulation using the YAQS simulator
 with a TwoLocal circuit generated via Qiskit's circuit library. An MPS is initialized
