@@ -12,7 +12,7 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-# Strong Quantum Circuit Simulation (Observable)
+# Strong Circuit Simulation (Observable)
 
 This example demonstrates how to run a circuit simulation using the YAQS simulator.
 An Ising circuit is created and an initial MPS is prepared in the $\ket{0}$ state.
