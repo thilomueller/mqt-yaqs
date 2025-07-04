@@ -168,7 +168,7 @@ def test_analog_simulation_get_state() -> None:
             sample_timesteps=sample_timesteps,
             get_state=True,
         )
-        simulator.run(initial_state, H, sim_params, noise_model=None, parallel=False)
+        simulator.run(initial_state, H, sim_params)
         assert sim_params.output_state is not None
         assert isinstance(sim_params.output_state, MPS)
         sv = sim_params.output_state.to_vec()
@@ -241,7 +241,7 @@ def test_strong_simulation_no_noise() -> None:
     state = MPS(length=num_qubits)
     measurements = [Observable(X(), num_qubits // 2)]
     sim_params = StrongSimParams(measurements, num_traj=1, max_bond_dim=16, threshold=1e-12, get_state=True)
-    simulator.run(state, circ, sim_params, noise_model=None)
+    simulator.run(state, circ, sim_params)
     assert sim_params.output_state is not None
     assert isinstance(sim_params.output_state, MPS)
     sv = sim_params.output_state.to_vec()
@@ -464,7 +464,7 @@ def test_two_site_correlator_left_boundary() -> None:
         sample_timesteps=sample_timesteps,
     )
 
-    simulator.run(state, H_0, sim_params, noise_model=None)
+    simulator.run(state, H_0, sim_params)
 
     # Expected results from qutip
     expected_xx = np.array([
@@ -635,7 +635,7 @@ def test_two_site_correlator_center() -> None:
         sample_timesteps=sample_timesteps,
     )
 
-    simulator.run(state, H_0, sim_params, noise_model=None)
+    simulator.run(state, H_0, sim_params)
 
     # Expected results from qutip
     expected_xx = np.array([
@@ -802,7 +802,7 @@ def test_two_site_correlator_right_boundary() -> None:
         sample_timesteps=sample_timesteps,
     )
 
-    simulator.run(state, H_0, sim_params, noise_model=None)
+    simulator.run(state, H_0, sim_params)
 
     # Expected results from qutip
     expected_xx = np.array([
@@ -962,7 +962,7 @@ def test_two_site_correlator_center_circuit() -> None:
     ]
     sim_params = StrongSimParams(observables=observables, max_bond_dim=max_bond_dim)
 
-    simulator.run(state, circ, sim_params, noise_model=None)
+    simulator.run(state, circ, sim_params)
 
     # Expected results from qutip
     expected_xx = np.array([1.63020588e-02])
@@ -1014,7 +1014,7 @@ def test_transmon_simulation() -> None:
     sim_params = AnalogSimParams(
         measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps
     )
-    simulator.run(state, H_0, sim_params, noise_model=None)
+    simulator.run(state, H_0, sim_params)
 
     res0 = measurements[0].results
     assert res0 is not None, "Expected results to be set by simulator.run"
