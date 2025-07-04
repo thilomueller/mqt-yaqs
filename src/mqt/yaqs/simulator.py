@@ -238,7 +238,7 @@ def run(
     initial_state: MPS,
     operator: MPO | QuantumCircuit,
     sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
-    noise_model: NoiseModel | None,
+    noise_model: NoiseModel | None = None,
     *,
     parallel: bool = True,
 ) -> None:
