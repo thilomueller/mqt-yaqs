@@ -34,11 +34,34 @@ from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 from mqt.yaqs.core.libraries.gate_library import XX, YY, ZZ, X, Z
 
 
-def test_available_cpus() -> None:
-    """Test the available_cpus function."""
-    num_cpus = simulator.available_cpus()
-    assert isinstance(num_cpus, int), "Number of CPUs should be an integer."
-    assert num_cpus > 0, "Expected positive number of CPUs."
+import multiprocessing
+import importlib
+import pytest
+
+
+def test_available_cpus_without_slurm(monkeypatch):
+    """
+    Path 1: SLURM_CPUS_ON_NODE *not* set.
+    Should return multiprocessing.cpu_count().
+    """
+    # Ensure the env var is absent
+    monkeypatch.delenv("SLURM_CPUS_ON_NODE", raising=False)
+
+    assert simulator.available_cpus() == multiprocessing.cpu_count()
+
+
+def test_available_cpus_with_slurm(monkeypatch):
+    """
+    Path 2: SLURM_CPUS_ON_NODE is set.
+    Should return that exact value.
+    """
+    monkeypatch.setenv("SLURM_CPUS_ON_NODE", "8")
+
+    # Reload the module only if available_cpus caches anything at import;
+    # here it's not necessary, but harmless:
+    importlib.reload(simulator)
+
+    assert simulator.available_cpus() == 8
 
 
 def test_analog_simulation() -> None:
