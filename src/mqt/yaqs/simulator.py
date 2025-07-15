@@ -42,17 +42,16 @@ if TYPE_CHECKING:
     from .core.data_structures.noise_model import NoiseModel
 
 
-
 import os
+
+
 def available_cpus():
     slurm_cpus = int(os.environ["SLURM_CPUS_ON_NODE"]) if "SLURM_CPUS_ON_NODE" in os.environ else None
     machine_cpus = multiprocessing.cpu_count()
 
     if slurm_cpus is None:
         return machine_cpus
-    else:
-        return slurm_cpus
-
+    return slurm_cpus
 
 
 def _run_strong_sim(
