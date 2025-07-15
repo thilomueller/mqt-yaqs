@@ -34,7 +34,6 @@ from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 from mqt.yaqs.core.libraries.gate_library import XX, YY, ZZ, X, Z
 
 
-
 def test_available_cpus() -> None:
     """Test the available_cpus function."""
     num_cpus = simulator.available_cpus()
