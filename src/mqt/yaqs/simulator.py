@@ -44,7 +44,18 @@ if TYPE_CHECKING:
 
 
 import os
+
+
 def available_cpus():
+    """ Determine the number of available CPU cores for parallel execution.
+
+    This function checks if the SLURM_CPUS_ON_NODE environment variable is set (indicating a SLURM-managed cluster job).
+    If so, it returns the number of CPUs specified by SLURM. Otherwise, it returns the total number of CPUs available
+    on the machine as reported by multiprocessing.cpu_count().
+
+    Returns:
+        int: The number of available CPU cores for parallel execution.
+    """
     slurm_cpus = int(os.environ["SLURM_CPUS_ON_NODE"]) if "SLURM_CPUS_ON_NODE" in os.environ else None
     machine_cpus = multiprocessing.cpu_count()
 
