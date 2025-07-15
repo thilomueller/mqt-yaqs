@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 import os
 
 
-def available_cpus():
+def available_cpus() -> int:
     """ Determine the number of available CPU cores for parallel execution.
 
     This function checks if the SLURM_CPUS_ON_NODE environment variable is set (indicating a SLURM-managed cluster job).
