@@ -37,8 +37,9 @@ from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 from mqt.yaqs.core.libraries.gate_library import XX, YY, ZZ, X, Z
 
 
-def test_available_cpus_without_slurm(monkeypatch) -> None:
+def test_available_cpus_without_slurm(monkeypatch: pytest.MonkeyPatch) -> None:
     """Path 1: SLURM_CPUS_ON_NODE *not* set.
+
     Should return multiprocessing.cpu_count().
     """
     # Ensure the env var is absent
@@ -47,8 +48,9 @@ def test_available_cpus_without_slurm(monkeypatch) -> None:
     assert simulator.available_cpus() == multiprocessing.cpu_count()
 
 
-def test_available_cpus_with_slurm(monkeypatch) -> None:
+def test_available_cpus_with_slurm(monkeypatch: pytest.MonkeyPatch) -> None:
     """Path 2: SLURM_CPUS_ON_NODE is set.
+
     Should return that exact value.
     """
     monkeypatch.setenv("SLURM_CPUS_ON_NODE", "8")
