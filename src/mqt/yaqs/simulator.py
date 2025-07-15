@@ -42,7 +42,6 @@ if TYPE_CHECKING:
     from .core.data_structures.noise_model import NoiseModel
 
 
-
 import os
 
 
@@ -61,9 +60,7 @@ def available_cpus():
 
     if slurm_cpus is None:
         return machine_cpus
-    else:
-        return slurm_cpus
-
+    return slurm_cpus
 
 
 def _run_strong_sim(
