@@ -34,6 +34,14 @@ from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 from mqt.yaqs.core.libraries.gate_library import XX, YY, ZZ, X, Z
 
 
+
+def test_available_cpus() -> None:
+    """Test the available_cpus function."""
+    num_cpus = simulator.available_cpus()
+    assert isinstance(num_cpus, int), "Number of CPUs should be an integer."
+    assert num_cpus > 0, "Expected positive number of CPUs."
+
+
 def test_analog_simulation() -> None:
     """Test the branch for Hamiltonian simulation (analog simulation) using AnalogSimParams.
 
