@@ -151,7 +151,7 @@ class BaseGate:
         if mat.shape[0] != mat.shape[1]:
             msg = "Matrix must be square"
             raise ValueError(msg)
-        
+
         log = np.log2(mat.shape[0])
 
         self.matrix = mat
