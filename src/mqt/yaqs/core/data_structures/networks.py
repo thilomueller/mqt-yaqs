@@ -263,7 +263,7 @@ class MPS:
         # renormalise the state
         self.normalize()
 
-    def write_max_bond_dim(self) -> int:
+    def get_max_bond(self) -> int:
         """Write max bond dim.
 
         Calculate and return the maximum bond dimension of the tensors in the network.
@@ -280,6 +280,14 @@ class MPS:
             global_max = max(global_max, local_max)
 
         return global_max
+
+    def get_total_bond(self) -> int:
+        bonds = [tensor.shape[1] for tensor in self.tensors[1::]]
+        return sum(bonds)
+
+    def get_cost(self) -> int:
+        cost = [tensor.shape[1]**3 for tensor in self.tensors[1::]]
+        return sum(cost)
 
     def flip_network(self) -> None:
         """Flip MPS.
@@ -339,7 +347,7 @@ class MPS:
                 )
         elif decomposition == "SVD":
             a, b = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1]
-            a_new, b_new = two_site_svd(a, b, threshold=1e-15, max_bond_dim=None)
+            a_new, b_new = two_site_svd(a, b, threshold=1e-13, max_bond_dim=None)
             self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1] = a_new, b_new
 
     def shift_orthogonality_center_left(self, current_orthogonality_center: int, decomposition: str = "QR") -> None:
@@ -578,9 +586,9 @@ class MPS:
             column_index: The time or trajectory index indicating which column of the result array to fill.
         """
         temp_state = copy.deepcopy(self)
-        last_site = 0
+        last_site = 0 
         for obs_index, observable in enumerate(sim_params.sorted_observables):
-            if observable.gate.name != "pvm":
+            if observable.gate.name not in  ["pvm", "runtime_cost"]:
                 idx = observable.sites[0] if isinstance(observable.sites, list) else observable.sites
                 if idx > last_site:
                     for site in range(last_site, idx):
@@ -600,7 +608,7 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
-        if observable.gate.name != "pvm":
+        if observable.gate.name not in ["pvm", "runtime_cost"]:
             sites_list = None
             if isinstance(observable.sites, int):
                 sites_list = [observable.sites]
@@ -619,6 +627,9 @@ class MPS:
         elif observable.gate.name == "pvm":
             assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
             exp = self.project_onto_bitstring(observable.gate.bitstring)
+        elif observable.gate.name == 'runtime_cost':
+            exp = self.get_cost()
+
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
