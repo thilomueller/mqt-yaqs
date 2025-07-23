@@ -78,10 +78,13 @@ class Observable:
             If the provided `name` is not a valid attribute in the GateLibrary.
         """
         if isinstance(gate, str):
-            gate = GateLibrary.pvm(gate)
+            if gate == "runtime_cost":
+                gate = GateLibrary.runtime_cost()
+            else:
+                gate = GateLibrary.pvm(gate)
         assert hasattr(GateLibrary, gate.name), f"Observable {gate.name} not found in GateLibrary."
         self.gate = copy.deepcopy(gate)
-        if gate.name != "pvm":
+        if gate.name not in ["pvm", "runtime_cost"]:
             assert sites is not None
             self.sites = sites
             self.gate.set_sites(self.sites)
@@ -198,12 +201,21 @@ class AnalogSimParams:
             "We currently have not implemented mixed observable and projective-measurement simulation."
         )
         self.observables = observables
-        if self.observables and self.observables[0].gate.name != "pvm":
-            self.sorted_observables = sorted(
-                observables, key=lambda obs: obs.sites[0] if isinstance(obs.sites, list) else obs.sites
+        if self.observables:
+            sortable = [
+                obs for obs in observables if obs.gate.name not in ["pvm", "runtime_cost"]
+            ]
+            unsorted = [
+                obs for obs in observables if obs.gate.name in ["pvm", "runtime_cost"]
+            ]
+            sorted_obs = sorted(
+                sortable,
+                key=lambda obs: obs.sites[0] if isinstance(obs.sites, list) else obs.sites,
             )
+            self.sorted_observables = sorted_obs + unsorted
         else:
-            self.sorted_observables = observables
+            self.sorted_observables = []
+
 
         self.elapsed_time = elapsed_time
         self.dt = dt
@@ -226,7 +238,10 @@ class AnalogSimParams:
         attribute with the mean value of their trajectories along the specified axis.
         """
         for observable in self.observables:
-            observable.results = np.mean(observable.trajectories, axis=0)
+            if observable.gate.name == "runtime_cost":
+                observable.results = np.sum(observable.trajectories, axis=0)
+            else:
+                observable.results = np.mean(observable.trajectories, axis=0)
 
 
 class WeakSimParams:
