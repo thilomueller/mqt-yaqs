@@ -534,6 +534,9 @@ class BaseGate:
         """
         return PVM(bitstring)
 
+    @classmethod
+    def runtime_cost(cls) -> RuntimeCost:
+        return RuntimeCost()
 
 class X(BaseGate):
     """Class representing the Pauli-X (NOT) gate.
@@ -1453,6 +1456,20 @@ class PVM(BaseGate):
         super().__init__(mat)
 
 
+class RuntimeCost(BaseGate):
+    """Class representing a projection-valued measurement.
+
+    Attributes:
+        name: The name of the gate ("pvm").
+    """
+
+    name = "runtime_cost"
+
+    def __init__(self) -> None:
+        mat = np.array([[1, 0], [0, 1]])
+        super().__init__(mat)
+
+
 class GateLibrary:
     """A collection of quantum gate classes for use in simulations.
 
@@ -1504,4 +1521,5 @@ class GateLibrary:
     p0 = P0
     p1 = P1
     pvm = PVM
+    runtime_cost = RuntimeCost
     custom = BaseGate
