@@ -627,8 +627,12 @@ class MPS:
         elif observable.gate.name == "pvm":
             assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
             exp = self.project_onto_bitstring(observable.gate.bitstring)
-        elif observable.gate.name == 'runtime_cost':
+        elif observable.gate.name == "runtime_cost":
             exp = self.get_cost()
+        elif observable.gate.name == "max_bond":
+            exp = self.get_max_bond()
+        elif observable.gate.name == "total_bond":
+            exp = self.get_total_bond()
 
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
