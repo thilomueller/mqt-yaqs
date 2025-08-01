@@ -31,6 +31,7 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.converters import circuit_to_dag
 
+from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams, WeakSimParams
 from mqt.yaqs.core.libraries.gate_library import GateLibrary, X, Z
@@ -214,7 +215,6 @@ def test_create_local_noise_model() -> None:
     of local noise models for different gate positions. It verifies that only the relevant
     noise processes are included in the local model based on the gate's site range.
     """
-    from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 
     # Create a global noise model with various processes
     global_processes = [
@@ -226,17 +226,20 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
         {"name": "crosstalk_x", "sites": [3, 4], "strength": 0.08},
+        {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
+        {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
     ]
     global_noise_model = NoiseModel(global_processes)
 
     # Test case 1: Gate acting on sites [1, 2]
     local_model_1 = create_local_noise_model(global_noise_model, 1, 2)
     
-    # Should include: bitflip on sites 1, 2 and crosstalk_x on [1, 2]
+    # Should include: bitflip on sites 1, 2 and crosstalk_x, crosstalk_yx on [1, 2]
     expected_processes_1 = [
         {"name": "bitflip", "sites": [1], "strength": 0.02},
         {"name": "bitflip", "sites": [2], "strength": 0.03},
         {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
+        {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
     ]
     
     assert len(local_model_1.processes) == len(expected_processes_1)
@@ -253,11 +256,12 @@ def test_create_local_noise_model() -> None:
     # Test case 2: Gate acting on sites [0, 1]
     local_model_2 = create_local_noise_model(global_noise_model, 0, 1)
     
-    # Should include: bitflip on sites 0, 1 and crosstalk_x on [0, 1]
+    # Should include: bitflip on sites 0, 1 and crosstalk_x, crosstalk_xy on [0, 1]
     expected_processes_2 = [
         {"name": "bitflip", "sites": [0], "strength": 0.01},
         {"name": "bitflip", "sites": [1], "strength": 0.02},
         {"name": "crosstalk_x", "sites": [0, 1], "strength": 0.05},
+        {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
     ]
     
     assert len(local_model_2.processes) == len(expected_processes_2)
@@ -314,12 +318,13 @@ def test_create_local_noise_model() -> None:
     # Test case 5: Gate acting on sites [1, 2, 3] (three-qubit gate)
     local_model_5 = create_local_noise_model(global_noise_model, 1, 3)
     
-    # Should include: bitflip on sites 1, 2, 3 and crosstalk_x on [1, 2], [2, 3]
+    # Should include: bitflip on sites 1, 2, 3 and crosstalk_x, crosstalk_yx on [1, 2], crosstalk_x on [2, 3]
     expected_processes_5 = [
         {"name": "bitflip", "sites": [1], "strength": 0.02},
         {"name": "bitflip", "sites": [2], "strength": 0.03},
         {"name": "bitflip", "sites": [3], "strength": 0.04},
         {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
+        {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
         {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
     ]
     

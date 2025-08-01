@@ -213,6 +213,8 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
         sim_params (StrongSimParams | WeakSimParams): Simulation parameters that determine the behavior
         of the algorithm.
 
+    Returns:
+        tuple[int, int]: A tuple containing the first and last site indices of the gate.
     """
     # Construct the MPO for the two-qubit gate.
     gate = convert_dag_to_tensor_algorithm(node)[0]
