@@ -241,14 +241,16 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
     ]
-    
+
     assert len(local_model_1.processes) == len(expected_processes_1)
     for expected_process in expected_processes_1:
         found = False
         for actual_process in local_model_1.processes:
-            if (actual_process["name"] == expected_process["name"] and 
-                actual_process["sites"] == expected_process["sites"] and
-                actual_process["strength"] == expected_process["strength"]):
+            if (
+                actual_process["name"] == expected_process["name"]
+                and actual_process["sites"] == expected_process["sites"]
+                and actual_process["strength"] == expected_process["strength"]
+            ):
                 found = True
                 break
         assert found, f"Expected process {expected_process} not found in local model"
@@ -263,54 +265,60 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_x", "sites": [0, 1], "strength": 0.05},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
     ]
-    
+
     assert len(local_model_2.processes) == len(expected_processes_2)
     for expected_process in expected_processes_2:
         found = False
         for actual_process in local_model_2.processes:
-            if (actual_process["name"] == expected_process["name"] and 
-                actual_process["sites"] == expected_process["sites"] and
-                actual_process["strength"] == expected_process["strength"]):
+            if (
+                actual_process["name"] == expected_process["name"]
+                and actual_process["sites"] == expected_process["sites"]
+                and actual_process["strength"] == expected_process["strength"]
+            ):
                 found = True
                 break
         assert found, f"Expected process {expected_process} not found in local model"
 
     # Test case 3: Gate acting on sites [2, 3]
     local_model_3 = create_local_noise_model(global_noise_model, 2, 3)
-    
+
     # Should include: bitflip on sites 2, 3 and crosstalk_x on [2, 3]
     expected_processes_3 = [
         {"name": "bitflip", "sites": [2], "strength": 0.03},
         {"name": "bitflip", "sites": [3], "strength": 0.04},
         {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
     ]
-    
+
     assert len(local_model_3.processes) == len(expected_processes_3)
     for expected_process in expected_processes_3:
         found = False
         for actual_process in local_model_3.processes:
-            if (actual_process["name"] == expected_process["name"] and 
-                actual_process["sites"] == expected_process["sites"] and
-                actual_process["strength"] == expected_process["strength"]):
+            if (
+                actual_process["name"] == expected_process["name"]
+                and actual_process["sites"] == expected_process["sites"]
+                and actual_process["strength"] == expected_process["strength"]
+            ):
                 found = True
                 break
         assert found, f"Expected process {expected_process} not found in local model"
 
     # Test case 4: Single-qubit gate on site 1
     local_model_4 = create_local_noise_model(global_noise_model, 1, 1)
-    
+
     # Should include: bitflip on site 1 only
     expected_processes_4 = [
         {"name": "bitflip", "sites": [1], "strength": 0.02},
     ]
-    
+
     assert len(local_model_4.processes) == len(expected_processes_4)
     for expected_process in expected_processes_4:
         found = False
         for actual_process in local_model_4.processes:
-            if (actual_process["name"] == expected_process["name"] and 
-                actual_process["sites"] == expected_process["sites"] and
-                actual_process["strength"] == expected_process["strength"]):
+            if (
+                actual_process["name"] == expected_process["name"]
+                and actual_process["sites"] == expected_process["sites"]
+                and actual_process["strength"] == expected_process["strength"]
+            ):
                 found = True
                 break
         assert found, f"Expected process {expected_process} not found in local model"
@@ -327,14 +335,16 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
         {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
     ]
-    
+
     assert len(local_model_5.processes) == len(expected_processes_5)
     for expected_process in expected_processes_5:
         found = False
         for actual_process in local_model_5.processes:
-            if (actual_process["name"] == expected_process["name"] and 
-                actual_process["sites"] == expected_process["sites"] and
-                actual_process["strength"] == expected_process["strength"]):
+            if (
+                actual_process["name"] == expected_process["name"]
+                and actual_process["sites"] == expected_process["sites"]
+                and actual_process["strength"] == expected_process["strength"]
+            ):
                 found = True
                 break
         assert found, f"Expected process {expected_process} not found in local model"
