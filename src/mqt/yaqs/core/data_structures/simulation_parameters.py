@@ -241,8 +241,8 @@ class AnalogSimParams:
         attribute with the mean value of their trajectories along the specified axis.
         """
         for observable in self.observables:
-            if observable.gate.name in {"runtime_cost", "total_bond"}:
-                observable.results = np.sum(observable.trajectories, axis=0)
+            if observable.gate.name in {"runtime_cost"}:
+                observable.results = np.mean(observable.trajectories, axis=0)
             else:
                 observable.results = np.mean(observable.trajectories, axis=0)
 
