@@ -294,6 +294,11 @@ class MPS:
         assert sites[0] + 1 == sites[1], "Entropy defined on long-range sites."
         i, j = sites
         a, b = self.tensors[i], self.tensors[j]
+
+        # Avoids NaN if product state
+        if a.shape[2] == 1:
+            return 0
+
         # 1) build the two-site tensor theta_{(phys_i,L),(phys_j,R)}
         theta = np.tensordot(a, b, axes=(2, 1))
         phys_i, left = a.shape[0], a.shape[1]
@@ -305,7 +310,10 @@ class MPS:
         # 3) full SVD
         _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
 
-        return -np.sum(s_vec**2 * np.log(s_vec**2))
+        entropy = -np.sum(s_vec**2 * np.log(s_vec**2))
+        if np.isnan(entropy):
+            return 0
+        return entropy
 
     def flip_network(self) -> None:
         """Flip MPS.
