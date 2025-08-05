@@ -550,6 +550,7 @@ class BaseGate:
     def entropy(cls) -> Entropy:
         return Entropy()
 
+
 class X(BaseGate):
     """Class representing the Pauli-X (NOT) gate.
 
@@ -1490,6 +1491,7 @@ class TotalBond(BaseGate):
     def __init__(self) -> None:
         mat = np.array([[1, 0], [0, 1]])
         super().__init__(mat)
+
 
 class Entropy(BaseGate):
     name = "entropy"
