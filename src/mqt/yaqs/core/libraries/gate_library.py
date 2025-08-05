@@ -554,6 +554,7 @@ class BaseGate:
     def schmidt_spectrum(cls) -> SchmidtSpectrum:
         return SchmidtSpectrum()
 
+
 class X(BaseGate):
     """Class representing the Pauli-X (NOT) gate.
 
@@ -1585,5 +1586,5 @@ class GateLibrary:
     max_bond = MaxBond
     total_bond = TotalBond
     entropy = Entropy
-    schmidt_specturm = SchmidtSpectrum
+    schmidt_spectrum = SchmidtSpectrum
     custom = BaseGate

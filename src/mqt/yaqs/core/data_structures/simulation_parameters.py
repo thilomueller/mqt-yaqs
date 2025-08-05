@@ -247,6 +247,7 @@ class AnalogSimParams:
             if observable.gate.name == "schmidt_spectrum":
                 observable.results = np.concatenate(observable.results, observable.trajectories)
 
+
 class WeakSimParams:
     """A class to represent the parameters for a weak simulation.
 

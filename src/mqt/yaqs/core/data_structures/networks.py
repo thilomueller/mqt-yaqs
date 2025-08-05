@@ -336,8 +336,7 @@ class MPS:
         # 3) full SVD
         _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
 
-        schmidt_values = s_vec**2
-        return schmidt_values
+        return s_vec**2
 
     def flip_network(self) -> None:
         """Flip MPS.
