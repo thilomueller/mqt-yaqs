@@ -1516,10 +1516,6 @@ class Entropy(BaseGate):
             else:
                 sites_list.extend(s)
 
-        if len(sites_list) != self.interaction:
-            msg = f"Number of sites {len(sites_list)} must be equal to the interaction level {self.interaction}"
-            raise ValueError(msg)
-
         self.sites = sites_list
 
 
