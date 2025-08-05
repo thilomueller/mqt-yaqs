@@ -289,6 +289,24 @@ class MPS:
         cost = [tensor.shape[1] ** 3 for tensor in self.tensors[1::]]
         return sum(cost)
 
+    def get_entropy(self, sites: list[int]) -> int:
+        assert len(sites) == 2, "Entropy not defined on a bond."
+        assert sites[0]+1 == sites[1], "Entropy defined on long-range sites."
+        i, j = sites
+        a, b = self.tensors[i], self.tensors[j]
+        # 1) build the two-site tensor theta_{(phys_i,L),(phys_j,R)}
+        theta = np.tensordot(a, b, axes=(2, 1))
+        phys_i, left = a.shape[0], a.shape[1]
+        phys_j, right = b.shape[0], b.shape[2]
+
+        # 2) reshape to matrix M of shape (L*phys_i) x (phys_j*R)
+        theta_mat = theta.reshape(left * phys_i, phys_j * right)
+
+        # 3) full SVD
+        _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
+
+        return -np.sum(s_vec**2 * np.log(s_vec**2))
+
     def flip_network(self) -> None:
         """Flip MPS.
 
@@ -588,11 +606,7 @@ class MPS:
         temp_state = copy.deepcopy(self)
         last_site = 0
         for obs_index, observable in enumerate(sim_params.sorted_observables):
-<<<<<<< Updated upstream
-            if observable.gate.name not in {"pvm", "runtime_cost"}:
-=======
             if observable.gate.name not in  ["pvm", "runtime_cost", "max_bond", "total_bond"]:
->>>>>>> Stashed changes
                 idx = observable.sites[0] if isinstance(observable.sites, list) else observable.sites
                 if idx > last_site:
                     for site in range(last_site, idx):
@@ -612,11 +626,7 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
-<<<<<<< Updated upstream
-        if observable.gate.name not in {"pvm", "runtime_cost"}:
-=======
         if observable.gate.name not in ["pvm", "runtime_cost", "max_bond", "total_bond"]:
->>>>>>> Stashed changes
             sites_list = None
             if isinstance(observable.sites, int):
                 sites_list = [observable.sites]
@@ -631,7 +641,10 @@ class MPS:
                 assert s in range(self.length), f"Observable acting on non-existing site: {s}"
 
             # Copying done to stop the state from messing up its own canonical form
-            exp = self.local_expect(observable, sites_list)
+            if observable.gate.name == "entropy":
+                exp = self.get_entropy(sites_list)
+            else:
+                exp = self.local_expect(observable, sites_list)
         elif observable.gate.name == "pvm":
             assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
             exp = self.project_onto_bitstring(observable.gate.bitstring)
