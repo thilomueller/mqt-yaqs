@@ -1530,6 +1530,23 @@ class SchmidtSpectrum(BaseGate):
         mat = np.array([[1, 0], [0, 1]])
         super().__init__(mat)
 
+    def set_sites(self, *sites: int | list[int]) -> None:
+        """Sets the sites for the gate.
+
+        Args:
+            *sites: Variable-length argument list specifying site indices.
+
+        Raises:
+            ValueError: If the number of sites does not match the interaction level of the gate.
+        """
+        sites_list = []
+        for s in sites:
+            if isinstance(s, int):
+                sites_list.append(s)
+            else:
+                sites_list.extend(s)
+
+        self.sites = sites_list
 
 class GateLibrary:
     """A collection of quantum gate classes for use in simulations.
