@@ -252,7 +252,12 @@ def digital_tjm(
     _i, initial_state, noise_model, sim_params, circuit = args
         
     state = copy.deepcopy(initial_state)
+
     if sim_params.sample_layers:
+        if sim_params.num_layers is None:
+            raise ValueError("num_layers must be provided when sample_layers=True")
+        if sim_params.basis_circuit is None:
+            raise ValueError("basis_circuit must be provided when sample_layers=True")
         results = np.zeros((len(sim_params.sorted_observables), sim_params.num_layers + 1))
     else:
         results = np.zeros((len(sim_params.sorted_observables), 1))
@@ -261,18 +266,51 @@ def digital_tjm(
         for obs_index, observable in enumerate(sim_params.sorted_observables):
             results[obs_index, 0] = copy.deepcopy(state).expect(observable)
 
-    dag = circuit_to_dag(circuit)
+        # Analyze basis circuit
+        basis_dag = circuit_to_dag(sim_params.basis_circuit)
+        basis_gates = [n for n in basis_dag.op_nodes() if n.op.name not in {"measure", "barrier"}]
+        gates_per_layer = len(basis_gates)
+
+        dag = circuit_to_dag(circuit)
+
+        # Validate main circuit
+        total_gates = len([n for n in dag.op_nodes() if n.op.name not in {"measure", "barrier"}])
+        expected_total = gates_per_layer * sim_params.num_layers
+
+        if total_gates != expected_total:
+            raise ValueError("Circuit structure mismatch!")
+    else:
+        dag = circuit_to_dag(circuit)
+        gates_per_layer = 0  # Not used in non-layer sampling mode
+
+
+    
+    
+    
+    
 
 
     layer_count = 0
+    gates_processed_in_current_layer = 0
     while dag.op_nodes():
-        layer_count += 1
+        
 
         single_qubit_nodes, even_nodes, odd_nodes = process_layer(dag)
 
         for node in single_qubit_nodes:
             apply_single_qubit_gate(state, node)
             dag.remove_op_node(node)
+
+            if sim_params.sample_layers:
+                gates_processed_in_current_layer += 1
+                
+                # Check if we completed a layer
+                if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
+                    layer_count += 1
+                    temp_state = copy.deepcopy(state)
+                    temp_state.evaluate_observables(sim_params, results, layer_count)
+                    gates_processed_in_current_layer = 0
+                
 
         # Process two-qubit gates in even/odd sweeps.
         for group_name, group in [("even", even_nodes), ("odd", odd_nodes)]:
@@ -290,6 +328,17 @@ def digital_tjm(
                     state.normalize(form="B", decomposition="QR")
 
                 dag.remove_op_node(node)
+
+                if sim_params.sample_layers:
+                    gates_processed_in_current_layer += 1
+                    
+                    # Check if we completed a layer
+                    if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
+                        layer_count += 1
+                        temp_state = copy.deepcopy(state)
+                        temp_state.evaluate_observables(sim_params, results, layer_count)
+                        gates_processed_in_current_layer = 0
+                    
 
 
     if isinstance(sim_params, WeakSimParams):
@@ -319,6 +368,6 @@ def digital_tjm(
             last_site = idx
         
         expectation = temp_state.expect(observable)
-        results[obs_index, 0] = expectation
+        results[obs_index, sim_params.num_layers] = expectation
 
     return results
