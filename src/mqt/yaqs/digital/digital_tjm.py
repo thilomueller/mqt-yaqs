@@ -62,6 +62,8 @@ def create_local_noise_model(noise_model: NoiseModel, first_site: int, last_site
             local_processes.append(process)
         elif process["sites"] in gate_sites:
             local_processes.append(process)
+    # DEBUG
+    # print(f"[DEBUG][NOISE] Local noise model for sites [{first_site},{last_site}] -> {len(local_processes)} processes: {[(p['name'], p['sites'], p['strength']) for p in local_processes]}")
     return NoiseModel(local_processes)
 
 
@@ -111,6 +113,9 @@ def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], li
         else:
             raise NotImplementedError
 
+    # DEBUG
+    # print(f"[DEBUG][LAYER] front_layer sizes -> 1Q:{len(single_qubit_nodes)} 2Q-even:{len(even_nodes)} 2Q-odd:{len(odd_nodes)}")
+
     return single_qubit_nodes, even_nodes, odd_nodes
 
 
@@ -124,6 +129,8 @@ def apply_single_qubit_gate(state: MPS, node: DAGOpNode) -> None:
     node (DAGOpNode): The directed acyclic graph (DAG) operation node representing the gate to be applied.
     """
     gate = convert_dag_to_tensor_algorithm(node)[0]
+    # DEBUG
+    # print(f"[DEBUG][APPLY-1Q] Gate {gate.name} on site {gate.sites[0]}")
     state.tensors[gate.sites[0]] = oe.contract("ab, bcd->acd", gate.tensor, state.tensors[gate.sites[0]])
 
 
@@ -167,6 +174,8 @@ def construct_generator_mpo(gate: BaseGate, length: int) -> tuple[MPO, int, int]
 
     mpo = MPO()
     mpo.init_custom(tensors)
+    # DEBUG
+    # print(f"[DEBUG][GEN-MPO] Gate {gate.name} sites {gate.sites} -> first_site={first_site} last_site={last_site}")
     return mpo, first_site, last_site
 
 
@@ -199,6 +208,9 @@ def apply_window(state: MPS, mpo: MPO, first_site: int, last_site: int, window_s
     assert window[1] - window[0] + 1 > 1, "MPS cannot be length 1"
     short_state = MPS(length=window[1] - window[0] + 1, tensors=state.tensors[window[0] : window[1] + 1])
 
+    # DEBUG
+    # print(f"[DEBUG][WINDOW] window_size={window_size} -> window={window} short_len={short_state.length}")
+
     return short_state, short_mpo, window
 
 
@@ -220,6 +232,8 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
 
     window_size = 1
     short_state, short_mpo, window = apply_window(state, mpo, first_site, last_site, window_size)
+    # DEBUG
+    # print(f"[DEBUG][APPLY-2Q] Gate {gate.name} sites {gate.sites} -> TDVP on window {window}")
     two_site_tdvp(short_state, short_mpo, sim_params)
     # Replace the updated tensors back into the full state.
     for i in range(window[0], window[1] + 1):
@@ -265,12 +279,17 @@ def digital_tjm(
     if sim_params.sample_layers:
         for obs_index, observable in enumerate(sim_params.sorted_observables):
             state.evaluate_observables(sim_params, results, 0)
+        # DEBUG initial measurements
+        # print(f"[DEBUG][LS] Initial column 0 measurement: norm={state.norm()} len={state.length}")
+        # for obs_index, observable in enumerate(sim_params.sorted_observables):
+            # print(f"[DEBUG][LS] obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, 0]}")
        
 
         # Analyze basis circuit
         basis_dag = circuit_to_dag(sim_params.basis_circuit)
         basis_gates = [n for n in basis_dag.op_nodes() if n.op.name not in {"measure", "barrier"}]
         gates_per_layer = len(basis_gates)
+        # print(f"[DEBUG][LS] gates_per_layer from basis_circuit = {gates_per_layer}")
 
         dag = circuit_to_dag(circuit)
 
@@ -278,6 +297,7 @@ def digital_tjm(
         total_gates = len([n for n in dag.op_nodes() if n.op.name not in {"measure", "barrier"}])
         expected_total = gates_per_layer * sim_params.num_layers
 
+        # print(f"[DEBUG][LS] total_gates(main)={total_gates} expected_total={expected_total}")
         if total_gates != expected_total:
             raise ValueError("Circuit structure mismatch!")
     else:
@@ -304,13 +324,16 @@ def digital_tjm(
 
             if sim_params.sample_layers:
                 gates_processed_in_current_layer += 1
+                # print(f"[DEBUG][LS] ++1Q gate processed; gates_in_layer={gates_processed_in_current_layer}/{gates_per_layer} layer={layer_count}")
                 
                 # Check if we completed a layer
                 if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
                     layer_count += 1
                     temp_state = copy.deepcopy(state)
-                    print(f" state canonical form should be 0: {temp_state.check_canonical_form()}")
+                    # print(f"[DEBUG][LS] === LAYER {layer_count} boundary after 1Q; norm={temp_state.norm()} canonical={temp_state.check_canonical_form()}")
                     temp_state.evaluate_observables(sim_params, results, layer_count)
+                    # for obs_index, observable in enumerate(sim_params.sorted_observables):
+                        # print(f"[DEBUG][LS] layer={layer_count} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, layer_count]}")
                     gates_processed_in_current_layer = 0
                 
 
@@ -333,13 +356,16 @@ def digital_tjm(
 
                 if sim_params.sample_layers:
                     gates_processed_in_current_layer += 1
+                    # print(f"[DEBUG][LS] ++2Q gate processed({group_name}); gates_in_layer={gates_processed_in_current_layer}/{gates_per_layer} layer={layer_count} norm={state.norm()}")
                     
                     # Check if we completed a layer
                     if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
                         layer_count += 1
                         temp_state = copy.deepcopy(state)
-                        print(f" state canonical form should be 0: {temp_state.check_canonical_form()}")
+                        # print(f"[DEBUG][LS] === LAYER {layer_count} boundary after 2Q; norm={temp_state.norm()} canonical={temp_state.check_canonical_form()}")
                         temp_state.evaluate_observables(sim_params, results, layer_count)
+                        # for obs_index, observable in enumerate(sim_params.sorted_observables):
+                            # print(f"[DEBUG][LS] layer={layer_count} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, layer_count]}")
                         gates_processed_in_current_layer = 0
                     
 
