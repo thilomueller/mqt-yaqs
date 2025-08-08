@@ -31,6 +31,9 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.converters import circuit_to_dag
 
+
+
+from mqt.yaqs import simulator
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams, WeakSimParams
@@ -221,10 +224,10 @@ def test_create_local_noise_model() -> None:
         {"name": "bitflip", "sites": [1], "strength": 0.02},
         {"name": "bitflip", "sites": [2], "strength": 0.03},
         {"name": "bitflip", "sites": [3], "strength": 0.04},
-        {"name": "crosstalk_x", "sites": [0, 1], "strength": 0.05},
-        {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
-        {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
-        {"name": "crosstalk_x", "sites": [3, 4], "strength": 0.08},
+        {"name": "crosstalk_xx", "sites": [0, 1], "strength": 0.05},
+        {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
+        {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
+        {"name": "crosstalk_yy", "sites": [3, 4], "strength": 0.08},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
     ]
@@ -233,11 +236,11 @@ def test_create_local_noise_model() -> None:
     # Test case 1: Gate acting on sites [1, 2]
     local_model_1 = create_local_noise_model(global_noise_model, 1, 2)
 
-    # Should include: bitflip on sites 1, 2 and crosstalk_x, crosstalk_yx on [1, 2]
+    # Should include: bitflip on sites 1, 2 and crosstalk_xx, crosstalk_yx on [1, 2]
     expected_processes_1 = [
         {"name": "bitflip", "sites": [1], "strength": 0.02},
         {"name": "bitflip", "sites": [2], "strength": 0.03},
-        {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
+        {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
     ]
 
@@ -257,11 +260,11 @@ def test_create_local_noise_model() -> None:
     # Test case 2: Gate acting on sites [0, 1]
     local_model_2 = create_local_noise_model(global_noise_model, 0, 1)
 
-    # Should include: bitflip on sites 0, 1 and crosstalk_x, crosstalk_xy on [0, 1]
+    # Should include: bitflip on sites 0, 1 and crosstalk_xx, crosstalk_xy on [0, 1]
     expected_processes_2 = [
         {"name": "bitflip", "sites": [0], "strength": 0.01},
         {"name": "bitflip", "sites": [1], "strength": 0.02},
-        {"name": "crosstalk_x", "sites": [0, 1], "strength": 0.05},
+        {"name": "crosstalk_xx", "sites": [0, 1], "strength": 0.05},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
     ]
 
@@ -281,11 +284,11 @@ def test_create_local_noise_model() -> None:
     # Test case 3: Gate acting on sites [2, 3]
     local_model_3 = create_local_noise_model(global_noise_model, 2, 3)
 
-    # Should include: bitflip on sites 2, 3 and crosstalk_x on [2, 3]
+    # Should include: bitflip on sites 2, 3 and crosstalk_xx on [2, 3]
     expected_processes_3 = [
         {"name": "bitflip", "sites": [2], "strength": 0.03},
         {"name": "bitflip", "sites": [3], "strength": 0.04},
-        {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
+        {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
     ]
 
     assert len(local_model_3.processes) == len(expected_processes_3)
@@ -325,14 +328,14 @@ def test_create_local_noise_model() -> None:
     # Test case 5: Gate acting on sites [1, 2, 3] (three-qubit gate)
     local_model_5 = create_local_noise_model(global_noise_model, 1, 3)
 
-    # Should include: bitflip on sites 1, 2, 3 and crosstalk_x, crosstalk_yx on [1, 2], crosstalk_x on [2, 3]
+    # Should include: bitflip on sites 1, 2, 3 and crosstalk_xx, crosstalk_yx on [1, 2], crosstalk_xx on [2, 3]
     expected_processes_5 = [
         {"name": "bitflip", "sites": [1], "strength": 0.02},
         {"name": "bitflip", "sites": [2], "strength": 0.03},
         {"name": "bitflip", "sites": [3], "strength": 0.04},
-        {"name": "crosstalk_x", "sites": [1, 2], "strength": 0.06},
+        {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
-        {"name": "crosstalk_x", "sites": [2, 3], "strength": 0.07},
+        {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
     ]
 
     assert len(local_model_5.processes) == len(expected_processes_5)
@@ -392,3 +395,52 @@ def test_digital_tjm_weak() -> None:
     sim_params = WeakSimParams(shots, max_bond_dim, min_bond_dim, threshold)
     args = 0, mps0, None, sim_params, qc
     digital_tjm(args)
+
+
+def test_noisy_digital_tjm_matches_reference() -> None:
+    """Noisy circuit TJM should match hardcoded Qiskit reference within tolerance.
+
+    Circuit: for layer k, apply k repetitions of rzz(0.5) on (0,1) and (1,2) for a 3-qubit chain.
+    Noise model: single-qubit bitflip on each qubit and crosstalk_xx on each neighboring pair,
+    both with strength 0.01. We compare Z-expectations on sites 0,1,2 over layers 0..5.
+    """
+    num_qubits = 3
+    num_layers = 5  # compare layers 0..5 (including initial)
+    noise_factor = 0.01
+    num_traj = 1000  # Monte Carlo trajectories
+
+    # Hardcoded Qiskit reference results (rows: qubit 0,1,2)
+    reference = np.array([
+        [1.0, 0.9607894391523233, 0.9231163463866354, 0.8869204367171571, 0.8521437889662108, 0.8187307530779814],
+        [1.0, 0.9231163463866359, 0.8521437889662113, 0.7866278610665535, 0.726149037073691, 0.6703200460356394],
+        [1.0, 0.9607894391523233, 0.9231163463866354, 0.8869204367171571, 0.8521437889662108, 0.8187307530779814],
+    ])
+
+    # YAQS noise model: bitflip on each site and crosstalk_xx on neighbors
+    processes = (
+        [{"name": "bitflip", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
+        + [{"name": "crosstalk_xx", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
+    )
+    noise_model = NoiseModel(processes)
+
+    # Collect TJM results per qubit across layers
+    tjm_results = np.zeros_like(reference)
+    for k in range(num_layers + 1):
+        qc = QuantumCircuit(num_qubits)
+        for _ in range(k):
+            qc.rzz(0.5, 0, 1)
+            qc.rzz(0.5, 1, 2)
+
+        observables = [Observable(Z(), i) for i in range(num_qubits)]
+        sim_params = StrongSimParams(observables, num_traj=num_traj)
+        state = MPS(num_qubits, state="zeros", pad=2)
+        simulator.run(state, qc, sim_params, noise_model, parallel=False)
+
+        for q in range(num_qubits):
+            # results is shape (1,) for StrongSim without layer sampling
+            tjm_results[q, k] = float(np.real(sim_params.observables[q].results[0]))
+
+    # Compare within tolerance
+    tol = 0.08
+    diff = np.abs(tjm_results - reference)
+    assert np.all(diff <= tol), f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}.\nTJM={tjm_results}\nREF={reference}\nDIFF={diff}"
