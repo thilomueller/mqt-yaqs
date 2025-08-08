@@ -273,7 +273,6 @@ def digital_tjm(
                     # Normalizes state
                     state.normalize(form="B", decomposition="QR")
                 else:
-                    state.normalize(form="B", decomposition="QR")
                     local_noise_model = create_local_noise_model(noise_model, first_site, last_site)
                     apply_dissipation(state, local_noise_model, dt=1, sim_params=sim_params)
                     state = stochastic_process(state, local_noise_model, dt=1, sim_params=sim_params)
