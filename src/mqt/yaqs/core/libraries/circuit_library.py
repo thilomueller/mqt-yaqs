@@ -49,7 +49,6 @@ def create_ising_circuit(
     alpha = -2 * dt * g
     # Angle on ZZ rotation
     beta = -2 * dt * J
-    print("TEST PRINT")
 
     circ = QuantumCircuit(L)
     for _ in range(timesteps):
