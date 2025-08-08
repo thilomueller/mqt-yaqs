@@ -31,8 +31,6 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.converters import circuit_to_dag
 
-
-
 from mqt.yaqs import simulator
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
@@ -417,10 +415,9 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     ])
 
     # YAQS noise model: bitflip on each site and crosstalk_xx on neighbors
-    processes = (
-        [{"name": "bitflip", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
-        + [{"name": "crosstalk_xx", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
-    )
+    processes = [{"name": "bitflip", "sites": [i], "strength": noise_factor} for i in range(num_qubits)] + [
+        {"name": "crosstalk_xx", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)
+    ]
     noise_model = NoiseModel(processes)
 
     # Collect TJM results per qubit across layers
@@ -443,4 +440,6 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     # Compare within tolerance
     tol = 0.08
     diff = np.abs(tjm_results - reference)
-    assert np.all(diff <= tol), f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}.\nTJM={tjm_results}\nREF={reference}\nDIFF={diff}"
+    assert np.all(diff <= tol), (
+        f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}.\nTJM={tjm_results}\nREF={reference}\nDIFF={diff}"
+    )
