@@ -230,7 +230,7 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
 def digital_tjm(
     args: tuple[int, MPS, NoiseModel | None, StrongSimParams | WeakSimParams, QuantumCircuit],
 ) -> NDArray[np.float64]:
-    """Circuit Tensor Jump Method.
+    """Digital Tensor Jump Method.
 
     Simulates a quantum circuit using the Tensor Jump Method.
 
