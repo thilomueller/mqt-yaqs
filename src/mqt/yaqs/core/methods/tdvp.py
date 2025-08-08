@@ -518,7 +518,7 @@ def two_site_tdvp(
         ValueError: If Hamiltonian is invalid length.
     """
     # DEBUG
-    print(f"[DEBUG][2TDVP] start dynamic={dynamic} L={state.length} norm_before={state.norm()} dt_pre={getattr(sim_params, 'dt', None)} max_bond={sim_params.max_bond_dim}")
+    # print(f"[DEBUG][2TDVP] start dynamic={dynamic} L={state.length} norm_before={state.norm()} dt_pre={getattr(sim_params, 'dt', None)} max_bond={sim_params.max_bond_dim}")
     num_sites = hamiltonian.length
     if num_sites != state.length:
         msg = "State and Hamiltonian must have the same number of sites"
@@ -588,7 +588,7 @@ def two_site_tdvp(
             dynamic=dynamic,
         )
         # DEBUG
-        print(f"[DEBUG][2TDVP] end norm_after={state.norm()} dt_post={getattr(sim_params, 'dt', None)}")
+        # print(f"[DEBUG][2TDVP] end norm_after={state.norm()} dt_post={getattr(sim_params, 'dt', None)}")
         return
 
     state.tensors[i], state.tensors[i + 1] = split_mps_tensor(
@@ -628,7 +628,7 @@ def two_site_tdvp(
             state.tensors[i + 1], state.tensors[i + 1], hamiltonian.tensors[i + 1], right_blocks[i + 1]
         )
     # DEBUG
-    print(f"[DEBUG][2TDVP] end norm_after={state.norm()} dt_post={getattr(sim_params, 'dt', None)}")
+    # print(f"[DEBUG][2TDVP] end norm_after={state.norm()} dt_post={getattr(sim_params, 'dt', None)}")
 
 
 def local_dynamic_tdvp(

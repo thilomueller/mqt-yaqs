@@ -112,7 +112,7 @@ class Observable:
                 self.trajectories = np.empty((sim_params.num_traj, sim_params.num_layers + 1), dtype=np.complex128)
                 self.results = np.empty(sim_params.num_layers + 1, dtype=np.float64)
                 # DEBUG
-                print(f"[DEBUG][OBS-INIT] StrongSim layer-sampling: num_layers={sim_params.num_layers} -> results shape={self.results.shape}")
+                # print(f"[DEBUG][OBS-INIT] StrongSim layer-sampling: num_layers={sim_params.num_layers} -> results shape={self.results.shape}")
             else:
                 self.trajectories = np.empty((sim_params.num_traj, 1), dtype=np.complex128)
                 self.results = np.empty(1, dtype=np.float64)

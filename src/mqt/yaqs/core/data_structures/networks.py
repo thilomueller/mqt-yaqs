@@ -588,7 +588,7 @@ class MPS:
                     last_site = idx
             results[obs_index, column_index] = temp_state.expect(observable)
             # DEBUG
-            print(f"[DEBUG][EXPECT] col={column_index} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, column_index]}")
+            # print(f"[DEBUG][EXPECT] col={column_index} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, column_index]}")
 
     def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.
@@ -623,7 +623,7 @@ class MPS:
             exp = self.project_onto_bitstring(observable.gate.bitstring)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         # DEBUG
-        print(f"[DEBUG][EXPECT-VAL] {observable.gate.name} sites={observable.sites} -> {exp.real}")
+        # print(f"[DEBUG][EXPECT-VAL] {observable.gate.name} sites={observable.sites} -> {exp.real}")
         return exp.real
 
     def measure_single_shot(self) -> int:
