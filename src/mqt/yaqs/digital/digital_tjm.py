@@ -264,7 +264,8 @@ def digital_tjm(
 
     if sim_params.sample_layers:
         for obs_index, observable in enumerate(sim_params.sorted_observables):
-            results[obs_index, 0] = copy.deepcopy(state).expect(observable)
+            state.evaluate_observables(sim_params, results, 0)
+       
 
         # Analyze basis circuit
         basis_dag = circuit_to_dag(sim_params.basis_circuit)
@@ -308,6 +309,7 @@ def digital_tjm(
                 if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
                     layer_count += 1
                     temp_state = copy.deepcopy(state)
+                    print(f" state canonical form should be 0: {temp_state.check_canonical_form()}")
                     temp_state.evaluate_observables(sim_params, results, layer_count)
                     gates_processed_in_current_layer = 0
                 
@@ -336,6 +338,7 @@ def digital_tjm(
                     if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
                         layer_count += 1
                         temp_state = copy.deepcopy(state)
+                        print(f" state canonical form should be 0: {temp_state.check_canonical_form()}")
                         temp_state.evaluate_observables(sim_params, results, layer_count)
                         gates_processed_in_current_layer = 0
                     
