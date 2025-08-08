@@ -435,7 +435,9 @@ def test_noisy_digital_tjm_matches_reference() -> None:
 
         for q in range(num_qubits):
             # results is shape (1,) for StrongSim without layer sampling
-            tjm_results[q, k] = float(np.real(sim_params.observables[q].results[0]))
+            res_arr = sim_params.observables[q].results
+            assert res_arr is not None
+            tjm_results[q, k] = float(np.real(res_arr[0]))
 
     # Compare within tolerance
     tol = 0.08
