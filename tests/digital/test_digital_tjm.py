@@ -443,4 +443,4 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     # Compare within tolerance
     tol = 0.08
     diff = np.abs(tjm_results - reference)
-    assert np.all(diff <= tol), f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}.\nTJM={tjm_results}\nREF={reference}\nDIFF={diff}"
+    assert np.all(diff <= tol), f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}"
