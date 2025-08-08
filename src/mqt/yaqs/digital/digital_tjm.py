@@ -265,7 +265,7 @@ def digital_tjm(
             dag.remove_op_node(node)
 
         # Process two-qubit gates in even/odd sweeps.
-        for _group_name, group in [("even", even_nodes), ("odd", odd_nodes)]:
+        for _, group in [("even", even_nodes), ("odd", odd_nodes)]:
             for node in group:
                 first_site, last_site = apply_two_qubit_gate(state, node, sim_params)
 
