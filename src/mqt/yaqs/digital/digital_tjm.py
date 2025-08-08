@@ -281,8 +281,6 @@ def digital_tjm(
 
                     state = stochastic_process(state, local_noise_model, dt=1, sim_params=sim_params)
 
-                    state.normalize(form="B", decomposition="QR")
-
                 dag.remove_op_node(node)
 
     if isinstance(sim_params, WeakSimParams):
