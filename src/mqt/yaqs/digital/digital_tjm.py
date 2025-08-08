@@ -255,6 +255,7 @@ def digital_tjm(
     dag = circuit_to_dag(circuit)
 
     layer_count = 0
+    canonical_form_lost = False
     while dag.op_nodes():
         layer_count += 1
 
@@ -263,6 +264,8 @@ def digital_tjm(
         for node in single_qubit_nodes:
             apply_single_qubit_gate(state, node)
             dag.remove_op_node(node)
+            if not dag.op_nodes():
+                canonical_form_lost = True
 
         # Process two-qubit gates in even/odd sweeps.
         for _, group in [("even", even_nodes), ("odd", odd_nodes)]:
@@ -290,23 +293,11 @@ def digital_tjm(
 
     # StrongSimParams
     results = np.zeros((len(sim_params.observables), 1))
-    temp_state = copy.deepcopy(state)
     if sim_params.get_state:
         sim_params.output_state = state
 
-    last_site = 0
-    for obs_index, observable in enumerate(sim_params.sorted_observables):
-        if isinstance(observable.sites, list):
-            idx = observable.sites[0]
-        elif isinstance(observable.sites, int):
-            idx = observable.sites
-
-        if idx > last_site:
-            for site in range(last_site, idx):
-                temp_state.shift_orthogonality_center_right(site)
-            last_site = idx
-
-        expectation = temp_state.expect(observable)
-        results[obs_index, 0] = expectation
+    if canonical_form_lost:
+        state.normalize(form="B", decomposition="QR")
+    state.evaluate_observables(sim_params, results)
 
     return results
