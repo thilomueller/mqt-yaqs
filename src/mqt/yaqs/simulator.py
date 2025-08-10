@@ -123,7 +123,6 @@ def _run_strong_sim(
                 for future in concurrent.futures.as_completed(futures):
                     i = futures[future]
                     result = future.result()
-                    debug_print(f"Trajectory {i} completed")
                     for obs_index, observable in enumerate(sim_params.sorted_observables):
                         assert observable.trajectories is not None, "Trajectories should have been initialized"
                         observable.trajectories[i] = result[obs_index]
