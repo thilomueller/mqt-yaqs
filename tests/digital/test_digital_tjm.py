@@ -218,10 +218,10 @@ def test_create_local_noise_model() -> None:
     """
     # Create a global noise model with various processes
     global_processes = [
-        {"name": "pauli_x", "sites": [0], "strength": 0.01},
-        {"name": "pauli_x", "sites": [1], "strength": 0.02},
-        {"name": "pauli_x", "sites": [2], "strength": 0.03},
-        {"name": "pauli_x", "sites": [3], "strength": 0.04},
+        {"name": "paulix", "sites": [0], "strength": 0.01},
+        {"name": "paulix", "sites": [1], "strength": 0.02},
+        {"name": "paulix", "sites": [2], "strength": 0.03},
+        {"name": "paulix", "sites": [3], "strength": 0.04},
         {"name": "crosstalk_xx", "sites": [0, 1], "strength": 0.05},
         {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
@@ -236,8 +236,8 @@ def test_create_local_noise_model() -> None:
 
     # Should include: bitflip on sites 1, 2 and crosstalk_xx, crosstalk_yx on [1, 2]
     expected_processes_1 = [
-        {"name": "pauli_x", "sites": [1], "strength": 0.02},
-        {"name": "pauli_x", "sites": [2], "strength": 0.03},
+        {"name": "paulix", "sites": [1], "strength": 0.02},
+        {"name": "paulix", "sites": [2], "strength": 0.03},
         {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
     ]
@@ -260,8 +260,8 @@ def test_create_local_noise_model() -> None:
 
     # Should include: bitflip on sites 0, 1 and crosstalk_xx, crosstalk_xy on [0, 1]
     expected_processes_2 = [
-        {"name": "pauli_x", "sites": [0], "strength": 0.01},
-        {"name": "pauli_x", "sites": [1], "strength": 0.02},
+        {"name": "paulix", "sites": [0], "strength": 0.01},
+        {"name": "paulix", "sites": [1], "strength": 0.02},
         {"name": "crosstalk_xx", "sites": [0, 1], "strength": 0.05},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
     ]
@@ -284,8 +284,8 @@ def test_create_local_noise_model() -> None:
 
     # Should include: bitflip on sites 2, 3 and crosstalk_xx on [2, 3]
     expected_processes_3 = [
-        {"name": "pauli_x", "sites": [2], "strength": 0.03},
-        {"name": "pauli_x", "sites": [3], "strength": 0.04},
+        {"name": "paulix", "sites": [2], "strength": 0.03},
+        {"name": "paulix", "sites": [3], "strength": 0.04},
         {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
     ]
 
@@ -307,7 +307,7 @@ def test_create_local_noise_model() -> None:
 
     # Should include: bitflip on site 1 only
     expected_processes_4 = [
-        {"name": "pauli_x", "sites": [1], "strength": 0.02},
+        {"name": "paulix", "sites": [1], "strength": 0.02},
     ]
 
     assert len(local_model_4.processes) == len(expected_processes_4)
@@ -328,9 +328,9 @@ def test_create_local_noise_model() -> None:
 
     # Should include: bitflip on sites 1, 2, 3 and crosstalk_xx, crosstalk_yx on [1, 2], crosstalk_xx on [2, 3]
     expected_processes_5 = [
-        {"name": "pauli_x", "sites": [1], "strength": 0.02},
-        {"name": "pauli_x", "sites": [2], "strength": 0.03},
-        {"name": "pauli_x", "sites": [3], "strength": 0.04},
+        {"name": "paulix", "sites": [1], "strength": 0.02},
+        {"name": "paulix", "sites": [2], "strength": 0.03},
+        {"name": "paulix", "sites": [3], "strength": 0.04},
         {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
         {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
@@ -415,7 +415,7 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     ])
 
     # YAQS noise model: bitflip on each site and crosstalk_xx on neighbors
-    processes = [{"name": "pauli_x", "sites": [i], "strength": noise_factor} for i in range(num_qubits)] + [
+    processes = [{"name": "paulix", "sites": [i], "strength": noise_factor} for i in range(num_qubits)] + [
         {"name": "crosstalk_xx", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)
     ]
     noise_model = NoiseModel(processes)

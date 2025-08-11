@@ -123,7 +123,7 @@ def test_create_probability_distribution_one_site() -> None:
     # Identity jump operator for simplicity
     id_op = np.eye(2)
     noise_model = NoiseModel([
-        {"name": "relaxation", "sites": [1], "strength": 0.5, "matrix": id_op},
+        {"name": "lowering", "sites": [1], "strength": 0.5, "matrix": id_op},
     ])
     dt = 0.1
     sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
@@ -163,7 +163,7 @@ def test_stochastic_process_jump() -> None:
     state = random_mps([(2, 1, 2), (2, 2, 2), (2, 2, 1)])
     state.tensors[0] *= 0.99
     noise_model = NoiseModel([
-        {"name": "pauli_x", "sites": [0], "strength": 1000.0},
+        {"name": "paulix", "sites": [0], "strength": 1000.0},
     ])
     dt = 0.1
     sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
