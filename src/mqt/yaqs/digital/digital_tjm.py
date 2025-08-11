@@ -93,12 +93,24 @@ def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], li
     single_qubit_nodes = []
     even_nodes = []
     odd_nodes = []
+    measure_barriers = []
 
     # Separate the current layer into single-qubit and two-qubit gates.
     for node in current_layer:
-        # Remove measurement and barrier nodes.
-        if node.op.name in {"measure", "barrier"}:
+        name = node.op.name
+
+        # Drop measurements completely.
+        if name == "measure":
             dag.remove_op_node(node)
+            continue
+
+        # Keep ONLY barriers with label "MID-MEASUREMENT" (case-insensitive). Remove all other barriers.
+        if name == "barrier":
+            label = getattr(node.op, "label", None)
+            if label is not None and str(label).upper() == "MID-MEASUREMENT":
+                measure_barriers.append(node)
+            else:
+                dag.remove_op_node(node)
             continue
 
         if len(node.qargs) == 1:
@@ -264,77 +276,54 @@ def digital_tjm(
         If WeakSimParams are used, the results are the measurement outcomes for each shot.
     """
     _i, initial_state, noise_model, sim_params, circuit = args
-        
+
     state = copy.deepcopy(initial_state)
 
-    if sim_params.sample_layers:
-        if sim_params.num_layers is None:
-            raise ValueError("num_layers must be provided when sample_layers=True")
-        if sim_params.basis_circuit is None:
-            raise ValueError("basis_circuit must be provided when sample_layers=True")
-        results = np.zeros((len(sim_params.sorted_observables), sim_params.num_layers + 1))
-    else:
-        results = np.zeros((len(sim_params.sorted_observables), 1))
+    # Determine regime and layer-sampling flag (only meaningful for strong sim params)
+    is_weak = isinstance(sim_params, WeakSimParams)
+    sample_layers_flag = getattr(sim_params, "sample_layers", False) if not is_weak else False
 
-    if sim_params.sample_layers:
+    if not is_weak:
+        if sample_layers_flag:
+            if sim_params.num_layers is None:
+                raise ValueError("num_layers must be provided when sample_layers=True")
+            if sim_params.basis_circuit is None:
+                raise ValueError("basis_circuit must be provided when sample_layers=True")
+            results = np.zeros((len(sim_params.sorted_observables), sim_params.num_layers + 1))
+        else:
+            results = np.zeros((len(sim_params.sorted_observables), 1))
+
+    if sample_layers_flag:
         for obs_index, observable in enumerate(sim_params.sorted_observables):
             state.evaluate_observables(sim_params, results, 0)
-        # DEBUG initial measurements
-        # print(f"[DEBUG][LS] Initial column 0 measurement: norm={state.norm()} len={state.length}")
-        # for obs_index, observable in enumerate(sim_params.sorted_observables):
-            # print(f"[DEBUG][LS] obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, 0]}")
+
        
 
-        # Analyze basis circuit
-        basis_dag = circuit_to_dag(sim_params.basis_circuit)
-        basis_gates = [n for n in basis_dag.op_nodes() if n.op.name not in {"measure", "barrier"}]
-        gates_per_layer = len(basis_gates)
-        # print(f"[DEBUG][LS] gates_per_layer from basis_circuit = {gates_per_layer}")
+
 
         dag = circuit_to_dag(circuit)
+        total_measurements = sum(
+                                1
+                                for n in dag.op_nodes()
+                                if n.op.name == "barrier"
+                                and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
+                            )
 
-        # Validate main circuit
-        total_gates = len([n for n in dag.op_nodes() if n.op.name not in {"measure", "barrier"}])
-        expected_total = gates_per_layer * sim_params.num_layers
-
-        # print(f"[DEBUG][LS] total_gates(main)={total_gates} expected_total={expected_total}")
-        if total_gates != expected_total:
-            raise ValueError("Circuit structure mismatch!")
     else:
         dag = circuit_to_dag(circuit)
-        gates_per_layer = 0  # Not used in non-layer sampling mode
-
-
-    
-    
-    
-    
 
 
     layer_count = 0
-    gates_processed_in_current_layer = 0
+
     while dag.op_nodes():
         
 
-        single_qubit_nodes, even_nodes, odd_nodes = process_layer(dag)
+        single_qubit_nodes, even_nodes, odd_nodes, measure_barriers = process_layer(dag)
 
         for node in single_qubit_nodes:
             apply_single_qubit_gate(state, node)
             dag.remove_op_node(node)
 
-            if sim_params.sample_layers:
-                gates_processed_in_current_layer += 1
-                # print(f"[DEBUG][LS] ++1Q gate processed; gates_in_layer={gates_processed_in_current_layer}/{gates_per_layer} layer={layer_count}")
-                
-                # Check if we completed a layer
-                if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
-                    layer_count += 1
-                    temp_state = copy.deepcopy(state)
-                    # print(f"[DEBUG][LS] === LAYER {layer_count} boundary after 1Q; norm={temp_state.norm()} canonical={temp_state.check_canonical_form()}")
-                    temp_state.evaluate_observables(sim_params, results, layer_count)
-                    # for obs_index, observable in enumerate(sim_params.sorted_observables):
-                        # print(f"[DEBUG][LS] layer={layer_count} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, layer_count]}")
-                    gates_processed_in_current_layer = 0
                 
 
         # Process two-qubit gates in even/odd sweeps.
@@ -354,23 +343,18 @@ def digital_tjm(
 
                 dag.remove_op_node(node)
 
-                if sim_params.sample_layers:
-                    gates_processed_in_current_layer += 1
-                    # print(f"[DEBUG][LS] ++2Q gate processed({group_name}); gates_in_layer={gates_processed_in_current_layer}/{gates_per_layer} layer={layer_count} norm={state.norm()}")
-                    
-                    # Check if we completed a layer
-                    if gates_processed_in_current_layer == gates_per_layer and layer_count <= sim_params.num_layers - 1:
-                        layer_count += 1
-                        temp_state = copy.deepcopy(state)
-                        # print(f"[DEBUG][LS] === LAYER {layer_count} boundary after 2Q; norm={temp_state.norm()} canonical={temp_state.check_canonical_form()}")
-                        temp_state.evaluate_observables(sim_params, results, layer_count)
-                        # for obs_index, observable in enumerate(sim_params.sorted_observables):
-                            # print(f"[DEBUG][LS] layer={layer_count} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, layer_count]}")
-                        gates_processed_in_current_layer = 0
+        # Process measurement barriers
+        if sample_layers_flag:
+            for measure_barrier in measure_barriers:
+                dag.remove_op_node(measure_barrier)
+                layer_count += 1
+                temp_state = copy.deepcopy(state)
+                temp_state.evaluate_observables(sim_params, results, layer_count)
+
                     
 
 
-    if isinstance(sim_params, WeakSimParams):
+    if is_weak:
         if not noise_model or all(proc["strength"] == 0 for proc in noise_model.processes):
             # All shots can be done at once in noise-free model
             if sim_params.get_state:
