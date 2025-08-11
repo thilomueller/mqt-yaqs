@@ -517,7 +517,6 @@ def two_site_tdvp(
     Raises:
         ValueError: If Hamiltonian is invalid length.
     """
-
     num_sites = hamiltonian.length
     if num_sites != state.length:
         msg = "State and Hamiltonian must have the same number of sites"

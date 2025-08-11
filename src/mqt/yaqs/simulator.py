@@ -97,19 +97,18 @@ def _run_strong_sim(
 
     dag = circuit_to_dag(operator)
     sim_params.num_mid_measurements = sum(
-                                1
-                                for n in dag.op_nodes()
-                                if n.op.name == "barrier"
-                                and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
-                            )
+        1
+        for n in dag.op_nodes()
+        if n.op.name == "barrier" and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
+    )
     for i, observable in enumerate(sim_params.sorted_observables):
         observable.initialize(sim_params)
 
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
-    
+
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        
+
         with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(backend, arg): arg[0] for arg in args}
             with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
@@ -126,7 +125,7 @@ def _run_strong_sim(
             for obs_index, observable in enumerate(sim_params.sorted_observables):
                 assert observable.trajectories is not None, "Trajectories should have been initialized"
                 observable.trajectories[i] = result[obs_index]
-    
+
     sim_params.aggregate_trajectories()
 
 
