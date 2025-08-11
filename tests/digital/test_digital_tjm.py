@@ -450,7 +450,11 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
 
-    tjm_results = np.array([sim_params.observables[i].results.real[:6] for i in range(num_qubits)])
+    tjm_results = np.empty((num_qubits, 6), dtype=float)
+    for i in range(num_qubits):
+        res = sim_params.observables[i].results
+        assert res is not None
+        tjm_results[i, :] = res[:6]
 
     # Compare within tolerance
     tol = 0.1

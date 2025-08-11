@@ -23,7 +23,7 @@ from qiskit.converters import circuit_to_dag
 
 from ..core.data_structures.networks import MPO, MPS
 from ..core.data_structures.noise_model import NoiseModel
-from ..core.data_structures.simulation_parameters import WeakSimParams
+from ..core.data_structures.simulation_parameters import StrongSimParams, WeakSimParams
 from ..core.methods.dissipation import apply_dissipation
 from ..core.methods.stochastic_process import stochastic_process
 from ..core.methods.tdvp import two_site_tdvp
@@ -73,10 +73,11 @@ def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], li
         dag (DAGCircuit): The directed acyclic graph representing the quantum circuit.
 
     Returns:
-        tuple[list[DAGOpNode], list[DAGOpNode], list[DAGOpNode]]: A tuple containing three lists:
+        tuple[list[DAGOpNode], list[DAGOpNode], list[DAGOpNode], list[DAGOpNode]]: A tuple containing four lists:
             - single_qubit_nodes: Nodes corresponding to single-qubit gates.
             - even_nodes: Nodes corresponding to two-qubit gates where the lower qubit index is even.
             - odd_nodes: Nodes corresponding to two-qubit gates where the lower qubit index is odd.
+            - measure_barriers: Labelled barriers ("MID-MEASUREMENT") used as sampling points.
 
     Raises:
         NotImplementedError: If a node with more than two qubits is encountered.
@@ -263,19 +264,18 @@ def digital_tjm(
     state = copy.deepcopy(initial_state)
     dag = circuit_to_dag(circuit)
 
-    # Determine regime and layer-sampling flag (only meaningful for strong sim params)
-    is_weak = isinstance(sim_params, WeakSimParams)
-    sample_layers_flag = getattr(sim_params, "sample_layers", False) if not is_weak else False
-
-    if not is_weak:
+    # Initialize results depending on simulation type
+    if isinstance(sim_params, StrongSimParams):
+        sample_layers_flag = sim_params.sample_layers
         if sample_layers_flag:
             results = np.zeros((len(sim_params.sorted_observables), sim_params.num_mid_measurements + 2))
         else:
             results = np.zeros((len(sim_params.sorted_observables), 1))
-
-    if sample_layers_flag:
-        for _obs_index, _observable in enumerate(sim_params.sorted_observables):
+        # Initial sampling (column 0)
+        if sample_layers_flag:
             state.evaluate_observables(sim_params, results, 0)
+    else:
+        sample_layers_flag = False
 
     layer_count = 0
     canonical_form_lost = False
@@ -303,15 +303,15 @@ def digital_tjm(
 
                 dag.remove_op_node(node)
 
-        # Process measurement barriers
-        if sample_layers_flag:
+        # Process measurement barriers (only when sampling layers in strong sim)
+        if sample_layers_flag and isinstance(sim_params, StrongSimParams):
             for measure_barrier in measure_barriers:
                 dag.remove_op_node(measure_barrier)
                 layer_count += 1
                 temp_state = copy.deepcopy(state)
                 temp_state.evaluate_observables(sim_params, results, layer_count)
 
-    if is_weak:
+    if isinstance(sim_params, WeakSimParams):
         if not noise_model or all(proc["strength"] == 0 for proc in noise_model.processes):
             # All shots can be done at once in noise-free model
             if sim_params.get_state:
@@ -323,10 +323,9 @@ def digital_tjm(
     # StrongSimParams
     if canonical_form_lost:
         state.normalize(form="B", decomposition="QR")
-    if sim_params.get_state:
-        sim_params.output_state = state
-
-    temp_state = copy.deepcopy(state)
-    temp_state.evaluate_observables(sim_params, results, results.shape[1] - 1)
-
-    return results
+    if isinstance(sim_params, StrongSimParams):
+        if sim_params.get_state:
+            sim_params.output_state = state
+        temp_state = copy.deepcopy(state)
+        temp_state.evaluate_observables(sim_params, results, results.shape[1] - 1)
+        return results
