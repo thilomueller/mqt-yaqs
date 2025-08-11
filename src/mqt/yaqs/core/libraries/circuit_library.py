@@ -78,7 +78,6 @@ def create_ising_circuit(
         if i != timesteps - 1:
             circ.barrier(label="MID-MEASUREMENT")
 
-
     return circ
 
 

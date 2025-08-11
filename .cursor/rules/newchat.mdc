@@ -3,4 +3,4 @@ alwaysApply: true
 ---
 Always perform a detailed scan of the entire repository and also read `README.md` at the start of every new chat.
 
-If you make changes to the repo, ensure to cover each line by tests. Also make sure that already existing tests do not break. 
+If you make changes to the repo, ensure to cover each line by tests. Also make sure that already existing tests do not break.
