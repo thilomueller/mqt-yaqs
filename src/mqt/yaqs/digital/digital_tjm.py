@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from qiskit.circuit import QuantumCircuit
     from qiskit.dagcircuit import DAGCircuit, DAGOpNode
 
-    from ..core.data_structures.simulation_parameters import StrongSimParams
     from ..core.libraries.gate_library import BaseGate
 
 
@@ -323,7 +322,7 @@ def digital_tjm(
     # StrongSimParams - must be StrongSimParams if we reach here
     if canonical_form_lost:
         state.normalize(form="B", decomposition="QR")
-    
+
     # At this point, sim_params must be StrongSimParams since WeakSimParams returned earlier
     assert isinstance(sim_params, StrongSimParams)
     if sim_params.get_state:

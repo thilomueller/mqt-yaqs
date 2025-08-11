@@ -51,7 +51,7 @@ def create_ising_circuit(
     beta = -2 * dt * J
 
     circ = QuantumCircuit(L)
-    for i in range(timesteps):
+    for _i in range(timesteps):
         # Apply RX rotations on all qubits.
         for site in range(L):
             circ.rx(theta=alpha, qubit=site)
