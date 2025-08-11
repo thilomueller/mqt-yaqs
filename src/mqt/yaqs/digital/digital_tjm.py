@@ -63,7 +63,7 @@ def create_local_noise_model(noise_model: NoiseModel, first_site: int, last_site
     return NoiseModel(local_processes)
 
 
-def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], list[DAGOpNode]]:
+def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], list[DAGOpNode], list[DAGOpNode]]:
     """Process quantum circuit layer before applying to MPS.
 
     Processes the current layer of a DAGCircuit and categorizes nodes into single-qubit, even-indexed two-qubit,
