@@ -454,7 +454,7 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     for i in range(num_qubits):
         res = sim_params.observables[i].results
         assert res is not None
-        tjm_results[i, :] = res[:6]
+        tjm_results[i, :] = np.real(res[:6])
 
     # Compare within tolerance
     tol = 0.1

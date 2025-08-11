@@ -264,13 +264,21 @@ def digital_tjm(
     state = copy.deepcopy(initial_state)
     dag = circuit_to_dag(circuit)
 
+    if isinstance(sim_params, StrongSimParams):
+        sorted_observables = sim_params.sorted_observables
+        num_mid_measurements = sim_params.num_mid_measurements
+    else:
+        # WeakSimParams does not have these; pick appropriate behavior for "weak" mode:
+        sorted_observables = []          
+        num_mid_measurements = 0        
+
     # Initialize results depending on simulation type
     if isinstance(sim_params, StrongSimParams):
         sample_layers_flag = sim_params.sample_layers
         if sample_layers_flag:
-            results = np.zeros((len(sim_params.sorted_observables), sim_params.num_mid_measurements + 2))
+            results = np.zeros((len(sorted_observables), num_mid_measurements + 2))
         else:
-            results = np.zeros((len(sim_params.sorted_observables), 1))
+            results = np.zeros((len(sorted_observables), 1))
         # Initial sampling (column 0)
         if sample_layers_flag:
             state.evaluate_observables(sim_params, results, 0)
