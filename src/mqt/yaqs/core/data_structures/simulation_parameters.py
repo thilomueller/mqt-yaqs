@@ -109,10 +109,8 @@ class Observable:
             self.results = np.empty(1, dtype=np.float64)
         elif isinstance(sim_params, StrongSimParams):
             if sim_params.sample_layers:
-                self.trajectories = np.empty((sim_params.num_traj, sim_params.num_layers + 1), dtype=np.complex128)
-                self.results = np.empty(sim_params.num_layers + 1, dtype=np.float64)
-                # DEBUG
-                # print(f"[DEBUG][OBS-INIT] StrongSim layer-sampling: num_layers={sim_params.num_layers} -> results shape={self.results.shape}")
+                self.trajectories = np.empty((sim_params.num_traj, sim_params.num_mid_measurements + 2), dtype=np.complex128)
+                self.results = np.empty(sim_params.num_mid_measurements + 2, dtype=np.float64)
             else:
                 self.trajectories = np.empty((sim_params.num_traj, 1), dtype=np.complex128)
                 self.results = np.empty(1, dtype=np.float64)
@@ -378,8 +376,7 @@ class StrongSimParams:
         *,
         get_state: bool = False,
         sample_layers: bool = False,
-        num_layers: int | None = None,
-        basis_circuit: QuantumCircuit | None = None,
+        num_mid_measurements: int = 0,
     ) -> None:
         """Strong circuit simulation parameters initialization.
 
@@ -414,8 +411,7 @@ class StrongSimParams:
         self.threshold = threshold
         self.get_state = get_state
         self.sample_layers = sample_layers
-        self.num_layers = num_layers
-        self.basis_circuit = basis_circuit
+        self.num_mid_measurements = num_mid_measurements
 
     def aggregate_trajectories(self) -> None:
         """Aggregate trajectories for result.

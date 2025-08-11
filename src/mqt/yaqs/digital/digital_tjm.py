@@ -128,7 +128,7 @@ def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], li
     # DEBUG
     # print(f"[DEBUG][LAYER] front_layer sizes -> 1Q:{len(single_qubit_nodes)} 2Q-even:{len(even_nodes)} 2Q-odd:{len(odd_nodes)}")
 
-    return single_qubit_nodes, even_nodes, odd_nodes
+    return single_qubit_nodes, even_nodes, odd_nodes, measure_barriers
 
 
 def apply_single_qubit_gate(state: MPS, node: DAGOpNode) -> None:
@@ -278,6 +278,8 @@ def digital_tjm(
     _i, initial_state, noise_model, sim_params, circuit = args
 
     state = copy.deepcopy(initial_state)
+    dag = circuit_to_dag(circuit)
+
 
     # Determine regime and layer-sampling flag (only meaningful for strong sim params)
     is_weak = isinstance(sim_params, WeakSimParams)
@@ -285,11 +287,7 @@ def digital_tjm(
 
     if not is_weak:
         if sample_layers_flag:
-            if sim_params.num_layers is None:
-                raise ValueError("num_layers must be provided when sample_layers=True")
-            if sim_params.basis_circuit is None:
-                raise ValueError("basis_circuit must be provided when sample_layers=True")
-            results = np.zeros((len(sim_params.sorted_observables), sim_params.num_layers + 1))
+            results = np.zeros((len(sim_params.sorted_observables), sim_params.num_mid_measurements + 2))
         else:
             results = np.zeros((len(sim_params.sorted_observables), 1))
 
@@ -297,24 +295,8 @@ def digital_tjm(
         for obs_index, observable in enumerate(sim_params.sorted_observables):
             state.evaluate_observables(sim_params, results, 0)
 
-       
-
-
-
-        dag = circuit_to_dag(circuit)
-        total_measurements = sum(
-                                1
-                                for n in dag.op_nodes()
-                                if n.op.name == "barrier"
-                                and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
-                            )
-
-    else:
-        dag = circuit_to_dag(circuit)
-
-
     layer_count = 0
-
+    canonical_form_lost = False
     while dag.op_nodes():
         
 
@@ -323,6 +305,8 @@ def digital_tjm(
         for node in single_qubit_nodes:
             apply_single_qubit_gate(state, node)
             dag.remove_op_node(node)
+            if not dag.op_nodes():
+                canonical_form_lost = True
 
                 
 
@@ -335,11 +319,9 @@ def digital_tjm(
                     # Normalizes state
                     state.normalize(form="B", decomposition="QR")
                 else:
-                    state.normalize(form="B", decomposition="QR")
                     local_noise_model = create_local_noise_model(noise_model, first_site, last_site)
                     apply_dissipation(state, local_noise_model, dt=1, sim_params=sim_params)
                     state = stochastic_process(state, local_noise_model, dt=1, sim_params=sim_params)
-                    state.normalize(form="B", decomposition="QR")
 
                 dag.remove_op_node(node)
 
@@ -364,23 +346,14 @@ def digital_tjm(
         return state.measure_shots(shots=1)
     
     # StrongSimParams
-    temp_state = copy.deepcopy(state)
+    if canonical_form_lost:
+        state.normalize(form="B", decomposition="QR")
     if sim_params.get_state:
         sim_params.output_state = state
 
-    last_site = 0
-    for obs_index, observable in enumerate(sim_params.sorted_observables):
-        if isinstance(observable.sites, list):
-            idx = observable.sites[0]
-        elif isinstance(observable.sites, int):
-            idx = observable.sites
-
-        if idx > last_site:
-            for site in range(last_site, idx):
-                temp_state.shift_orthogonality_center_right(site)
-            last_site = idx
-        
-        expectation = temp_state.expect(observable)
-        results[obs_index, sim_params.num_layers] = expectation
+    temp_state = copy.deepcopy(state)
+    temp_state.evaluate_observables(sim_params, results, results.shape[1] - 1)
 
     return results
+
+

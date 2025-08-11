@@ -30,6 +30,7 @@ import multiprocessing
 from typing import TYPE_CHECKING
 
 from qiskit.circuit import QuantumCircuit
+from qiskit.converters import circuit_to_dag
 from tqdm import tqdm
 
 from .analog.analog_tjm import analog_tjm_1, analog_tjm_2
@@ -106,6 +107,13 @@ def _run_strong_sim(
         assert not sim_params.get_state, "Cannot return state in noisy circuit simulation due to stochastics."
 
     debug_print("Initializing observables...")
+    dag = circuit_to_dag(operator)
+    sim_params.num_mid_measurements = sum(
+                                1
+                                for n in dag.op_nodes()
+                                if n.op.name == "barrier"
+                                and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
+                            )
     for i, observable in enumerate(sim_params.sorted_observables):
         observable.initialize(sim_params)
         debug_print(f"Observable {i}: {observable.gate.name} on sites {observable.sites}")

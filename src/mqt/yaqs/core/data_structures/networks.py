@@ -587,8 +587,6 @@ class MPS:
                         temp_state.shift_orthogonality_center_right(site)
                     last_site = idx
             results[obs_index, column_index] = temp_state.expect(observable)
-            # DEBUG
-            # print(f"[DEBUG][EXPECT] col={column_index} obs[{obs_index}] {observable.gate.name} sites={observable.sites} -> {results[obs_index, column_index]}")
 
     def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.

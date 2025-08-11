@@ -8,7 +8,7 @@
 """Library of noise processes.
 
 This module defines noise operator classes for quantum systems.
-It includes implementations for excitation, relaxation, and pauli_z, pauli_x, pauli_y noise operators,
+It includes implementations for raising, lowering, and pauli_z, pauli_x, pauli_y noise operators,
 each represented as a 2x2 numpy array. The module also provides a NoiseLibrary class
 that aggregates these noise operators for convenient access. Future improvements
 may extend these implementations to d-level systems.
@@ -236,15 +236,4 @@ class NoiseLibrary:
     crosstalk_yz = CrossTalkYZ
     crosstalk_xz = CrossTalkXZ
 
-    # Backward-compatibility aliases (expected by tests and external users)
-    excitation = Raising
-    relaxation = Lowering
-    dephasing = Pauli_Z
-    bitflip = Pauli_X
-    bitphaseflip = Pauli_Y
-    excitation_two = TwoSiteRaising
-    relaxation_two = TwoSiteLowering
-    # Common crosstalk shorthands
-    crosstalk = CrossTalkZZ
-    crosstalk_x = CrossTalkXX
-    crosstalk_y = CrossTalkYY
+

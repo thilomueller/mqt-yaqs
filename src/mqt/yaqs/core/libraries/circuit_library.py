@@ -51,7 +51,7 @@ def create_ising_circuit(
     beta = -2 * dt * J
 
     circ = QuantumCircuit(L)
-    for _ in range(timesteps):
+    for i in range(timesteps):
         # Apply RX rotations on all qubits.
         for site in range(L):
             circ.rx(theta=alpha, qubit=site)
@@ -75,6 +75,9 @@ def create_ising_circuit(
         if periodic and L > 1:
             circ.rzz(beta, qubit1=0, qubit2=L - 1)
             circ.barrier()
+        if i != timesteps - 1:
+            circ.barrier(label="MID-MEASUREMENT")
+
 
     return circ
 

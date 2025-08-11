@@ -123,7 +123,7 @@ def test_create_probability_distribution_one_site() -> None:
     # Identity jump operator for simplicity
     id_op = np.eye(2)
     noise_model = NoiseModel([
-        {"name": "relaxation", "sites": [1], "strength": 0.5, "matrix": id_op},
+        {"name": "lowering", "sites": [1], "strength": 0.5, "matrix": id_op},
     ])
     dt = 0.1
     sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
