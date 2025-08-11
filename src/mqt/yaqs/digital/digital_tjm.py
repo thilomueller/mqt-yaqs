@@ -264,21 +264,13 @@ def digital_tjm(
     state = copy.deepcopy(initial_state)
     dag = circuit_to_dag(circuit)
 
-    if isinstance(sim_params, StrongSimParams):
-        sorted_observables = sim_params.sorted_observables
-        num_mid_measurements = sim_params.num_mid_measurements
-    else:
-        # WeakSimParams does not have these; pick appropriate behavior for "weak" mode:
-        sorted_observables = []          
-        num_mid_measurements = 0        
-
     # Initialize results depending on simulation type
     if isinstance(sim_params, StrongSimParams):
         sample_layers_flag = sim_params.sample_layers
         if sample_layers_flag:
-            results = np.zeros((len(sorted_observables), num_mid_measurements + 2))
+            results = np.zeros((len(sim_params.sorted_observables), sim_params.num_mid_measurements + 2))
         else:
-            results = np.zeros((len(sorted_observables), 1))
+            results = np.zeros((len(sim_params.sorted_observables), 1))
         # Initial sampling (column 0)
         if sample_layers_flag:
             state.evaluate_observables(sim_params, results, 0)
@@ -328,12 +320,14 @@ def digital_tjm(
         # Each shot is an individual trajectory
         return state.measure_shots(shots=1)
 
-    # StrongSimParams
+    # StrongSimParams - must be StrongSimParams if we reach here
     if canonical_form_lost:
         state.normalize(form="B", decomposition="QR")
-    if isinstance(sim_params, StrongSimParams):
-        if sim_params.get_state:
-            sim_params.output_state = state
-        temp_state = copy.deepcopy(state)
-        temp_state.evaluate_observables(sim_params, results, results.shape[1] - 1)
-        return results
+    
+    # At this point, sim_params must be StrongSimParams since WeakSimParams returned earlier
+    assert isinstance(sim_params, StrongSimParams)
+    if sim_params.get_state:
+        sim_params.output_state = state
+    temp_state = copy.deepcopy(state)
+    temp_state.evaluate_observables(sim_params, results, results.shape[1] - 1)
+    return results
