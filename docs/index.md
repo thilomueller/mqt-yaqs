@@ -34,6 +34,7 @@ self
 installation
 examples/analog_simulation
 examples/strong_circuit_simulation
+examples/mid_measurement_digital_tjm
 examples/weak_circuit_simulation
 examples/equivalence_checking
 examples/fermi_hubbard_simulation
