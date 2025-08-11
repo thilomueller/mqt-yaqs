@@ -58,12 +58,11 @@ def test_process_layer() -> None:
     # Create a QuantumCircuit with 9 qubits and 9 classical bits.
     qc = QuantumCircuit(9, 9)
     qc.measure(0, 0)
-    qc.barrier(3,label="MID-MEASUREMENT")
+    qc.barrier(3, label="MID-MEASUREMENT")
     qc.barrier(1)
     qc.x(qc.qubits[2])
     qc.cx(5, 4)
     qc.cx(7, 8)
-    
 
     # Convert the circuit to a DAG.
     dag = circuit_to_dag(qc)
@@ -449,7 +448,6 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     sim_params = StrongSimParams(observables, num_traj=num_traj)
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
-  
 
     # Collect TJM results per qubit across layers
     tjm_results = np.zeros_like(reference)
@@ -555,5 +553,3 @@ def test_ignores_non_mid_barriers_and_handles_measures() -> None:
         assert obs.results is not None
         # Only one labelled barrier -> 1 mid + initial + final
         assert obs.results.shape == (3,)
-
-

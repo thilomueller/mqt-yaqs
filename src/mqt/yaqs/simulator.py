@@ -90,9 +90,8 @@ def _run_strong_sim(
     """
     backend = digital_tjm
 
-
-    def debug_print(msg):
-        print(f"📡 SIMULATOR DEBUG: {msg}")
+    def debug_print(msg) -> None:
+        pass
 
     debug_print("=== STARTING STRONG SIMULATION ===")
     debug_print(f"Number of trajectories: {sim_params.num_traj}")
@@ -109,22 +108,21 @@ def _run_strong_sim(
     debug_print("Initializing observables...")
     dag = circuit_to_dag(operator)
     sim_params.num_mid_measurements = sum(
-                                1
-                                for n in dag.op_nodes()
-                                if n.op.name == "barrier"
-                                and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
-                            )
+        1
+        for n in dag.op_nodes()
+        if n.op.name == "barrier" and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
+    )
     for i, observable in enumerate(sim_params.sorted_observables):
         observable.initialize(sim_params)
         debug_print(f"Observable {i}: {observable.gate.name} on sites {observable.sites}")
 
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
-    
+
     if parallel and sim_params.num_traj > 1:
         debug_print(f"Starting parallel execution with {sim_params.num_traj} trajectories")
         max_workers = max(1, available_cpus() - 1)
         debug_print(f"Using {max_workers} worker processes")
-        
+
         with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(backend, arg): arg[0] for arg in args}
             with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
@@ -145,12 +143,12 @@ def _run_strong_sim(
             for obs_index, observable in enumerate(sim_params.sorted_observables):
                 assert observable.trajectories is not None, "Trajectories should have been initialized"
                 observable.trajectories[i] = result[obs_index]
-    
+
     debug_print("Aggregating trajectories...")
     sim_params.aggregate_trajectories()
-    
+
     debug_print("=== STRONG SIMULATION COMPLETE ===")
-    if getattr(sim_params, 'sample_layers', False):
+    if getattr(sim_params, "sample_layers", False):
         debug_print(f"Layer sampling results - Observable 0 shape: {sim_params.observables[0].results.shape}")
         debug_print(f"Expected shape: ({getattr(sim_params, 'num_layers', 0) + 1},)")
 

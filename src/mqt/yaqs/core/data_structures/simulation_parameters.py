@@ -109,7 +109,9 @@ class Observable:
             self.results = np.empty(1, dtype=np.float64)
         elif isinstance(sim_params, StrongSimParams):
             if sim_params.sample_layers:
-                self.trajectories = np.empty((sim_params.num_traj, sim_params.num_mid_measurements + 2), dtype=np.complex128)
+                self.trajectories = np.empty(
+                    (sim_params.num_traj, sim_params.num_mid_measurements + 2), dtype=np.complex128
+                )
                 self.results = np.empty(sim_params.num_mid_measurements + 2, dtype=np.float64)
             else:
                 self.trajectories = np.empty((sim_params.num_traj, 1), dtype=np.complex128)

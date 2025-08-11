@@ -141,5 +141,3 @@ Notes
 
 - The sampling is triggered exclusively by `barrier(label="MID-MEASUREMENT")`. Other barriers and `measure` operations are ignored for sampling.
 - Agreement with the reference improves with the number of Monte Carlo trajectories (`num_traj`).
-
-
