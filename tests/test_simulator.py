@@ -66,7 +66,7 @@ def test_analog_simulation() -> None:
     """Test the branch for Hamiltonian simulation (analog simulation) using AnalogSimParams.
 
     This test creates an MPS of length 5 initialized to the "zeros" state and an Ising MPO operator.
-    It also creates a NoiseModel with two processes ("relaxation" and "dephasing") and corresponding strengths.
+    It also creates a NoiseModel with two processes ("lowering" and "pauli_z") and corresponding strengths.
     With AnalogSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
     simulator.run is called. The test then verifies that for each observable the results and trajectories have been
     correctly initialized and that the measurement results are approximately as expected.
@@ -90,7 +90,7 @@ def test_analog_simulation() -> None:
     )
     gamma = 0.1
     noise_model = NoiseModel([
-        {"name": name, "sites": [i], "strength": gamma} for i in range(length) for name in ["relaxation", "dephasing"]
+        {"name": name, "sites": [i], "strength": gamma} for i in range(length) for name in ["lowering", "pauli_z"]
     ])
 
     simulator.run(initial_state, H, sim_params, noise_model)
@@ -116,7 +116,7 @@ def test_analog_simulation_parallel_off() -> None:
     """Test the branch for Hamiltonian simulation (analog simulation) using AnalogSimParams, parallelization off.
 
     This test creates an MPS of length 5 initialized to the "zeros" state and an Ising MPO operator.
-    It also creates a NoiseModel with two processes ("relaxation" and "dephasing") and corresponding strengths.
+    It also creates a NoiseModel with two processes ("lowering" and "pauli_z") and corresponding strengths.
     With AnalogSimParams configured for a two-site evolution (order=2) and sample_timesteps False,
     simulator.run is called. The test then verifies that for each observable the results and trajectories have been
     correctly initialized and that the measurement results are approximately as expected.
@@ -142,7 +142,7 @@ def test_analog_simulation_parallel_off() -> None:
     )
     gamma = 0.1
     noise_model = NoiseModel([
-        {"name": name, "sites": [i], "strength": gamma} for i in range(length) for name in ["relaxation", "dephasing"]
+        {"name": name, "sites": [i], "strength": gamma} for i in range(length) for name in ["lowering", "pauli_z"]
     ])
 
     simulator.run(initial_state, H, sim_params, noise_model, parallel=False)
@@ -235,7 +235,7 @@ def test_strong_simulation() -> None:
     noise_model = NoiseModel([
         {"name": name, "sites": [i], "strength": gamma}
         for i in range(num_qubits)
-        for name in ["relaxation", "dephasing"]
+        for name in ["lowering", "pauli_z"]
     ])
 
     simulator.run(state, circuit, sim_params, noise_model)
@@ -303,7 +303,7 @@ def test_strong_simulation_parallel_off() -> None:
     noise_model = NoiseModel([
         {"name": name, "sites": [i], "strength": gamma}
         for i in range(num_qubits)
-        for name in ["relaxation", "dephasing"]
+        for name in ["lowering", "pauli_z"]
     ])
 
     simulator.run(state, circuit, sim_params, noise_model, parallel=False)
@@ -347,7 +347,7 @@ def test_weak_simulation_noise() -> None:
     noise_model = NoiseModel([
         {"name": name, "sites": [i], "strength": gamma}
         for i in range(num_qubits)
-        for name in ["relaxation", "dephasing"]
+            for name in ["lowering", "pauli_z"]
     ])
 
     simulator.run(initial_state, circuit, sim_params, noise_model)
@@ -436,7 +436,7 @@ def test_weak_simulation_get_state_noise() -> None:
     noise_model = NoiseModel([
         {"name": name, "sites": [i], "strength": gamma}
         for i in range(num_qubits)
-        for name in ["relaxation", "dephasing"]
+        for name in ["lowering", "pauli_z"]
     ])
 
     with pytest.raises(AssertionError, match=r"Cannot return state in noisy circuit simulation due to stochastics."):
