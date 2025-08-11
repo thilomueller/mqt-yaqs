@@ -467,7 +467,13 @@ def test_noisy_digital_tjm_matches_reference() -> None:
 
 
 def test_no_mid_measurements_results_have_two_columns() -> None:
-    """Circuit without any mid-measurement barriers should yield 2 columns (initial, final)."""
+    """Circuit without any mid-measurement barriers should yield 2 columns (initial, final).
+
+    Builds a 3-qubit circuit with a few gates but no labelled 'MID-MEASUREMENT' barriers,
+    enables layer sampling via StrongSimParams, runs the simulator, and asserts that each
+    observable's results has shape (2,), corresponding to the initial and final sampling
+    points only.
+    """
     num_qubits = 3
     qc = QuantumCircuit(num_qubits)
     # A couple of gates but no labelled barrier
@@ -487,7 +493,13 @@ def test_no_mid_measurements_results_have_two_columns() -> None:
 
 
 def test_counts_multiple_mid_measurement_barriers() -> None:
-    """Three mid-measurement barriers produce 5 columns (initial + 3 mids + final)."""
+    """Three mid-measurement barriers produce 5 columns (initial + 3 mids + final).
+
+    Constructs a 4-qubit circuit with three barriers labelled 'MID-MEASUREMENT' using
+    different cases (to verify case-insensitivity), enables layer sampling, runs the
+    simulation, and asserts that each observable's results has shape (5,), capturing the
+    initial state, each mid-measurement sampling point, and the final state.
+    """
     num_qubits = 4
     qc = QuantumCircuit(num_qubits)
     # First segment
@@ -515,7 +527,14 @@ def test_counts_multiple_mid_measurement_barriers() -> None:
 
 
 def test_ignores_non_mid_barriers_and_handles_measures() -> None:
-    """Barriers without the label and measurements are ignored for sampling."""
+    """Barriers without the label and measurements are ignored for sampling.
+
+    Creates a 2-qubit circuit that includes an unlabelled barrier (ignored), a labelled
+    'MID-MEASUREMENT' barrier (counted), a measurement operation (removed), and a barrier
+    with a non-matching label (ignored). With layer sampling enabled, the test asserts
+    that each observable's results has shape (3,), corresponding to initial, one mid,
+    and final sampling points.
+    """
     num_qubits = 2
     qc = QuantumCircuit(num_qubits, num_qubits)
     qc.barrier()  # no label -> ignored
