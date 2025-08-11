@@ -58,19 +58,27 @@ def test_process_layer() -> None:
     # Create a QuantumCircuit with 9 qubits and 9 classical bits.
     qc = QuantumCircuit(9, 9)
     qc.measure(0, 0)
+    qc.barrier(3,label="MID-MEASUREMENT")
     qc.barrier(1)
     qc.x(qc.qubits[2])
     qc.cx(5, 4)
     qc.cx(7, 8)
+    
 
     # Convert the circuit to a DAG.
     dag = circuit_to_dag(qc)
 
     # Call process_layer on the DAG.
-    single, even, odd = process_layer(dag)
+    single, even, odd, measure_barriers = process_layer(dag)
 
-    # After processing, the measurement and barrier nodes should have been removed.
+    assert len(measure_barriers) == 1
+    assert measure_barriers[0].op.name == "barrier"
+    assert measure_barriers[0].op.label == "MID-MEASUREMENT"
+
+    # After processing, measurement nodes and non-mid-measurement barriers should have been removed.
     for node in dag.op_nodes():
+        if node.op.name == "barrier" and str(getattr(node.op, "label", "")).upper() == "MID-MEASUREMENT":
+            continue
         assert node.op.name not in {"measure", "barrier"}, f"Unexpected node {node.op.name} in the DAG op nodes."
 
     # Verify that the single-qubit gate is in the single-qubit group.
@@ -403,7 +411,7 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     both with strength 0.01. We compare Z-expectations on sites 0,1,2 over layers 0..5.
     """
     num_qubits = 3
-    num_layers = 5  # compare layers 0..5 (including initial)
+    # num_layers = 5  # compare layers 0..5 (including initial)
     noise_factor = 0.01
     num_traj = 1000  # Monte Carlo trajectories
 
@@ -420,19 +428,32 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     ]
     noise_model = NoiseModel(processes)
 
+    qc = QuantumCircuit(num_qubits)
+
+    qc.rzz(0.5, 0, 1)
+    qc.rzz(0.5, 1, 2)
+    qc.barrier(label="MID-MEASUREMENT")
+    qc.rzz(0.5, 0, 1)
+    qc.rzz(0.5, 1, 2)
+    qc.barrier(label="MID-MEASUREMENT")
+    qc.rzz(0.5, 0, 1)
+    qc.rzz(0.5, 1, 2)
+    qc.barrier(label="MID-MEASUREMENT")
+    qc.rzz(0.5, 0, 1)
+    qc.rzz(0.5, 1, 2)
+    qc.barrier(label="MID-MEASUREMENT")
+    qc.rzz(0.5, 0, 1)
+    qc.rzz(0.5, 1, 2)
+
+    observables = [Observable(Z(), i) for i in range(num_qubits)]
+    sim_params = StrongSimParams(observables, num_traj=num_traj)
+    state = MPS(num_qubits, state="zeros", pad=2)
+    simulator.run(state, qc, sim_params, noise_model, parallel=False)
+  
+
     # Collect TJM results per qubit across layers
     tjm_results = np.zeros_like(reference)
-    for k in range(num_layers + 1):
-        qc = QuantumCircuit(num_qubits)
-        for _ in range(k):
-            qc.rzz(0.5, 0, 1)
-            qc.rzz(0.5, 1, 2)
-
-        observables = [Observable(Z(), i) for i in range(num_qubits)]
-        sim_params = StrongSimParams(observables, num_traj=num_traj)
-        state = MPS(num_qubits, state="zeros", pad=2)
-        simulator.run(state, qc, sim_params, noise_model, parallel=False)
-
+    for k in range(6):
         for q in range(num_qubits):
             # results is shape (1,) for StrongSim without layer sampling
             res_arr = sim_params.observables[q].results
@@ -443,3 +464,96 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     tol = 0.1
     diff = np.abs(tjm_results - reference)
     assert np.all(diff <= tol), f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}"
+
+
+def test_no_mid_measurements_results_have_two_columns() -> None:
+    """Circuit without any mid-measurement barriers should yield 2 columns (initial, final).
+
+    Builds a 3-qubit circuit with a few gates but no labelled 'MID-MEASUREMENT' barriers,
+    enables layer sampling via StrongSimParams, runs the simulator, and asserts that each
+    observable's results has shape (2,), corresponding to the initial and final sampling
+    points only.
+    """
+    num_qubits = 3
+    qc = QuantumCircuit(num_qubits)
+    # A couple of gates but no labelled barrier
+    qc.rx(0.3, 0)
+    qc.cx(0, 1)
+    qc.rzz(0.1, 1, 2)
+
+    observables = [Observable(Z(), i) for i in range(num_qubits)]
+    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True)
+    state = MPS(num_qubits, state="zeros")
+
+    simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
+
+    for obs in sim_params.observables:
+        assert obs.results is not None
+        assert obs.results.shape == (2,)
+
+
+def test_counts_multiple_mid_measurement_barriers() -> None:
+    """Three mid-measurement barriers produce 5 columns (initial + 3 mids + final).
+
+    Constructs a 4-qubit circuit with three barriers labelled 'MID-MEASUREMENT' using
+    different cases (to verify case-insensitivity), enables layer sampling, runs the
+    simulation, and asserts that each observable's results has shape (5,), capturing the
+    initial state, each mid-measurement sampling point, and the final state.
+    """
+    num_qubits = 4
+    qc = QuantumCircuit(num_qubits)
+    # First segment
+    qc.rx(0.2, 0)
+    qc.cx(0, 1)
+    qc.barrier(label="MID-MEASUREMENT")
+    # Second segment
+    qc.rzz(0.5, 1, 2)
+    qc.barrier(label="mid-measurement")  # case-insensitive
+    # Third segment
+    qc.rx(0.7, 3)
+    qc.barrier(label="MiD-MeAsUrEmEnT")  # mixed case
+    # Final segment
+    qc.cx(2, 3)
+
+    observables = [Observable(Z(), i) for i in range(num_qubits)]
+    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True)
+    state = MPS(num_qubits, state="zeros")
+
+    simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
+
+    for obs in sim_params.observables:
+        assert obs.results is not None
+        assert obs.results.shape == (5,)
+
+
+def test_ignores_non_mid_barriers_and_handles_measures() -> None:
+    """Barriers without the label and measurements are ignored for sampling.
+
+    Creates a 2-qubit circuit that includes an unlabelled barrier (ignored), a labelled
+    'MID-MEASUREMENT' barrier (counted), a measurement operation (removed), and a barrier
+    with a non-matching label (ignored). With layer sampling enabled, the test asserts
+    that each observable's results has shape (3,), corresponding to initial, one mid,
+    and final sampling points.
+    """
+    num_qubits = 2
+    qc = QuantumCircuit(num_qubits, num_qubits)
+    qc.barrier()  # no label -> ignored
+    qc.rx(0.1, 0)
+    qc.barrier(label="MID-MEASUREMENT")
+    qc.measure(0, 0)  # measurements are removed
+    qc.cx(0, 1)
+    qc.barrier(label="not-mid")  # ignored
+    qc.rzz(0.2, 0, 1)
+
+    observables = [Observable(Z(), i) for i in range(num_qubits)]
+    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True)
+    state = MPS(num_qubits, state="zeros")
+
+    simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
+
+    for obs in sim_params.observables:
+        assert obs.results is not None
+        # Only one labelled barrier -> 1 mid + initial + final
+        assert obs.results.shape == (3,)
+
+

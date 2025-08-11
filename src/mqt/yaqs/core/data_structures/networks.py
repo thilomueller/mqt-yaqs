@@ -620,6 +620,8 @@ class MPS:
             assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
             exp = self.project_onto_bitstring(observable.gate.bitstring)
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
+        # DEBUG
+        # print(f"[DEBUG][EXPECT-VAL] {observable.gate.name} sites={observable.sites} -> {exp.real}")
         return exp.real
 
     def measure_single_shot(self) -> int:
