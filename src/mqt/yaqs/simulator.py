@@ -95,7 +95,6 @@ def _run_strong_sim(
     else:
         assert not sim_params.get_state, "Cannot return state in noisy circuit simulation due to stochastics."
 
-   
     if sim_params.sample_layers:
         dag = circuit_to_dag(operator)
         sim_params.num_mid_measurements = sum(

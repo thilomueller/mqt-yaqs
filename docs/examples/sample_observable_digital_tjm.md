@@ -12,7 +12,7 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-###  layer sampling with digital TJM
+### layer sampling with digital TJM
 
 This example demonstrates how to use labelled barriers to sample observables at intermediate layers of a circuit using the digital Tensor Jump Method (TJM). Any `barrier` with label `"SAMPLE_OBSERVABLES"` (case-insensitive) is treated as a sampling point.
 

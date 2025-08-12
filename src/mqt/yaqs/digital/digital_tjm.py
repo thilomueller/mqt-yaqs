@@ -301,12 +301,11 @@ def digital_tjm(
                 dag.remove_op_node(node)
 
         # Process measurement barriers (only when sampling layers in strong sim)
-        if isinstance(sim_params, StrongSimParams):
-            if sim_params.sample_layers:
-                for measure_barrier in measure_barriers:
-                    dag.remove_op_node(measure_barrier)
-                    col_idx += 1
-                    state.evaluate_observables(sim_params, results, col_idx)
+        if isinstance(sim_params, StrongSimParams) and sim_params.sample_layers:
+            for measure_barrier in measure_barriers:
+                dag.remove_op_node(measure_barrier)
+                col_idx += 1
+                state.evaluate_observables(sim_params, results, col_idx)
 
     if isinstance(sim_params, WeakSimParams):
         if not noise_model or all(proc["strength"] == 0 for proc in noise_model.processes):
