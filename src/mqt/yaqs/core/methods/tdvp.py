@@ -623,8 +623,6 @@ def two_site_tdvp(
         right_blocks[i] = update_right_environment(
             state.tensors[i + 1], state.tensors[i + 1], hamiltonian.tensors[i + 1], right_blocks[i + 1]
         )
-    # DEBUG
-    # print(f"[DEBUG][2TDVP] end norm_after={state.norm()} dt_post={getattr(sim_params, 'dt', None)}")
 
 
 def local_dynamic_tdvp(

@@ -101,7 +101,7 @@ def _run_strong_sim(
         for n in dag.op_nodes()
         if n.op.name == "barrier" and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
     )
-    for i, observable in enumerate(sim_params.sorted_observables):
+    for observable in sim_params.sorted_observables:
         observable.initialize(sim_params)
 
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
