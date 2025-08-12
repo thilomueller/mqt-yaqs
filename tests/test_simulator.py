@@ -131,7 +131,7 @@ def test_analog_simulation_parallel_off() -> None:
     elapsed_time = 1
     dt = 0.1
     sample_timesteps = False
-    num_traj = 10
+    num_traj = 20
     max_bond_dim = 4
     threshold = 0
     order = 2
