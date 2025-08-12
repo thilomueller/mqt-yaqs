@@ -58,7 +58,7 @@ def test_process_layer() -> None:
     # Create a QuantumCircuit with 9 qubits and 9 classical bits.
     qc = QuantumCircuit(9, 9)
     qc.measure(0, 0)
-    qc.barrier(3, label="MID-MEASUREMENT")
+    qc.barrier(3, label="SAMPLE_OBSERVABLES")
     qc.barrier(1)
     qc.x(qc.qubits[2])
     qc.cx(5, 4)
@@ -72,11 +72,11 @@ def test_process_layer() -> None:
 
     assert len(measure_barriers) == 1
     assert measure_barriers[0].op.name == "barrier"
-    assert measure_barriers[0].op.label == "MID-MEASUREMENT"
+    assert measure_barriers[0].op.label == "SAMPLE_OBSERVABLES"
 
-    # After processing, measurement nodes and non-mid-measurement barriers should have been removed.
+    # After processing, measurement nodes and non-SAMPLE_OBSERVABLES barriers should have been removed.
     for node in dag.op_nodes():
-        if node.op.name == "barrier" and str(getattr(node.op, "label", "")).upper() == "MID-MEASUREMENT":
+        if node.op.name == "barrier" and str(getattr(node.op, "label", "")).upper() == "SAMPLE_OBSERVABLES":
             continue
         assert node.op.name not in {"measure", "barrier"}, f"Unexpected node {node.op.name} in the DAG op nodes."
 
@@ -432,16 +432,16 @@ def test_noisy_digital_tjm_matches_reference() -> None:
 
     qc.rzz(0.5, 0, 1)
     qc.rzz(0.5, 1, 2)
-    qc.barrier(label="MID-MEASUREMENT")
+    qc.barrier(label="SAMPLE_OBSERVABLES")
     qc.rzz(0.5, 0, 1)
     qc.rzz(0.5, 1, 2)
-    qc.barrier(label="MID-MEASUREMENT")
+    qc.barrier(label="SAMPLE_OBSERVABLES")
     qc.rzz(0.5, 0, 1)
     qc.rzz(0.5, 1, 2)
-    qc.barrier(label="MID-MEASUREMENT")
+    qc.barrier(label="SAMPLE_OBSERVABLES")
     qc.rzz(0.5, 0, 1)
     qc.rzz(0.5, 1, 2)
-    qc.barrier(label="MID-MEASUREMENT")
+    qc.barrier(label="SAMPLE_OBSERVABLES")
     qc.rzz(0.5, 0, 1)
     qc.rzz(0.5, 1, 2)
 
@@ -463,9 +463,9 @@ def test_noisy_digital_tjm_matches_reference() -> None:
 
 
 def test_no_mid_measurements_results_have_two_columns() -> None:
-    """Circuit without any mid-measurement barriers should yield 2 columns (initial, final).
+    """Circuit without any SAMPLE_OBSERVABLES barriers should yield 2 columns (initial, final).
 
-    Builds a 3-qubit circuit with a few gates but no labelled 'MID-MEASUREMENT' barriers,
+    Builds a 3-qubit circuit with a few gates but no labelled 'SAMPLE_OBSERVABLES' barriers,
     enables layer sampling via StrongSimParams, runs the simulator, and asserts that each
     observable's results has shape (2,), corresponding to the initial and final sampling
     points only.
@@ -489,25 +489,25 @@ def test_no_mid_measurements_results_have_two_columns() -> None:
 
 
 def test_counts_multiple_mid_measurement_barriers() -> None:
-    """Three mid-measurement barriers produce 5 columns (initial + 3 mids + final).
+    """Three SAMPLE_OBSERVABLES barriers produce 5 columns (initial + 3 mids + final).
 
-    Constructs a 4-qubit circuit with three barriers labelled 'MID-MEASUREMENT' using
+    Constructs a 4-qubit circuit with three barriers labelled 'SAMPLE_OBSERVABLES' using
     different cases (to verify case-insensitivity), enables layer sampling, runs the
     simulation, and asserts that each observable's results has shape (5,), capturing the
-    initial state, each mid-measurement sampling point, and the final state.
+    initial state, each SAMPLE_OBSERVABLES sampling point, and the final state.
     """
     num_qubits = 4
     qc = QuantumCircuit(num_qubits)
     # First segment
     qc.rx(0.2, 0)
     qc.cx(0, 1)
-    qc.barrier(label="MID-MEASUREMENT")
+    qc.barrier(label="SAMPLE_OBSERVABLES")
     # Second segment
     qc.rzz(0.5, 1, 2)
-    qc.barrier(label="mid-measurement")  # case-insensitive
+    qc.barrier(label="SAMPLE_OBSERVABLES")  # case-insensitive
     # Third segment
     qc.rx(0.7, 3)
-    qc.barrier(label="MiD-MeAsUrEmEnT")  # mixed case
+    qc.barrier(label="SAMPLE_OBSERVABLES")  # mixed case
     # Final segment
     qc.cx(2, 3)
 
@@ -526,7 +526,7 @@ def test_ignores_non_mid_barriers_and_handles_measures() -> None:
     """Barriers without the label and measurements are ignored for sampling.
 
     Creates a 2-qubit circuit that includes an unlabelled barrier (ignored), a labelled
-    'MID-MEASUREMENT' barrier (counted), a measurement operation (removed), and a barrier
+    'SAMPLE_OBSERVABLES' barrier (counted), a measurement operation (removed), and a barrier
     with a non-matching label (ignored). With layer sampling enabled, the test asserts
     that each observable's results has shape (3,), corresponding to initial, one mid,
     and final sampling points.
@@ -535,7 +535,7 @@ def test_ignores_non_mid_barriers_and_handles_measures() -> None:
     qc = QuantumCircuit(num_qubits, num_qubits)
     qc.barrier()  # no label -> ignored
     qc.rx(0.1, 0)
-    qc.barrier(label="MID-MEASUREMENT")
+    qc.barrier(label="SAMPLE_OBSERVABLES")
     qc.measure(0, 0)  # measurements are removed
     qc.cx(0, 1)
     qc.barrier(label="not-mid")  # ignored

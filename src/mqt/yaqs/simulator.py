@@ -95,12 +95,14 @@ def _run_strong_sim(
     else:
         assert not sim_params.get_state, "Cannot return state in noisy circuit simulation due to stochastics."
 
-    dag = circuit_to_dag(operator)
-    sim_params.num_mid_measurements = sum(
-        1
-        for n in dag.op_nodes()
-        if n.op.name == "barrier" and str(getattr(n.op, "label", "")).strip().upper() == "MID-MEASUREMENT"
-    )
+   
+    if sim_params.sample_layers:
+        dag = circuit_to_dag(operator)
+        sim_params.num_mid_measurements = sum(
+            1
+            for n in dag.op_nodes()
+            if n.op.name == "barrier" and str(getattr(n.op, "label", "")).strip().upper() == "SAMPLE_OBSERVABLES"
+        )
     for observable in sim_params.sorted_observables:
         observable.initialize(sim_params)
 

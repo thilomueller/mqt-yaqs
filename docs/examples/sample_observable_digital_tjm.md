@@ -12,13 +12,13 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-### MID-MEASUREMENT layer sampling with digital TJM
+###  layer sampling with digital TJM
 
-This example demonstrates how to use labelled barriers to sample observables at intermediate layers of a circuit using the digital Tensor Jump Method (TJM). Any `barrier` with label `"MID-MEASUREMENT"` (case-insensitive) is treated as a sampling point.
+This example demonstrates how to use labelled barriers to sample observables at intermediate layers of a circuit using the digital Tensor Jump Method (TJM). Any `barrier` with label `"SAMPLE_OBSERVABLES"` (case-insensitive) is treated as a sampling point.
 
 We reproduce a 3-qubit chain with repeated `rzz(0.5)` gates and noise consisting of per-qubit bit-flip (`pauli_x`) and nearest-neighbor `crosstalk_xx`, both with strength 0.01. We compare the simulated Z-expectations against a hardcoded Qiskit reference.
 
-Define the circuit with MID-MEASUREMENT barriers
+Define the circuit with SAMPLE_OBSERVABLES barriers
 
 ```{code-cell} ipython3
 from qiskit.circuit import QuantumCircuit
@@ -29,19 +29,19 @@ qc = QuantumCircuit(num_qubits)
 # Five segments of entanglers with four labelled barriers in-between → 6 sampling points (initial + 4 mids + final)
 qc.rzz(0.5, 0, 1)
 qc.rzz(0.5, 1, 2)
-qc.barrier(label="MID-MEASUREMENT")
+qc.barrier(label="SAMPLE_OBSERVABLES")
 
 qc.rzz(0.5, 0, 1)
 qc.rzz(0.5, 1, 2)
-qc.barrier(label="MID-MEASUREMENT")
+qc.barrier(label="SAMPLE_OBSERVABLES")
 
 qc.rzz(0.5, 0, 1)
 qc.rzz(0.5, 1, 2)
-qc.barrier(label="MID-MEASUREMENT")
+qc.barrier(label="SAMPLE_OBSERVABLES")
 
 qc.rzz(0.5, 0, 1)
 qc.rzz(0.5, 1, 2)
-qc.barrier(label="MID-MEASUREMENT")
+qc.barrier(label="SAMPLE_OBSERVABLES")
 
 qc.rzz(0.5, 0, 1)
 qc.rzz(0.5, 1, 2)
@@ -103,7 +103,7 @@ reference = np.array([
     [1.0, 0.9607894391523233, 0.9231163463866354, 0.8869204367171571, 0.8521437889662108, 0.8187307530779814],
 ])
 
-# YAQS results collected at initial + each MID-MEASUREMENT barrier + final
+# YAQS results collected at initial + each SAMPLE_OBSERVABLES barrier + final
 yaqs = np.vstack([np.real(obs.results) for obs in sim_params.observables])
 
 diff = np.abs(yaqs - reference)
@@ -139,5 +139,5 @@ plt.show()
 
 Notes
 
-- The sampling is triggered exclusively by `barrier(label="MID-MEASUREMENT")`. Other barriers and `measure` operations are ignored for sampling.
+- The sampling is triggered exclusively by `barrier(label="SAMPLE_OBSERVABLES")`. Other barriers and `measure` operations are ignored for sampling.
 - Agreement with the reference improves with the number of Monte Carlo trajectories (`num_traj`).

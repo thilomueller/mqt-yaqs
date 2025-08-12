@@ -76,7 +76,7 @@ def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], li
             - single_qubit_nodes: Nodes corresponding to single-qubit gates.
             - even_nodes: Nodes corresponding to two-qubit gates where the lower qubit index is even.
             - odd_nodes: Nodes corresponding to two-qubit gates where the lower qubit index is odd.
-            - measure_barriers: Labelled barriers ("MID-MEASUREMENT") used as sampling points.
+            - measure_barriers: Labelled barriers ("SAMPLE_OBSERVABLES") used as sampling points.
 
     Raises:
         NotImplementedError: If a node with more than two qubits is encountered.
@@ -99,10 +99,10 @@ def process_layer(dag: DAGCircuit) -> tuple[list[DAGOpNode], list[DAGOpNode], li
             dag.remove_op_node(node)
             continue
 
-        # Keep ONLY barriers with label "MID-MEASUREMENT" (case-insensitive). Remove all other barriers.
+        # Keep ONLY barriers with label "SAMPLE_OBSERVABLES" (case-insensitive). Remove all other barriers.
         if name == "barrier":
             label = getattr(node.op, "label", None)
-            if label is not None and str(label).upper() == "MID-MEASUREMENT":
+            if label is not None and str(label).upper() == "SAMPLE_OBSERVABLES":
                 measure_barriers.append(node)
             else:
                 dag.remove_op_node(node)
@@ -242,7 +242,7 @@ def apply_two_qubit_gate(state: MPS, node: DAGOpNode, sim_params: StrongSimParam
 def digital_tjm(
     args: tuple[int, MPS, NoiseModel | None, StrongSimParams | WeakSimParams, QuantumCircuit],
 ) -> NDArray[np.float64]:
-    """Circuit Tensor Jump Method.
+    """Digital Tensor Jump Method.
 
     Simulates a quantum circuit using the Tensor Jump Method.
 
@@ -267,18 +267,14 @@ def digital_tjm(
 
     # Initialize results depending on simulation type
     if isinstance(sim_params, StrongSimParams):
-        sample_layers_flag = sim_params.sample_layers
-        if sample_layers_flag:
+        if sim_params.sample_layers:
             results = np.zeros((len(sim_params.sorted_observables), sim_params.num_mid_measurements + 2))
+            # Initial sampling (column 0)
+            state.evaluate_observables(sim_params, results, 0)
         else:
             results = np.zeros((len(sim_params.sorted_observables), 1))
-        # Initial sampling (column 0)
-        if sample_layers_flag:
-            state.evaluate_observables(sim_params, results, 0)
-    else:
-        sample_layers_flag = False
 
-    layer_count = 0
+    col_idx = 0
     canonical_form_lost = False
     while dag.op_nodes():
         single_qubit_nodes, even_nodes, odd_nodes, measure_barriers = process_layer(dag)
@@ -290,7 +286,7 @@ def digital_tjm(
                 canonical_form_lost = True
 
         # Process two-qubit gates in even/odd sweeps.
-        for _group_name, group in [("even", even_nodes), ("odd", odd_nodes)]:
+        for _, group in [("even", even_nodes), ("odd", odd_nodes)]:
             for node in group:
                 first_site, last_site = apply_two_qubit_gate(state, node, sim_params)
 
@@ -305,12 +301,12 @@ def digital_tjm(
                 dag.remove_op_node(node)
 
         # Process measurement barriers (only when sampling layers in strong sim)
-        if sample_layers_flag and isinstance(sim_params, StrongSimParams):
-            for measure_barrier in measure_barriers:
-                dag.remove_op_node(measure_barrier)
-                layer_count += 1
-                temp_state = copy.deepcopy(state)
-                temp_state.evaluate_observables(sim_params, results, layer_count)
+        if isinstance(sim_params, StrongSimParams):
+            if sim_params.sample_layers:
+                for measure_barrier in measure_barriers:
+                    dag.remove_op_node(measure_barrier)
+                    col_idx += 1
+                    state.evaluate_observables(sim_params, results, col_idx)
 
     if isinstance(sim_params, WeakSimParams):
         if not noise_model or all(proc["strength"] == 0 for proc in noise_model.processes):
@@ -321,14 +317,11 @@ def digital_tjm(
         # Each shot is an individual trajectory
         return state.measure_shots(shots=1)
 
-    # StrongSimParams - must be StrongSimParams if we reach here
     if canonical_form_lost:
         state.normalize(form="B", decomposition="QR")
 
-    # At this point, sim_params must be StrongSimParams since WeakSimParams returned earlier
     assert isinstance(sim_params, StrongSimParams)
     if sim_params.get_state:
         sim_params.output_state = state
-    temp_state = copy.deepcopy(state)
-    temp_state.evaluate_observables(sim_params, results, results.shape[1] - 1)
+    state.evaluate_observables(sim_params, results, results.shape[1] - 1)
     return results
