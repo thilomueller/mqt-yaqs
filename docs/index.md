@@ -35,7 +35,7 @@ installation
 examples/analog_simulation
 examples/transmon_emulation
 examples/strong_circuit_simulation
-examples/mid_measurement_digital_tjm
+examples/sample_observables_digital_tjm
 examples/weak_circuit_simulation
 examples/equivalence_checking
 references
