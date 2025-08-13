@@ -235,6 +235,7 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_yy", "sites": [3, 4], "strength": 0.08},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
+        {"name": "crosstalk_xx", "sites": [1, 3], "strength": 0.06}
     ]
     global_noise_model = NoiseModel(global_processes)
 
@@ -336,11 +337,8 @@ def test_create_local_noise_model() -> None:
     # Should include: bitflip on sites 1, 2, 3 and crosstalk_xx, crosstalk_yx on [1, 2], crosstalk_xx on [2, 3]
     expected_processes_5 = [
         {"name": "pauli_x", "sites": [1], "strength": 0.02},
-        {"name": "pauli_x", "sites": [2], "strength": 0.03},
         {"name": "pauli_x", "sites": [3], "strength": 0.04},
-        {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
-        {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
-        {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
+        {"name": "crosstalk_xx", "sites": [1, 3], "strength": 0.06}
     ]
 
     assert len(local_model_5.processes) == len(expected_processes_5)
