@@ -41,6 +41,7 @@ Done when:
 - Test cases for windows include non-adjacent pairs `[u, v]` inside the window and exclude pairs that cross the window boundary.
 
 ### 4) Dissipation: endpoint application for factor-only long-range processes
+-IMPORTANT INFO: apply_dissipation is always applied to the full MPS. In analog simulation the ortho center is 0 before dissipation, in digital simulation the ortho center is window[1] of the last gate that has been applied. After dissipation the ortho center has to be 0.
 - File: `src/mqt/yaqs/core/methods/dissipation.py`
   - Keep existing code paths:
     - 1-site dissipators use `expm(-0.5 dt γ L†L)` locally.

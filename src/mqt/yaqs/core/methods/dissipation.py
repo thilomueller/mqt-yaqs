@@ -63,7 +63,7 @@ def apply_dissipation(
         for i in reversed(range(state.length)):
             state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="QR")
         return
-
+    # print(f"inside apply_dissipation, BEFORE dissipation, state ortho center: {state.check_canonical_form()}")
     # Prepare: For each bond, collect all 2-site processes acting on that bond
     two_site_on_bond = defaultdict(list)
     for process in noise_model.processes:
@@ -76,10 +76,14 @@ def apply_dissipation(
         for process in noise_model.processes:
             if len(process["sites"]) == 1 and process["sites"][0] == i:
                 gamma = process["strength"]
-                jump_op_mat = process["matrix"]
-                mat = np.conj(jump_op_mat).T @ jump_op_mat
-                dissipative_op = expm(-0.5 * dt * gamma * mat)
-                state.tensors[i] = oe.contract("ab, bcd->acd", dissipative_op, state.tensors[i])
+                if process["name"] in ["pauli_x", "pauli_y", "pauli_z"]:
+                    dissipative_factor = np.exp(-0.5 * dt * gamma) 
+                    state.tensors[i] *= dissipative_factor
+                else:
+                    jump_op_mat = process["matrix"]
+                    mat = np.conj(jump_op_mat).T @ jump_op_mat
+                    dissipative_op = expm(-0.5 * dt * gamma * mat)
+                    state.tensors[i] = oe.contract("ab, bcd->acd", dissipative_op, state.tensors[i])
 
             bond = (i - 1, i)
             processes_here = two_site_on_bond.get(bond, [])
@@ -109,3 +113,4 @@ def apply_dissipation(
         # Shift orthogonality center
         if i != 0:
             state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
+    # print(f"inside apply_dissipation, AFTER dissipation, state ortho center: {state.check_canonical_form()}")
