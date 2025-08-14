@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
+CROSSTALK_PREFIX = "longrange_crosstalk_"
+PAULI_MAP = {
+    "x": getattr(NoiseLibrary, "pauli_x")().matrix,
+    "y": getattr(NoiseLibrary, "pauli_y")().matrix,
+    "z": getattr(NoiseLibrary, "pauli_z")().matrix,
+}
+
+
 class NoiseModel:
     """A class to represent a noise model with arbitrary-site jump operators.
 
@@ -34,7 +42,8 @@ class NoiseModel:
             - name: process name or identifier
             - sites: indices of sites this process acts on
             - strength: noise strength
-            - matrix: matrix representing the operator on those sites
+            - matrix: matrix representing the operator on those sites (for 1-site and adjacent 2-site processes)
+            - factors: tuple of two 1-site operator matrices (for long-range 2-site processes)
 
     Methods:
     -------
@@ -58,9 +67,46 @@ class NoiseModel:
                 assert "name" in proc, "Each process must have a 'name' key"
                 assert "sites" in proc, "Each process must have a 'sites' key"
                 assert "strength" in proc, "Each process must have a 'strength' key"
-                # Try to look up the operator if not explicitly provided
-                if "matrix" not in proc:
-                    proc["matrix"] = self.get_operator(proc["name"])
+
+                # Normalize sites order
+                if isinstance(proc["sites"], list) and len(proc["sites"]) == 2:
+                    proc["sites"] = sorted(proc["sites"])  # ascending
+
+                sites = proc["sites"]
+                name = proc["name"]
+                # Determine adjacency for 2-site processes
+                if isinstance(sites, list) and len(sites) == 2:
+                    i, j = sites
+                    is_adjacent = abs(j - i) == 1
+                    if is_adjacent:
+                        # Adjacent: ensure a matrix is present or derive it from library operator
+                        if "matrix" not in proc:
+                            proc["matrix"] = self.get_operator(proc["name"])
+                    else:
+                        # long-range case
+                        if name.startswith(CROSSTALK_PREFIX):
+                            # derive factors if not provided
+                            if "factors" not in proc:
+                                suffix = name.rsplit("_", 1)[-1]   # e.g. "xy"
+                                if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
+                                    raise AssertionError(
+                                        f"Invalid crosstalk label '{name}'. "
+                                        f"Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                                    )
+                                a, b = suffix[0], suffix[1]
+                                proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
+                        else:
+                            # not a recognized long-range crosstalk label:
+                            # require explicit factors to avoid guessing
+                            assert "factors" in proc, (
+                                "Non-adjacent 2-site processes must specify 'factors' "
+                                "unless named 'longrange_crosstalk_{ab}'."
+                            )
+                else:
+                    # 1-site: ensure we have a matrix operator
+                    if "matrix" not in proc:
+                        proc["matrix"] = self.get_operator(proc["name"])
+
                 self.processes.append(proc)
 
     @staticmethod
