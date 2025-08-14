@@ -50,6 +50,7 @@ def initialize(state: MPS, noise_model: NoiseModel | None, sim_params: AnalogSim
         MPS: The initialized sampling MPS Phi(0).
     """
     apply_dissipation(state, noise_model, sim_params.dt / 2, sim_params)
+    print(f"state norm after dissipation inside initialize: {state.norm(0)}")
     return stochastic_process(state, noise_model, sim_params.dt, sim_params)
 
 
@@ -73,6 +74,7 @@ def step_through(state: MPS, hamiltonian: MPO, noise_model: NoiseModel | None, s
     elif sim_params.evolution_mode == EvolutionMode.BUG:
         bug(state, hamiltonian, sim_params)
     apply_dissipation(state, noise_model, sim_params.dt, sim_params)
+    print(f"state norm after dissipation inside step_through: {state.norm(0)}")
     return stochastic_process(state, noise_model, sim_params.dt, sim_params)
 
 
@@ -106,6 +108,7 @@ def sample(
     elif sim_params.evolution_mode == EvolutionMode.BUG:
         bug(psi, hamiltonian, sim_params)
     apply_dissipation(psi, noise_model, sim_params.dt / 2, sim_params)
+    print(f"state norm after dissipation): {psi.norm(0)}")
     psi = stochastic_process(psi, noise_model, sim_params.dt, sim_params)
     if j == len(sim_params.times) - 1 and sim_params.get_state:
         sim_params.output_state = psi
@@ -194,6 +197,7 @@ def analog_tjm_1(args: tuple[int, MPS, NoiseModel | None, AnalogSimParams, MPO])
         local_dynamic_tdvp(state, hamiltonian, sim_params)
         if noise_model is not None:
             apply_dissipation(state, noise_model, sim_params.dt, sim_params)
+            print(f"state norm after dissipation inside analog_tjm_1: {state.norm(0)}")
             state = stochastic_process(state, noise_model, sim_params.dt, sim_params)
 
         if sim_params.sample_timesteps:
