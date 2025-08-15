@@ -30,6 +30,22 @@ if TYPE_CHECKING:
     from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
 
+def _is_two_site(proc): 
+    s = proc.get("sites"); return isinstance(s, list) and len(s) == 2
+
+def _adjacent(proc):
+    s = proc["sites"]; return abs(s[1] - s[0]) == 1
+
+def _longrange(proc):
+    s = proc["sites"]; return abs(s[1] - s[0]) > 1
+
+def _is_pauli_crosstalk_adjacent(proc):
+    return _is_two_site(proc) and _adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
+
+def _is_pauli_crosstalk_longrange(proc):
+    return _is_two_site(proc) and _longrange(proc) and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
+
+
 def apply_dissipation(
     state: MPS,
     noise_model: NoiseModel | None,
@@ -64,13 +80,6 @@ def apply_dissipation(
             state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="QR")
         return
     # print(f"inside apply_dissipation, BEFORE dissipation, state ortho center: {state.check_canonical_form()}")
-    # Prepare: For each bond, collect all 2-site processes acting on that bond
-    two_site_on_bond = defaultdict(list)
-    for process in noise_model.processes:
-        if len(process["sites"]) == 2:
-            bond = tuple(sorted(process["sites"]))  # e.g. (i-1, i)
-            two_site_on_bond[bond].append(process)
-
     for i in reversed(range(state.length)):
         # 1. Apply all 1-site dissipators on site i
         for process in noise_model.processes:
@@ -85,30 +94,40 @@ def apply_dissipation(
                     dissipative_op = expm(-0.5 * dt * gamma * mat)
                     state.tensors[i] = oe.contract("ab, bcd->acd", dissipative_op, state.tensors[i])
 
-            bond = (i - 1, i)
-            processes_here = two_site_on_bond.get(bond, [])
-
+            processes_here = []
+            for process in noise_model.processes:
+                if len(process["sites"])==2:
+                    if process["sites"][1] == i:
+                        processes_here.append(process)
         # 2. Apply all 2-site dissipators acting on sites (i-1, i)
         if i != 0:
             for process in processes_here:
                 gamma = process["strength"]
-                jump_op_mat = process["matrix"]
-                mat = np.conj(jump_op_mat).T @ jump_op_mat
-                dissipative_op = expm(-0.5 * dt * gamma * mat)
+                if process is _is_pauli_crosstalk_adjacent(process) or _is_pauli_crosstalk_longrange(process):
+                    dissipative_factor = np.exp(-0.5 * dt * gamma) 
+                    state.tensors[i] *= dissipative_factor
+                
+                else:
+                    if _longrange(process):
+                        raise NotImplementedError("Non-Pauli Long-range processes are not implemented yet")
+                    else:
+                        jump_op_mat = process["matrix"]
+                        mat = np.conj(jump_op_mat).T @ jump_op_mat
+                        dissipative_op = expm(-0.5 * dt * gamma * mat)
 
-                merged_tensor = merge_mps_tensors(state.tensors[i - 1], state.tensors[i])
-                merged_tensor = oe.contract("ab, bcd->acd", dissipative_op, merged_tensor)
+                        merged_tensor = merge_mps_tensors(state.tensors[i - 1], state.tensors[i])
+                        merged_tensor = oe.contract("ab, bcd->acd", dissipative_op, merged_tensor)
 
-                # singular values always contracted right
-                # since ortho center is shifted to the left after loop
-                tensor_left, tensor_right = split_mps_tensor(
-                    merged_tensor,
-                    "right",
-                    sim_params,
-                    [state.physical_dimensions[i - 1], state.physical_dimensions[i]],
-                    dynamic=False,
-                )
-                state.tensors[i - 1], state.tensors[i] = tensor_left, tensor_right
+                        # singular values always contracted right
+                        # since ortho center is shifted to the left after loop
+                        tensor_left, tensor_right = split_mps_tensor(
+                            merged_tensor,
+                            "right",
+                            sim_params,
+                            [state.physical_dimensions[i - 1], state.physical_dimensions[i]],
+                            dynamic=False,
+                        )
+                        state.tensors[i - 1], state.tensors[i] = tensor_left, tensor_right
 
         # Shift orthogonality center
         if i != 0:
