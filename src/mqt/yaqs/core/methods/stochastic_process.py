@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import opt_einsum as oe
 
+from mqt.yaqs.core.methods.dissipation import _is_pauli_crosstalk_longrange
+
 from ..methods.tdvp import merge_mps_tensors, split_mps_tensor
 
 if TYPE_CHECKING:
@@ -116,17 +118,21 @@ def create_probability_distribution(
             for process in noise_model.processes:
                 if len(process["sites"]) == 2 and process["sites"][0] == site and process["sites"][1] == site + 1:
                     gamma = process["strength"]
+                    #TODO: This is not correct for long-range processes! Add If else checks ans use factors for long-range processes
                     jump_op = process["matrix"]
 
                     jumped_state = copy.deepcopy(state)
                     # merge the tensors at site and site+1
+                    #TODO: Also not correct for long-range processes. Set sites to process["sites"].
                     tensor_left = jumped_state.tensors[site]
                     tensor_right = jumped_state.tensors[site + 1]
+                    #TODO: Merge and jump op contractionis not necessary for long-range processes. The pauli strings cancel out, simply calculate dp_m = dt * gamma * jumped_state.norm(site)
                     merged = merge_mps_tensors(tensor_left, tensor_right)
                     # apply the 2-site jump operator
                     merged = oe.contract("ab, bcd->acd", jump_op, merged)
                     dp_m = dt * gamma * jumped_state.norm(site)
                     # split the tensor (always contract singular values right for probabilities)
+                    #TODO: Split is not necessary for long-range processes. 
                     tensor_left_new, tensor_right_new = split_mps_tensor(
                         merged,
                         "right",
@@ -140,6 +146,7 @@ def create_probability_distribution(
                     dp_m_list.append(dp_m.real)
                     jump_dict["jumps"].append(jump_op)
                     jump_dict["strengths"].append(gamma)
+                    #TODO: Sites are not correct for long-range processes. Set sites to process["sites"].
                     jump_dict["sites"].append([site, site + 1])
 
     # Normalize the probabilities
