@@ -57,7 +57,7 @@ def create_probability_distribution(
     noise_model: NoiseModel | None,
     dt: float,
     sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
-) -> dict[str, list[Any]]:
+) -> tuple[list[dict[str, Any]], list[float]]:
     """Create a probability distribution for potential quantum jumps in the system.
 
     The function sweeps from left to right over the sites of the MPS. For each site,
@@ -76,22 +76,20 @@ def create_probability_distribution(
     Args:
         state: The Matrix Product State, assumed left-canonical at site 0 on entry.
         noise_model: The noise model as a list of process dicts, each with keys
-        "name", "strength", "sites", and "matrix" (list of length 1 or 2).
+        "name", "strength", "sites", and "matrix" (for 1-site and adjacent 2-site processes)
+        or "factors" (for long-range 2-site processes).
         dt : Time step for the evolution, used to scale the jump probabilities.
         sim_params: Simulation parameters, needed for splitting merged tensors (e.g., SVD threshold, bond dimension).
 
     Returns:
-        dict[str, list]: A dictionary with the following keys:
-            - "jumps": List of jump operator tensors.
-            - "strengths": Corresponding jump strengths.
-            - "sites": Site indices (list of 1 or 2 ints) where each jump operator is applied.
-            - "probabilities": Normalized probabilities for each possible jump.
+        tuple[list[dict], list[float]]: A tuple containing:
+            - List of references to applicable processes from the noise model
+            - List of normalized probabilities corresponding to each process
     """
-    jump_dict: dict[str, list[Any]] = {"jumps": [], "strengths": [], "sites": [], "probabilities": []}
-
     if noise_model is None or not noise_model.processes:
-        return jump_dict
+        return [], []
 
+    applicable_processes = []  # References to original processes
     dp_m_list = []
 
     for site in range(state.length):
@@ -109,13 +107,12 @@ def create_probability_distribution(
                 jumped_state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
                 dp_m = dt * gamma * jumped_state.norm(site)
                 dp_m_list.append(dp_m.real)
-                jump_dict["jumps"].append(jump_op)
-                jump_dict["strengths"].append(gamma)
-                jump_dict["sites"].append([site])
+                applicable_processes.append(process)  # Store reference to original process
 
         # --- 2-site jumps starting at [site, site+1] ---
         if site < state.length - 1:
             for process in noise_model.processes:
+                #TODO: this check excludes long-range processes and has to be changed. 
                 if len(process["sites"]) == 2 and process["sites"][0] == site and process["sites"][1] == site + 1:
                     gamma = process["strength"]
                     #TODO: This is not correct for long-range processes! Add If else checks ans use factors for long-range processes
@@ -144,15 +141,13 @@ def create_probability_distribution(
                     # compute the norm at `site`
 
                     dp_m_list.append(dp_m.real)
-                    jump_dict["jumps"].append(jump_op)
-                    jump_dict["strengths"].append(gamma)
-                    #TODO: Sites are not correct for long-range processes. Set sites to process["sites"].
-                    jump_dict["sites"].append([site, site + 1])
+                    applicable_processes.append(process)  # Store reference to original process
 
     # Normalize the probabilities
     dp: float = np.sum(dp_m_list)
-    jump_dict["probabilities"] = (np.array(dp_m_list) / dp).tolist() if dp > 0 else [0.0] * len(dp_m_list)
-    return jump_dict
+    normalized_probabilities = (np.array(dp_m_list) / dp).tolist() if dp > 0 else [0.0] * len(dp_m_list)
+    
+    return applicable_processes, normalized_probabilities
 
 
 def stochastic_process(
@@ -190,25 +185,43 @@ def stochastic_process(
         return state
 
     # A jump occurs: create the probability distribution and select a jump operator.
-    jump_dict = create_probability_distribution(state, noise_model, dt, sim_params)
-    choices = list(range(len(jump_dict["probabilities"])))
-    choice = rng.choice(choices, p=jump_dict["probabilities"])
-    jump_op = jump_dict["jumps"][choice]
-    sites = jump_dict["sites"][choice]
+    applicable_processes, probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
+    
+    if not applicable_processes:
+        # No applicable processes, just normalize and return
+        state.shift_orthogonality_center_left(0)
+        return state
+    
+    # Select process by index using probabilities
+    choice_idx = rng.choice(len(applicable_processes), p=probabilities)
+    chosen_process = applicable_processes[choice_idx]
+    
+    # Extract information from chosen process
+    sites = chosen_process["sites"]
 
     if len(sites) == 1:
         # 1-site jump
         site = sites[0]
+        jump_op = chosen_process["matrix"]
         state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
+        
     elif len(sites) == 2:
-        # 2-site jump: merge, apply, split
+        # 2-site jump: check if long-range or adjacent
         i, j = sites
-        # Ensure j == i+1
-        #TODO: Add if _is_pauli_crosstalk_longrange(process) check and use factors for long-range processes
-        if j != i + 1:
-            msg = f"Only nearest-neighbor 2-site jumps are supported (got sites {i}, {j})"
-            raise ValueError(msg)
-        if np.abs(i - j) == 1:
+        
+        if _is_pauli_crosstalk_longrange(chosen_process):
+            # Long-range Pauli crosstalk: no matrix operations needed
+            # Pauli strings cancel out, just apply dissipative factors
+            # Implementation will be added for long-range processes
+            pass  # TODO: Implement long-range process application
+            
+        else:
+            # Adjacent 2-site process: use matrix
+            if np.abs(i - j) > 1:
+                msg = f"Only nearest-neighbor 2-site jumps are supported for non-Pauli processes (got sites {i}, {j})"
+                raise ValueError(msg)
+                
+            jump_op = chosen_process["matrix"]
             merged = merge_mps_tensors(state.tensors[i], state.tensors[j])
             merged = oe.contract("ab, bcd->acd", jump_op, merged)
             # For stochastic jumps, always contract singular values to the right
@@ -216,6 +229,7 @@ def stochastic_process(
                 merged, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[j]], dynamic=False
             )
             state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
+            
     else:
         msg = "Jump operator must act on 1 or 2 sites."
         raise ValueError(msg)
