@@ -215,11 +215,9 @@ def stochastic_process(
         i, j = sites
         
         if _is_pauli_crosstalk_longrange(chosen_process):
-            # Long-range Pauli crosstalk: no matrix operations needed
-            # Pauli strings cancel out, just apply dissipative factors
-            # Implementation will be added for long-range processes
-            pass  # TODO: Implement long-range process application
-            
+            jump_op_0, jump_op_1 = chosen_process["factors"][0], chosen_process["factors"][1]
+            state.tensors[i] = oe.contract("ab, bcd->acd", jump_op_0, state.tensors[i])
+            state.tensors[j] = oe.contract("ab, bcd->acd", jump_op_1, state.tensors[j])
         else:
             # Adjacent 2-site process: use matrix
             if np.abs(i - j) > 1:
