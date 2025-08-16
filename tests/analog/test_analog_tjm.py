@@ -229,3 +229,89 @@ def test_analog_tjm_1_sample_timesteps() -> None:
     args = (0, state, noise_model, sim_params, H)
     results = analog_tjm_1(args)
     assert results.shape == (len(measurements), len(sim_params.times)), "Results incorrect shape"
+
+
+def test_analog_simulation_twositeprocesses() -> None:
+    """Test analog simulation with two-site crosstalk processes against QuTiP reference.
+
+    This test simulates a 3-qubit Ising chain with both single-site Pauli-X noise and
+    neighboring two-site crosstalk X⊗X noise. It compares the YAQS analog simulation
+    results against hardcoded QuTiP master equation results with a tolerance of 0.1
+    for all Z observables at all time points.
+
+    The test uses the same parameters as analogTWOSITEcheck.py:
+    - L=3, J=1.0, g=0.5
+    - gamma_single=0.02, gamma_pair=0.01
+    - T=1.0, dt=0.05, num_traj=200
+    """
+    from mqt.yaqs import simulator
+    import numpy as np
+
+    # Parameters matching analogTWOSITEcheck.py
+    L = 3
+    J = 1.0
+    g = 0.5
+    gamma_single = 0.02
+    gamma_pair = 0.01
+    T = 1.0
+    dt = 0.05
+    num_traj = 400
+
+    # Setup YAQS simulation
+    H = MPO()
+    H.init_ising(L, J, g)
+    state = MPS(L, state="zeros")
+    observables = [Observable(Z(), i) for i in range(L)]
+    sim_params = AnalogSimParams(
+        observables=observables,
+        elapsed_time=T,
+        dt=dt,
+        num_traj=num_traj,
+        max_bond_dim=64,
+        min_bond_dim=2,
+        threshold=1e-10,
+        order=2,
+        sample_timesteps=True,
+        get_state=False,
+    )
+
+    # Setup noise model with single-site and two-site crosstalk processes
+    processes = [{"name": "pauli_x", "sites": [i], "strength": gamma_single} for i in range(L)]
+    processes += [{"name": "crosstalk_xx", "sites": [i, i + 1], "strength": gamma_pair} for i in range(L - 1)]
+    noise = NoiseModel(processes)
+
+    # Run simulation
+    simulator.run(state, H, sim_params, noise, parallel=True)
+
+    # Hardcoded QuTiP reference solution
+    expected_results = [
+        [1.0, 0.9957595387085492, 0.989068537861746, 0.9799951962331045, 0.9686368930494625, 0.9551186308467075,
+         0.9395910913283494, 0.9222283389300958, 0.9032252097089084, 0.8827944277523293, 0.8611634997325803,
+         0.8385714280891042, 0.8152653063954242, 0.7914968423015236, 0.7675188651840964, 0.7435818712832375,
+         0.7199306579260094, 0.6968010984985046, 0.6744171032041366, 0.6529878097650909, 0.6327050454858952],
+        [1.0, 0.9947673850218341, 0.9871414981439525, 0.9773043133235998, 0.9655275369620003, 0.9521575556050013,
+         0.9375965200751353, 0.9222806564841823, 0.9066570069612527, 0.8911598843450562, 0.8761883965926414,
+         0.8620860664049642, 0.8491239779302621, 0.8374879983781462, 0.8272709723219848, 0.8184701569889284,
+         0.8109899797799391, 0.8046500024603839, 0.7991974939190101, 0.7943239338217639, 0.7896845077283686],
+        [1.0, 0.9957595387085492, 0.989068537861746, 0.9799951962331045, 0.9686368930494625, 0.9551186308467075,
+         0.9395910913283494, 0.9222283389300958, 0.9032252097089086, 0.8827944277523293, 0.8611634997325803,
+         0.838571428089104, 0.8152653063954242, 0.7914968423015236, 0.7675188651840964, 0.7435818712832375,
+         0.7199306579260094, 0.6968010984985046, 0.6744171032041368, 0.6529878097650911, 0.6327050454858952]
+    ]
+
+    # Collect YAQS results
+    yaqs_results = np.zeros((L, len(sim_params.times)))
+    for idx, obs in enumerate(sim_params.sorted_observables):
+        site = obs.sites if isinstance(obs.sites, int) else obs.sites[0]
+        yaqs_results[site, :] = obs.results
+
+    # Compare with tolerance of 0.1
+    tolerance = 0.1
+    for site in range(L):
+        for time_idx in range(len(sim_params.times)):
+            expected = expected_results[site][time_idx]
+            actual = yaqs_results[site, time_idx]
+            assert abs(expected - actual) < tolerance, (
+                f"Site {site}, time {sim_params.times[time_idx]:.2f}: "
+                f"expected {expected:.6f}, got {actual:.6f}, diff {abs(expected - actual):.6f}"
+            )
