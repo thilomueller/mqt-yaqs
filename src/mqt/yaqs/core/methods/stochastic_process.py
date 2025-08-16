@@ -112,36 +112,41 @@ def create_probability_distribution(
         # --- 2-site jumps starting at [site, site+1] ---
         if site < state.length - 1:
             for process in noise_model.processes:
-                #TODO: this check excludes long-range processes and has to be changed. 
-                if len(process["sites"]) == 2 and process["sites"][0] == site and process["sites"][1] == site + 1:
-                    gamma = process["strength"]
-                    #TODO: This is not correct for long-range processes! Add If else checks ans use factors for long-range processes
-                    jump_op = process["matrix"]
+                if len(process["sites"]) == 2 and process["sites"][0] == site:
+                    if _is_pauli_crosstalk_longrange(process):
+                        gamma = process["strength"]
+                        #TODO: Check if this norm calculation is correct.
+                        dp_m = dt * gamma * state.norm(site)
+                        dp_m_list.append(dp_m.real)
+                        applicable_processes.append(process)  # Store reference to original process 
 
-                    jumped_state = copy.deepcopy(state)
-                    # merge the tensors at site and site+1
-                    #TODO: Also not correct for long-range processes. Set sites to process["sites"].
-                    tensor_left = jumped_state.tensors[site]
-                    tensor_right = jumped_state.tensors[site + 1]
-                    #TODO: Merge and jump op contractionis not necessary for long-range processes. The pauli strings cancel out, simply calculate dp_m = dt * gamma * jumped_state.norm(site)
-                    merged = merge_mps_tensors(tensor_left, tensor_right)
-                    # apply the 2-site jump operator
-                    merged = oe.contract("ab, bcd->acd", jump_op, merged)
-                    dp_m = dt * gamma * jumped_state.norm(site)
-                    # split the tensor (always contract singular values right for probabilities)
-                    #TODO: Split is not necessary for long-range processes. 
-                    tensor_left_new, tensor_right_new = split_mps_tensor(
-                        merged,
-                        "right",
-                        sim_params,
-                        [state.physical_dimensions[site], state.physical_dimensions[site + 1]],
-                        dynamic=False,
-                    )
-                    jumped_state.tensors[site], jumped_state.tensors[site + 1] = tensor_left_new, tensor_right_new
-                    # compute the norm at `site`
+                    if not _is_pauli_crosstalk_longrange(process) and process["sites"][1] == site + 1:
+                        gamma = process["strength"]
+                        jump_op = process["matrix"]
+                        jumped_state = copy.deepcopy(state)
+                        # merge the tensors at site and site+1
+                        tensor_left = jumped_state.tensors[site]
+                        tensor_right = jumped_state.tensors[site + 1]
+                        merged = merge_mps_tensors(tensor_left, tensor_right)
+                        # apply the 2-site jump operator
+                        merged = oe.contract("ab, bcd->acd", jump_op, merged)
+                        dp_m = dt * gamma * jumped_state.norm(site)
+                        # split the tensor (always contract singular values right for probabilities)
+                        tensor_left_new, tensor_right_new = split_mps_tensor(
+                            merged,
+                            "right",
+                            sim_params,
+                            [state.physical_dimensions[site], state.physical_dimensions[site + 1]],
+                            dynamic=False,
+                        )
+                        jumped_state.tensors[site], jumped_state.tensors[site + 1] = tensor_left_new, tensor_right_new
+                        # compute the norm at `site`
 
-                    dp_m_list.append(dp_m.real)
-                    applicable_processes.append(process)  # Store reference to original process
+                        dp_m_list.append(dp_m.real)
+                        applicable_processes.append(process)  # Store reference to original process
+                    else:
+                        #raise not implemented error
+                        raise NotImplementedError("Non-Pauli Long-range processes are not implemented.")
 
     # Normalize the probabilities
     dp: float = np.sum(dp_m_list)
