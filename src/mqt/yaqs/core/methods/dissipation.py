@@ -30,19 +30,19 @@ if TYPE_CHECKING:
     from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
 
-def _is_two_site(proc): 
+def _is_two_site(proc) -> bool: 
     s = proc.get("sites"); return isinstance(s, list) and len(s) == 2
 
-def _adjacent(proc):
+def _adjacent(proc) -> bool:
     s = proc["sites"]; return abs(s[1] - s[0]) == 1
 
-def _longrange(proc):
+def _longrange(proc) -> bool:
     s = proc["sites"]; return abs(s[1] - s[0]) > 1
 
-def _is_pauli_crosstalk_adjacent(proc):
+def _is_pauli_crosstalk_adjacent(proc) -> bool:
     return _is_two_site(proc) and _adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
 
-def _is_pauli_crosstalk_longrange(proc):
+def _is_pauli_crosstalk_longrange(proc) -> bool:
     return _is_two_site(proc) and _longrange(proc) and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
 
 
@@ -79,7 +79,7 @@ def apply_dissipation(
         for i in reversed(range(state.length)):
             state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="QR")
         return
-    # print(f"inside apply_dissipation, BEFORE dissipation, state ortho center: {state.check_canonical_form()}")
+
     for i in reversed(range(state.length)):
         # 1. Apply all 1-site dissipators on site i
         for process in noise_model.processes:
@@ -132,4 +132,3 @@ def apply_dissipation(
         # Shift orthogonality center
         if i != 0:
             state.shift_orthogonality_center_left(current_orthogonality_center=i, decomposition="SVD")
-    # print(f"inside apply_dissipation, AFTER dissipation, state ortho center: {state.check_canonical_form()}")

@@ -114,9 +114,7 @@ def create_probability_distribution(
             for process in noise_model.processes:
                 if len(process["sites"]) == 2 and process["sites"][0] == site:
                     if _is_pauli_crosstalk_longrange(process):
-                        # print(f"detected longrange process: {process}")
                         gamma = process["strength"]
-                        #TODO: Check if this norm calculation is correct.
                         dp_m = dt * gamma * state.norm(site)
                         dp_m_list.append(dp_m.real)
                         applicable_processes.append(process)  # Store reference to original process 
@@ -198,7 +196,6 @@ def stochastic_process(
     # Select process by index using probabilities
     choice_idx = rng.choice(len(applicable_processes), p=probabilities)
     chosen_process = applicable_processes[choice_idx]
-    # print(f"chosen_process as Jump Operator: {chosen_process}")
     
     # Extract information from chosen process
     sites = chosen_process["sites"]
