@@ -32,14 +32,15 @@ specified Hamiltonian and noise model, and that observable measurements are prop
 from __future__ import annotations
 
 from unittest.mock import patch
+
 import numpy as np
 
+from mqt.yaqs import simulator
 from mqt.yaqs.analog.analog_tjm import analog_tjm_1, analog_tjm_2, initialize, step_through
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable
 from mqt.yaqs.core.libraries.gate_library import X, Z
-from mqt.yaqs import simulator
 
 
 def test_initialize() -> None:
@@ -246,7 +247,6 @@ def test_analog_simulation_twositeprocesses() -> None:
     - gamma_single=0.02, gamma_pair=0.01
     - T=1.0, dt=0.05, num_traj=200
     """
-
     # Parameters matching analogTWOSITEcheck.py
     L = 3
     J = 1.0
