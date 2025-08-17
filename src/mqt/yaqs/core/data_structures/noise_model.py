@@ -61,7 +61,7 @@ class NoiseModel:
         processes :
             A list of noise process dictionaries affecting the quantum system. Default is None.
 
-        Raises
+        Raises:
         ------
         AssertionError
             If required keys are missing in a process dict or if a non-adjacent 2-site process
