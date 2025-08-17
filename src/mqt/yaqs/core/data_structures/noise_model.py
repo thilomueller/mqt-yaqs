@@ -67,51 +67,10 @@ class NoiseModel:
             nor provides explicit 'factors'.
         """
         self.processes: list[dict[str, Any]] = []
-        if processes is not None:
-            for proc in processes:
-                assert "name" in proc, "Each process must have a 'name' key"
-                assert "sites" in proc, "Each process must have a 'sites' key"
-                assert "strength" in proc, "Each process must have a 'strength' key"
-
-                # Normalize sites order
-                if isinstance(proc["sites"], list) and len(proc["sites"]) == 2:
-                    proc["sites"] = sorted(proc["sites"])  # ascending
-
-                sites = proc["sites"]
-                name = proc["name"]
-                # Determine adjacency for 2-site processes
-                if isinstance(sites, list) and len(sites) == 2:
-                    i, j = sites
-                    is_adjacent = abs(j - i) == 1
-                    if is_adjacent:
-                        # Adjacent: ensure a matrix is present or derive it from library operator
-                        if "matrix" not in proc:
-                            proc["matrix"] = self.get_operator(proc["name"])
-                    # long-range case
-                    elif name.startswith(CROSSTALK_PREFIX):
-                        # derive factors if not provided
-                        if "factors" not in proc:
-                            suffix = name.rsplit("_", 1)[-1]  # e.g. "xy"
-                            if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
-                                msg = (
-                                    f"Invalid crosstalk label '{name}'. "
-                                    f"Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
-                                )
-                                raise AssertionError(msg)
-                            a, b = suffix[0], suffix[1]
-                            proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
-                    else:
-                        # not a recognized long-range crosstalk label:
-                        # require explicit factors to avoid guessing
-                        assert "factors" in proc, (
-                            "Non-adjacent 2-site processes must specify 'factors' "
-                            "unless named 'longrange_crosstalk_{ab}'."
-                        )
-                # 1-site: ensure we have a matrix operator
-                elif "matrix" not in proc:
-                    proc["matrix"] = self.get_operator(proc["name"])
-
-                self.processes.append(proc)
+        if processes is None:
+            return
+        
+        self.processes = _fill_noise_processes_flat(processes)
 
     @staticmethod
     def get_operator(name: str) -> NDArray[Any]:
@@ -125,3 +84,58 @@ class NoiseModel:
         """
         operator_class = getattr(NoiseLibrary, name)
         return operator_class().matrix
+
+
+def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize processes with reduced nesting, preserving original semantics."""
+    filled_processes: list[dict[str, Any]] = []
+    for original in processes:
+        assert "name" in original, "Each process must have a 'name' key"
+        assert "sites" in original, "Each process must have a 'sites' key"
+        assert "strength" in original, "Each process must have a 'strength' key"
+
+        proc = dict(original)
+        name = proc["name"]
+        sites = proc["sites"]
+
+        # Normalize two-site ordering
+        if isinstance(sites, list) and len(sites) == 2:
+            sorted_sites = sorted(sites)
+            if sorted_sites != sites:
+                proc["sites"] = sorted_sites
+            i, j = proc["sites"]
+            is_adjacent = abs(j - i) == 1
+
+            # Adjacent two-site
+            if is_adjacent:
+                if "matrix" not in proc:
+                    proc["matrix"] = NoiseModel.get_operator(name)
+                filled_processes.append(proc)
+                continue
+
+            # Long-range two-site with canonical label
+            if str(name).startswith(CROSSTALK_PREFIX):
+                if "factors" not in proc:
+                    suffix = str(name).rsplit("_", 1)[-1]
+                    if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
+                        raise AssertionError(
+                            f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                        )
+                    a, b = suffix[0], suffix[1]
+                    proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
+                filled_processes.append(proc)
+                continue
+
+            # Other long-range two-site: require explicit factors
+            assert "factors" in proc, (
+                "Non-adjacent 2-site processes must specify 'factors' unless named 'longrange_crosstalk_{ab}'."
+            )
+            filled_processes.append(proc)
+            continue
+
+        # One-site: ensure matrix
+        if "matrix" not in proc:
+            proc["matrix"] = NoiseModel.get_operator(name)
+        filled_processes.append(proc)
+
+    return filled_processes
