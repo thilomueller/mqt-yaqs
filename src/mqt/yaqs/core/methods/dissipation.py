@@ -30,19 +30,37 @@ if TYPE_CHECKING:
     from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
 
-def is_two_site(proc: dict[str, Any]) -> bool: 
+def is_two_site(proc: dict[str, Any]) -> bool:
+    """Return True if the process acts on exactly two sites.
+
+    Expects a process dict with a "sites" field holding the target indices.
+    """
     s = proc.get("sites"); return isinstance(s, list) and len(s) == 2
 
 def is_adjacent(proc: dict[str, Any]) -> bool:
+    """Return True if the two-site process targets nearest neighbors.
+
+    Assumes the process is two-site and checks |i-j| == 1.
+    """
     s = proc["sites"]; return abs(s[1] - s[0]) == 1
 
 def is_longrange(proc: dict[str, Any]) -> bool:
+    """Return True if the two-site process is long-range (non-neighbor)."""
     s = proc["sites"]; return abs(s[1] - s[0]) > 1
 
 def is_pauli_crosstalk_adjacent(proc: dict[str, Any]) -> bool:
+    """Return True for adjacent two-site Pauli crosstalk processes.
+
+    Matches names like "crosstalk_xy" for nearest-neighbor pairs.
+    """
     return is_two_site(proc) and is_adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
 
 def is_pauli_crosstalk_longrange(proc: dict[str, Any]) -> bool:
+    """Return True for long-range two-site Pauli crosstalk processes.
+
+    Matches canonical names like "longrange_crosstalk_xy" or any process that
+    carries explicit per-site "factors" in lieu of a full Kronecker matrix.
+    """
     return is_two_site(proc) and is_longrange(proc) and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
 
 

@@ -472,7 +472,7 @@ def test_digital_tjm_longrange_noise() -> None:
       - Tolerance 0.1
     """
     num_qubits = 4
-    J = 1.0
+    j_coupling = 1.0
     g = 0.5
     dt = 0.1
     num_layers = 5
@@ -488,7 +488,7 @@ def test_digital_tjm_longrange_noise() -> None:
     ])
 
     # Build single-timestep periodic Ising circuit
-    timestep = create_ising_circuit(num_qubits, J, g, dt, 1, periodic=True)
+    timestep = create_ising_circuit(num_qubits, j_coupling, g, dt, 1, periodic=True)
     qc = QuantumCircuit(num_qubits)
     for layer in range(num_layers):
         qc = qc.compose(timestep)

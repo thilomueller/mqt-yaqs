@@ -131,11 +131,11 @@ def test_longrange_two_site_factors_auto() -> None:
     nm = NoiseModel([{"name": "longrange_crosstalk_xy", "sites": [0, 2], "strength": 0.3}])
     p = nm.processes[0]
     assert "factors" in p, "Long-range 2-site process should have factors auto-filled"
-    A, B = p["factors"]
-    assert A.shape == (2, 2)
-    assert B.shape == (2, 2)
-    assert _allclose(A, PauliX.matrix)
-    assert _allclose(B, PauliY.matrix)
+    a_op, b_op = p["factors"]
+    assert a_op.shape == (2, 2)
+    assert b_op.shape == (2, 2)
+    assert _allclose(a_op, PauliX.matrix)
+    assert _allclose(b_op, PauliY.matrix)
     assert "matrix" not in p, "Long-range processes should not attach a full matrix"
 
 
@@ -158,9 +158,9 @@ def test_longrange_two_site_factors_explicit() -> None:
     assert p["sites"] == [1, 3]
     assert "factors" in p
     assert len(p["factors"]) == 2
-    A, B = p["factors"]
-    assert _allclose(A, PauliX.matrix)
-    assert _allclose(B, PauliY.matrix)
+    a_op, b_op = p["factors"]
+    assert _allclose(a_op, PauliX.matrix)
+    assert _allclose(b_op, PauliY.matrix)
     assert "matrix" not in p
 
 
@@ -169,6 +169,9 @@ def test_longrange_unknown_label_without_factors_raises() -> None:
 
     If the name is not 'longrange_crosstalk_{ab}' and no factors are provided,
     initialization must fail to avoid guessing operators.
+
+    Raises:
+        AssertionError: If the model accepts an unknown long-range label without factors.
     """
     try:
         # Name is not a recognized 'longrange_crosstalk_{ab}' and no factors provided
