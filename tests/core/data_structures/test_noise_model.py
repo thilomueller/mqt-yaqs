@@ -17,14 +17,16 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 import numpy as np
+import pytest
 
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.libraries.noise_library import PauliX, PauliY, PauliZ
 
+
 def _allclose(a: np.ndarray, b: np.ndarray) -> bool:
     return np.allclose(a, b, atol=1e-12)
+
 
 def test_noise_model_creation() -> None:
     """Test that NoiseModel is created correctly with valid process dicts.
@@ -130,7 +132,8 @@ def test_longrange_two_site_factors_auto() -> None:
     p = nm.processes[0]
     assert "factors" in p, "Long-range 2-site process should have factors auto-filled"
     A, B = p["factors"]
-    assert A.shape == (2, 2) and B.shape == (2, 2)
+    assert A.shape == (2, 2)
+    assert B.shape == (2, 2)
     assert _allclose(A, PauliX.matrix)
     assert _allclose(B, PauliY.matrix)
     assert "matrix" not in p, "Long-range processes should not attach a full matrix"
@@ -153,9 +156,11 @@ def test_longrange_two_site_factors_explicit() -> None:
     p = nm.processes[0]
     # Sites must be normalized to ascending order
     assert p["sites"] == [1, 3]
-    assert "factors" in p and len(p["factors"]) == 2
+    assert "factors" in p
+    assert len(p["factors"]) == 2
     A, B = p["factors"]
-    assert _allclose(A, PauliX.matrix) and _allclose(B, PauliY.matrix)
+    assert _allclose(A, PauliX.matrix)
+    assert _allclose(B, PauliY.matrix)
     assert "matrix" not in p
 
 
@@ -170,4 +175,5 @@ def test_longrange_unknown_label_without_factors_raises() -> None:
         _ = NoiseModel([{"name": "foo_bar", "sites": [0, 2], "strength": 0.1}])
     except AssertionError:
         return
-    raise AssertionError("Expected AssertionError for unknown long-range label without factors.")
+    msg = "Expected AssertionError for unknown long-range label without factors."
+    raise AssertionError(msg)
