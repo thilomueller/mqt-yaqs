@@ -130,7 +130,6 @@ def apply_dissipation(
             for process in processes_here:
                 gamma = process["strength"]
                 if is_pauli_crosstalk_adjacent(process) or is_pauli_crosstalk_longrange(process):
-                    print("inside critical check.")
                     dissipative_factor = np.exp(-0.5 * dt * gamma)
                     state.tensors[i] *= dissipative_factor
 
