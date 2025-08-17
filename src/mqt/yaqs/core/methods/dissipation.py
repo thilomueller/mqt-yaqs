@@ -44,13 +44,13 @@ def is_adjacent(proc: dict[str, Any]) -> bool:
     Assumes the process is two-site and checks |i-j| == 1.
     """
     s = proc["sites"]
-    return abs(s[1] - s[0]) == 1
+    return bool(abs(s[1] - s[0]) == 1)
 
 
 def is_longrange(proc: dict[str, Any]) -> bool:
     """Return True if the two-site process is long-range (non-neighbor)."""
     s = proc["sites"]
-    return abs(s[1] - s[0]) > 1
+    return bool(abs(s[1] - s[0]) > 1)
 
 
 def is_pauli_crosstalk_adjacent(proc: dict[str, Any]) -> bool:
@@ -129,7 +129,8 @@ def apply_dissipation(
         if i != 0:
             for process in processes_here:
                 gamma = process["strength"]
-                if process is is_pauli_crosstalk_adjacent(process) or is_pauli_crosstalk_longrange(process):
+                if is_pauli_crosstalk_adjacent(process) or is_pauli_crosstalk_longrange(process):
+                    print("inside critical check.")
                     dissipative_factor = np.exp(-0.5 * dt * gamma)
                     state.tensors[i] *= dissipative_factor
 
