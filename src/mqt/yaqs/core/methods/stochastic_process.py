@@ -117,7 +117,7 @@ def create_probability_distribution(
                         gamma = process["strength"]
                         dp_m = dt * gamma * state.norm(site)
                         dp_m_list.append(dp_m.real)
-                        applicable_processes.append(process)  # Store reference to original process 
+                        applicable_processes.append(process)  # Store reference to original process
 
                     if not _is_pauli_crosstalk_longrange(process) and process["sites"][1] == site + 1:
                         gamma = process["strength"]
@@ -147,7 +147,7 @@ def create_probability_distribution(
     # Normalize the probabilities
     dp: float = np.sum(dp_m_list)
     normalized_probabilities = (np.array(dp_m_list) / dp).tolist() if dp > 0 else [0.0] * len(dp_m_list)
-    
+
     return applicable_processes, normalized_probabilities
 
 
@@ -187,16 +187,16 @@ def stochastic_process(
 
     # A jump occurs: create the probability distribution and select a jump operator.
     applicable_processes, probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
-    
+
     if not applicable_processes:
         # No applicable processes, just normalize and return
         state.shift_orthogonality_center_left(0)
         return state
-    
+
     # Select process by index using probabilities
     choice_idx = rng.choice(len(applicable_processes), p=probabilities)
     chosen_process = applicable_processes[choice_idx]
-    
+
     # Extract information from chosen process
     sites = chosen_process["sites"]
 
@@ -205,11 +205,11 @@ def stochastic_process(
         site = sites[0]
         jump_op = chosen_process["matrix"]
         state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
-        
+
     elif len(sites) == 2:
         # 2-site jump: check if long-range or adjacent
         i, j = sites
-        
+
         if _is_pauli_crosstalk_longrange(chosen_process):
             jump_op_0, jump_op_1 = chosen_process["factors"][0], chosen_process["factors"][1]
             state.tensors[i] = oe.contract("ab, bcd->acd", jump_op_0, state.tensors[i])
@@ -219,7 +219,7 @@ def stochastic_process(
             if np.abs(i - j) > 1:
                 msg = f"Only nearest-neighbor 2-site jumps are supported for non-Pauli processes (got sites {i}, {j})"
                 raise ValueError(msg)
-                
+
             jump_op = chosen_process["matrix"]
             merged = merge_mps_tensors(state.tensors[i], state.tensors[j])
             merged = oe.contract("ab, bcd->acd", jump_op, merged)
@@ -228,7 +228,7 @@ def stochastic_process(
                 merged, "right", sim_params, [state.physical_dimensions[i], state.physical_dimensions[j]], dynamic=False
             )
             state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
-            
+
     else:
         msg = "Jump operator must act on 1 or 2 sites."
         raise ValueError(msg)
