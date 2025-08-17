@@ -98,11 +98,9 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
     list[dict[str, Any]]
         The validated and completed list of process dictionaries.
 
-    Raises
-    ------
-    AssertionError
-        If required keys are missing or if a non-adjacent 2-site process is neither
-        a recognized 'longrange_crosstalk_{ab}' nor provides explicit 'factors'.
+    Raises:
+        AssertionError: If required keys are missing or if a non-adjacent 2-site process
+            is neither a recognized 'longrange_crosstalk_{ab}' nor provides explicit 'factors'.
     """
     filled_processes: list[dict[str, Any]] = []
     for original in processes:
