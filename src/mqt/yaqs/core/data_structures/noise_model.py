@@ -93,12 +93,12 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
     processes:
         List of process dictionaries to validate and complete.
 
-    Returns
+    Returns:
     -------
     list[dict[str, Any]]
         The validated and completed list of process dictionaries.
 
-    Raises
+    Raises:
     ------
     AssertionError
         If required keys are missing or if a non-adjacent 2-site process is neither
