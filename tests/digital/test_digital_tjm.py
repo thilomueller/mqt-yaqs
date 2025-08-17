@@ -35,8 +35,8 @@ from mqt.yaqs import simulator
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams, WeakSimParams
-from mqt.yaqs.core.libraries.gate_library import GateLibrary, X, Z
 from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
+from mqt.yaqs.core.libraries.gate_library import GateLibrary, X, Z
 from mqt.yaqs.digital.digital_tjm import (
     apply_single_qubit_gate,
     apply_two_qubit_gate,
@@ -236,7 +236,7 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_yy", "sites": [3, 4], "strength": 0.08},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
-        {"name": "longrange_crosstalk_xx", "sites": [1, 3], "strength": 0.06}
+        {"name": "longrange_crosstalk_xx", "sites": [1, 3], "strength": 0.06},
     ]
     global_noise_model = NoiseModel(global_processes)
 
@@ -339,7 +339,7 @@ def test_create_local_noise_model() -> None:
     expected_processes_5 = [
         {"name": "pauli_x", "sites": [1], "strength": 0.02},
         {"name": "pauli_x", "sites": [3], "strength": 0.04},
-        {"name": "longrange_crosstalk_xx", "sites": [1, 3], "strength": 0.06}
+        {"name": "longrange_crosstalk_xx", "sites": [1, 3], "strength": 0.06},
     ]
 
     assert len(local_model_5.processes) == len(expected_processes_5)
@@ -509,7 +509,9 @@ def test_digital_tjm_longrange_noise() -> None:
     )
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
-    sim_params = StrongSimParams(observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=num_layers - 1)
+    sim_params = StrongSimParams(
+        observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=num_layers - 1
+    )
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
 

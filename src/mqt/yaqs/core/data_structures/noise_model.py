@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 
 CROSSTALK_PREFIX = "longrange_crosstalk_"
 PAULI_MAP = {
-    "x": getattr(NoiseLibrary, "pauli_x")().matrix,
-    "y": getattr(NoiseLibrary, "pauli_y")().matrix,
-    "z": getattr(NoiseLibrary, "pauli_z")().matrix,
+    "x": NoiseLibrary.pauli_x().matrix,
+    "y": NoiseLibrary.pauli_y().matrix,
+    "z": NoiseLibrary.pauli_z().matrix,
 }
 
 
@@ -82,30 +82,29 @@ class NoiseModel:
                         # Adjacent: ensure a matrix is present or derive it from library operator
                         if "matrix" not in proc:
                             proc["matrix"] = self.get_operator(proc["name"])
+                    # long-range case
+                    elif name.startswith(CROSSTALK_PREFIX):
+                        # derive factors if not provided
+                        if "factors" not in proc:
+                            suffix = name.rsplit("_", 1)[-1]  # e.g. "xy"
+                            if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
+                                msg = (
+                                    f"Invalid crosstalk label '{name}'. "
+                                    f"Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                                )
+                                raise AssertionError(msg)
+                            a, b = suffix[0], suffix[1]
+                            proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
                     else:
-                        # long-range case
-                        if name.startswith(CROSSTALK_PREFIX):
-                            # derive factors if not provided
-                            if "factors" not in proc:
-                                suffix = name.rsplit("_", 1)[-1]   # e.g. "xy"
-                                if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
-                                    raise AssertionError(
-                                        f"Invalid crosstalk label '{name}'. "
-                                        f"Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
-                                    )
-                                a, b = suffix[0], suffix[1]
-                                proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
-                        else:
-                            # not a recognized long-range crosstalk label:
-                            # require explicit factors to avoid guessing
-                            assert "factors" in proc, (
-                                "Non-adjacent 2-site processes must specify 'factors' "
-                                "unless named 'longrange_crosstalk_{ab}'."
-                            )
-                else:
-                    # 1-site: ensure we have a matrix operator
-                    if "matrix" not in proc:
-                        proc["matrix"] = self.get_operator(proc["name"])
+                        # not a recognized long-range crosstalk label:
+                        # require explicit factors to avoid guessing
+                        assert "factors" in proc, (
+                            "Non-adjacent 2-site processes must specify 'factors' "
+                            "unless named 'longrange_crosstalk_{ab}'."
+                        )
+                # 1-site: ensure we have a matrix operator
+                elif "matrix" not in proc:
+                    proc["matrix"] = self.get_operator(proc["name"])
 
                 self.processes.append(proc)
 
