@@ -61,10 +61,9 @@ class NoiseModel:
         processes :
             A list of noise process dictionaries affecting the quantum system. Default is None.
 
-        Raises:
-            AssertionError: If required keys are missing in a process dict or if a
-            non-adjacent 2-site processis neither a recognized 'longrange_crosstalk_{ab}'
-            nor provides explicit 'factors'.
+        Note:
+            Input validation is performed and assertion errors may be raised by
+            internal helpers if inputs are malformed.
         """
         self.processes: list[dict[str, Any]] = []
         if processes is None:
@@ -87,7 +86,24 @@ class NoiseModel:
 
 
 def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Normalize processes with reduced nesting, preserving original semantics."""
+    """Fill processes with reduced nesting, preserving original semantics.
+
+    Parameters
+    ----------
+    processes:
+        List of process dictionaries to validate and complete.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        The validated and completed list of process dictionaries.
+
+    Raises
+    ------
+    AssertionError
+        If required keys are missing or if a non-adjacent 2-site process is neither
+        a recognized 'longrange_crosstalk_{ab}' nor provides explicit 'factors'.
+    """
     filled_processes: list[dict[str, Any]] = []
     for original in processes:
         assert "name" in original, "Each process must have a 'name' key"
