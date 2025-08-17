@@ -15,7 +15,6 @@ noise strengths are zero, the MPS is simply shifted to its canonical form.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -35,18 +34,24 @@ def is_two_site(proc: dict[str, Any]) -> bool:
 
     Expects a process dict with a "sites" field holding the target indices.
     """
-    s = proc.get("sites"); return isinstance(s, list) and len(s) == 2
+    s = proc.get("sites")
+    return isinstance(s, list) and len(s) == 2
+
 
 def is_adjacent(proc: dict[str, Any]) -> bool:
     """Return True if the two-site process targets nearest neighbors.
 
     Assumes the process is two-site and checks |i-j| == 1.
     """
-    s = proc["sites"]; return abs(s[1] - s[0]) == 1
+    s = proc["sites"]
+    return abs(s[1] - s[0]) == 1
+
 
 def is_longrange(proc: dict[str, Any]) -> bool:
     """Return True if the two-site process is long-range (non-neighbor)."""
-    s = proc["sites"]; return abs(s[1] - s[0]) > 1
+    s = proc["sites"]
+    return abs(s[1] - s[0]) > 1
+
 
 def is_pauli_crosstalk_adjacent(proc: dict[str, Any]) -> bool:
     """Return True for adjacent two-site Pauli crosstalk processes.
@@ -55,13 +60,18 @@ def is_pauli_crosstalk_adjacent(proc: dict[str, Any]) -> bool:
     """
     return is_two_site(proc) and is_adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
 
+
 def is_pauli_crosstalk_longrange(proc: dict[str, Any]) -> bool:
     """Return True for long-range two-site Pauli crosstalk processes.
 
     Matches canonical names like "longrange_crosstalk_xy" or any process that
     carries explicit per-site "factors" in lieu of a full Kronecker matrix.
     """
-    return is_two_site(proc) and is_longrange(proc) and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
+    return (
+        is_two_site(proc)
+        and is_longrange(proc)
+        and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
+    )
 
 
 def apply_dissipation(
@@ -103,8 +113,8 @@ def apply_dissipation(
         for process in noise_model.processes:
             if len(process["sites"]) == 1 and process["sites"][0] == i:
                 gamma = process["strength"]
-                if process["name"] in ["pauli_x", "pauli_y", "pauli_z"]:
-                    dissipative_factor = np.exp(-0.5 * dt * gamma) 
+                if process["name"] in {"pauli_x", "pauli_y", "pauli_z"}:
+                    dissipative_factor = np.exp(-0.5 * dt * gamma)
                     state.tensors[i] *= dissipative_factor
                 else:
                     jump_op_mat = process["matrix"]
@@ -112,40 +122,38 @@ def apply_dissipation(
                     dissipative_op = expm(-0.5 * dt * gamma * mat)
                     state.tensors[i] = oe.contract("ab, bcd->acd", dissipative_op, state.tensors[i])
 
-            processes_here = []
-            for process in noise_model.processes:
-                if len(process["sites"])==2:
-                    if process["sites"][1] == i:
-                        processes_here.append(process)
+            processes_here = [
+                process for process in noise_model.processes if len(process["sites"]) == 2 and process["sites"][1] == i
+            ]
         # 2. Apply all 2-site dissipators acting on sites (i-1, i)
         if i != 0:
             for process in processes_here:
                 gamma = process["strength"]
                 if process is is_pauli_crosstalk_adjacent(process) or is_pauli_crosstalk_longrange(process):
-                    dissipative_factor = np.exp(-0.5 * dt * gamma) 
+                    dissipative_factor = np.exp(-0.5 * dt * gamma)
                     state.tensors[i] *= dissipative_factor
-                
+
+                elif is_longrange(process):
+                    msg = "Non-Pauli Long-range processes are not implemented yet"
+                    raise NotImplementedError(msg)
                 else:
-                    if is_longrange(process):
-                        raise NotImplementedError("Non-Pauli Long-range processes are not implemented yet")
-                    else:
-                        jump_op_mat = process["matrix"]
-                        mat = np.conj(jump_op_mat).T @ jump_op_mat
-                        dissipative_op = expm(-0.5 * dt * gamma * mat)
+                    jump_op_mat = process["matrix"]
+                    mat = np.conj(jump_op_mat).T @ jump_op_mat
+                    dissipative_op = expm(-0.5 * dt * gamma * mat)
 
-                        merged_tensor = merge_mps_tensors(state.tensors[i - 1], state.tensors[i])
-                        merged_tensor = oe.contract("ab, bcd->acd", dissipative_op, merged_tensor)
+                    merged_tensor = merge_mps_tensors(state.tensors[i - 1], state.tensors[i])
+                    merged_tensor = oe.contract("ab, bcd->acd", dissipative_op, merged_tensor)
 
-                        # singular values always contracted right
-                        # since ortho center is shifted to the left after loop
-                        tensor_left, tensor_right = split_mps_tensor(
-                            merged_tensor,
-                            "right",
-                            sim_params,
-                            [state.physical_dimensions[i - 1], state.physical_dimensions[i]],
-                            dynamic=False,
-                        )
-                        state.tensors[i - 1], state.tensors[i] = tensor_left, tensor_right
+                    # singular values always contracted right
+                    # since ortho center is shifted to the left after loop
+                    tensor_left, tensor_right = split_mps_tensor(
+                        merged_tensor,
+                        "right",
+                        sim_params,
+                        [state.physical_dimensions[i - 1], state.physical_dimensions[i]],
+                        dynamic=False,
+                    )
+                    state.tensors[i - 1], state.tensors[i] = tensor_left, tensor_right
 
         # Shift orthogonality center
         if i != 0:
