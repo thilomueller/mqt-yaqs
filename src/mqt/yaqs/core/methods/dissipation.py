@@ -16,7 +16,7 @@ noise strengths are zero, the MPS is simply shifted to its canonical form.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import opt_einsum as oe
@@ -30,20 +30,20 @@ if TYPE_CHECKING:
     from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
 
-def _is_two_site(proc) -> bool: 
+def is_two_site(proc: dict[str, Any]) -> bool: 
     s = proc.get("sites"); return isinstance(s, list) and len(s) == 2
 
-def _adjacent(proc) -> bool:
+def is_adjacent(proc: dict[str, Any]) -> bool:
     s = proc["sites"]; return abs(s[1] - s[0]) == 1
 
-def _longrange(proc) -> bool:
+def is_longrange(proc: dict[str, Any]) -> bool:
     s = proc["sites"]; return abs(s[1] - s[0]) > 1
 
-def _is_pauli_crosstalk_adjacent(proc) -> bool:
-    return _is_two_site(proc) and _adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
+def is_pauli_crosstalk_adjacent(proc: dict[str, Any]) -> bool:
+    return is_two_site(proc) and is_adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
 
-def _is_pauli_crosstalk_longrange(proc) -> bool:
-    return _is_two_site(proc) and _longrange(proc) and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
+def is_pauli_crosstalk_longrange(proc: dict[str, Any]) -> bool:
+    return is_two_site(proc) and is_longrange(proc) and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
 
 
 def apply_dissipation(
@@ -103,12 +103,12 @@ def apply_dissipation(
         if i != 0:
             for process in processes_here:
                 gamma = process["strength"]
-                if process is _is_pauli_crosstalk_adjacent(process) or _is_pauli_crosstalk_longrange(process):
+                if process is is_pauli_crosstalk_adjacent(process) or is_pauli_crosstalk_longrange(process):
                     dissipative_factor = np.exp(-0.5 * dt * gamma) 
                     state.tensors[i] *= dissipative_factor
                 
                 else:
-                    if _longrange(process):
+                    if is_longrange(process):
                         raise NotImplementedError("Non-Pauli Long-range processes are not implemented yet")
                     else:
                         jump_op_mat = process["matrix"]

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import opt_einsum as oe
 
-from mqt.yaqs.core.methods.dissipation import _is_pauli_crosstalk_longrange
+from mqt.yaqs.core.methods.dissipation import is_pauli_crosstalk_longrange
 
 from ..methods.tdvp import merge_mps_tensors, split_mps_tensor
 
@@ -113,13 +113,13 @@ def create_probability_distribution(
         if site < state.length - 1:
             for process in noise_model.processes:
                 if len(process["sites"]) == 2 and process["sites"][0] == site:
-                    if _is_pauli_crosstalk_longrange(process):
+                    if is_pauli_crosstalk_longrange(process):
                         gamma = process["strength"]
                         dp_m = dt * gamma * state.norm(site)
                         dp_m_list.append(dp_m.real)
                         applicable_processes.append(process)  # Store reference to original process 
 
-                    if not _is_pauli_crosstalk_longrange(process) and process["sites"][1] == site + 1:
+                    if not is_pauli_crosstalk_longrange(process) and process["sites"][1] == site + 1:
                         gamma = process["strength"]
                         jump_op = process["matrix"]
                         jumped_state = copy.deepcopy(state)
@@ -210,7 +210,7 @@ def stochastic_process(
         # 2-site jump: check if long-range or adjacent
         i, j = sites
         
-        if _is_pauli_crosstalk_longrange(chosen_process):
+        if is_pauli_crosstalk_longrange(chosen_process):
             jump_op_0, jump_op_1 = chosen_process["factors"][0], chosen_process["factors"][1]
             state.tensors[i] = oe.contract("ab, bcd->acd", jump_op_0, state.tensors[i])
             state.tensors[j] = oe.contract("ab, bcd->acd", jump_op_1, state.tensors[j])
