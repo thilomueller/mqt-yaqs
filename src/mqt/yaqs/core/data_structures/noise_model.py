@@ -61,11 +61,10 @@ class NoiseModel:
         processes :
             A list of noise process dictionaries affecting the quantum system. Default is None.
 
-        Raises
-        ------
-        AssertionError
-            If required keys are missing in a process dict or if a non-adjacent 2-site process
-            is neither a recognized 'longrange_crosstalk_{ab}' nor provides explicit 'factors'.
+        Raises:
+            AssertionError: If required keys are missing in a process dict or if a 
+            non-adjacent 2-site processis neither a recognized 'longrange_crosstalk_{ab}' 
+            nor provides explicit 'factors'.
         """
         self.processes: list[dict[str, Any]] = []
         if processes is not None:
