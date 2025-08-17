@@ -54,12 +54,18 @@ class NoiseModel:
     """
 
     def __init__(self, processes: list[dict[str, Any]] | None = None) -> None:
-        """Initializes the NoiseModel.
+        """Initialize the NoiseModel.
 
         Parameters
         ----------
         processes :
-            A dict of noise processes affecting the quantum system. Default is None.
+            A list of noise process dictionaries affecting the quantum system. Default is None.
+
+        Raises
+        ------
+        AssertionError
+            If required keys are missing in a process dict or if a non-adjacent 2-site process
+            is neither a recognized 'longrange_crosstalk_{ab}' nor provides explicit 'factors'.
         """
         self.processes: list[dict[str, Any]] = []
         if processes is not None:
