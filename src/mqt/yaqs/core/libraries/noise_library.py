@@ -203,55 +203,55 @@ class LongRangeCrosstalkXX:
         factors (tuple[np.ndarray, np.ndarray]): Per-site 2x2 operators (A at first site, B at second).
     """
 
-    factors = (PauliX.matrix, PauliX.matrix)
+    factors = [PauliX.matrix, PauliX.matrix]
 
 
 class LongRangeCrosstalkXY:
     """Long-range crosstalk factors X ⊗ Y (factor-only, no full matrix)."""
 
-    factors = (PauliX.matrix, PauliY.matrix)
+    factors = [PauliX.matrix, PauliY.matrix]
 
 
 class LongRangeCrosstalkXZ:
     """Long-range crosstalk factors X ⊗ Z (factor-only, no full matrix)."""
 
-    factors = (PauliX.matrix, PauliZ.matrix)
+    factors = [PauliX.matrix, PauliZ.matrix]
 
 
 class LongRangeCrosstalkYX:
     """Long-range crosstalk factors Y ⊗ X (factor-only, no full matrix)."""
 
-    factors = (PauliY.matrix, PauliX.matrix)
+    factors = [PauliY.matrix, PauliX.matrix]
 
 
 class LongRangeCrosstalkYY:
     """Long-range crosstalk factors Y ⊗ Y (factor-only, no full matrix)."""
 
-    factors = (PauliY.matrix, PauliY.matrix)
+    factors = [PauliY.matrix, PauliY.matrix]
 
 
 class LongRangeCrosstalkYZ:
     """Long-range crosstalk factors Y ⊗ Z (factor-only, no full matrix)."""
 
-    factors = (PauliY.matrix, PauliZ.matrix)
+    factors = [PauliY.matrix, PauliZ.matrix]
 
 
 class LongRangeCrosstalkZX:
     """Long-range crosstalk factors Z ⊗ X (factor-only, no full matrix)."""
 
-    factors = (PauliZ.matrix, PauliX.matrix)
+    factors = [PauliZ.matrix, PauliX.matrix]
 
 
 class LongRangeCrosstalkZY:
     """Long-range crosstalk factors Z ⊗ Y (factor-only, no full matrix)."""
 
-    factors = (PauliZ.matrix, PauliY.matrix)
+    factors = [PauliZ.matrix, PauliY.matrix]
 
 
 class LongRangeCrosstalkZZ:
     """Long-range crosstalk factors Z ⊗ Z (factor-only, no full matrix)."""
 
-    factors = (PauliZ.matrix, PauliZ.matrix)
+    factors = [PauliZ.matrix, PauliZ.matrix]
 
 
 class NoiseLibrary:
