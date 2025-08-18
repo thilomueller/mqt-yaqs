@@ -108,8 +108,7 @@ def test_create_probability_distribution_no_noise() -> None:
     noise_model = NoiseModel([])
     dt = 0.1
     sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
-    applicable_processes, probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
-    assert len(applicable_processes) == 0, "No applicable processes should be found with empty noise model."
+    probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
     assert len(probabilities) == 0, "No probabilities should be computed with empty noise model."
 
 
@@ -128,12 +127,11 @@ def test_create_probability_distribution_one_site() -> None:
     ])
     dt = 0.1
     sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
-    applicable_processes, probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
+    probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
     # One applicable process
-    assert len(applicable_processes) == 1
     assert len(probabilities) == 1
     # Check process properties
-    process = applicable_processes[0]
+    process = noise_model.processes[0]
     assert process["sites"] == [1]
     assert process["strength"] == 0.5
     # Check probability normalization
@@ -195,12 +193,11 @@ def test_create_probability_distribution_two_site() -> None:
     ])
     dt = 0.1
     sim_params = AnalogSimParams(observables=[], elapsed_time=0.0, max_bond_dim=5, threshold=1e-10)
-    applicable_processes, probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
+    probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
     # One applicable process
-    assert len(applicable_processes) == 1
     assert len(probabilities) == 1
     # Check process properties
-    process = applicable_processes[0]
+    process = noise_model.processes[0]
     assert process["sites"] == [0, 1]
     assert process["strength"] == 0.2
     # Check probability normalization

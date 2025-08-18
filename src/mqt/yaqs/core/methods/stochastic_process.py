@@ -87,9 +87,8 @@ def create_probability_distribution(
             - List of normalized probabilities corresponding to each process
     """
     if noise_model is None or not noise_model.processes:
-        return [], []
+        return []
 
-    applicable_processes = []  # References to original processes
     dp_m_list = []
 
     for site in range(state.length):
@@ -107,7 +106,6 @@ def create_probability_distribution(
                 jumped_state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
                 dp_m = dt * gamma * jumped_state.norm(site)
                 dp_m_list.append(dp_m.real)
-                applicable_processes.append(process)  # Store reference to original process
 
         # --- 2-site jumps starting at [site, site+1] ---
         if site < state.length - 1:
@@ -117,7 +115,6 @@ def create_probability_distribution(
                         gamma = process["strength"]
                         dp_m = dt * gamma * state.norm(site)
                         dp_m_list.append(dp_m.real)
-                        applicable_processes.append(process)  # Store reference to original process
 
                     if not is_pauli_crosstalk_longrange(process) and process["sites"][1] == site + 1:
                         gamma = process["strength"]
@@ -142,13 +139,12 @@ def create_probability_distribution(
                         # compute the norm at `site`
 
                         dp_m_list.append(dp_m.real)
-                        applicable_processes.append(process)  # Store reference to original process
 
     # Normalize the probabilities
     dp: float = np.sum(dp_m_list)
     normalized_probabilities = (np.array(dp_m_list) / dp).tolist() if dp > 0 else [0.0] * len(dp_m_list)
 
-    return applicable_processes, normalized_probabilities
+    return normalized_probabilities
 
 
 def stochastic_process(
@@ -186,16 +182,16 @@ def stochastic_process(
         return state
 
     # A jump occurs: create the probability distribution and select a jump operator.
-    applicable_processes, probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
+    probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
 
-    if not applicable_processes:
+    if not probabilities:
         # No applicable processes, just normalize and return
         state.shift_orthogonality_center_left(0)
         return state
 
     # Select process by index using probabilities
-    choice_idx = rng.choice(len(applicable_processes), p=probabilities)
-    chosen_process = applicable_processes[choice_idx]
+    choice_idx = rng.choice(len(noise_model.processes), p=probabilities)
+    chosen_process = noise_model.processes[choice_idx]
 
     # Extract information from chosen process
     sites = chosen_process["sites"]
