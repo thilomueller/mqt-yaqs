@@ -57,7 +57,7 @@ def create_probability_distribution(
     noise_model: NoiseModel | None,
     dt: float,
     sim_params: AnalogSimParams | StrongSimParams | WeakSimParams,
-) -> tuple[list[dict[str, Any]], list[float]]:
+) -> list[float]:
     """Create a probability distribution for potential quantum jumps in the system.
 
     The function sweeps from left to right over the sites of the MPS. For each site,
@@ -82,9 +82,7 @@ def create_probability_distribution(
         sim_params: Simulation parameters, needed for splitting merged tensors (e.g., SVD threshold, bond dimension).
 
     Returns:
-        tuple[list[dict], list[float]]: A tuple containing:
-            - List of references to applicable processes from the noise model
-            - List of normalized probabilities corresponding to each process
+        list[float]: Normalized probabilities corresponding to applicable processes
     """
     if noise_model is None or not noise_model.processes:
         return []
@@ -187,9 +185,22 @@ def stochastic_process(
         state.shift_orthogonality_center_left(0)
         return state
 
-    # Select process by index using probabilities
-    choice_idx = rng.choice(len(noise_model.processes), p=probabilities)
-    chosen_process = noise_model.processes[choice_idx]
+    # Select process by index using probabilities over all processes
+    if len(probabilities) != len(noise_model.processes):
+        # Fallback: if probabilities were only computed for applicable processes,
+        # rebuild a mask to map indices; ensure lengths match
+        applicable_indices = []
+        idx_counter = 0
+        for idx, proc in enumerate(noise_model.processes):
+            sites = proc["sites"]
+            if len(sites) == 1 or (len(sites) == 2 and (is_longrange(proc) or abs(sites[1] - sites[0]) == 1)):
+                applicable_indices.append(idx)
+                idx_counter += 1
+        choice_rel = rng.choice(len(applicable_indices), p=probabilities)
+        chosen_process = noise_model.processes[applicable_indices[choice_rel]]
+    else:
+        choice_idx = rng.choice(len(noise_model.processes), p=probabilities)
+        chosen_process = noise_model.processes[choice_idx]
 
     # Extract information from chosen process
     sites = chosen_process["sites"]
