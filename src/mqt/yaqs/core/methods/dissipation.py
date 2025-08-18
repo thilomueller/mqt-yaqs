@@ -103,7 +103,7 @@ def apply_dissipation(
         for process in noise_model.processes:
             if len(process["sites"]) == 1 and process["sites"][0] == i:
                 gamma = process["strength"]
-                if process["name"] in {"pauli_x", "pauli_y", "pauli_z"}:
+                if is_pauli(process):
                     dissipative_factor = np.exp(-0.5 * dt * gamma)
                     state.tensors[i] *= dissipative_factor
                 else:

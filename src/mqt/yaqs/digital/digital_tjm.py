@@ -51,11 +51,10 @@ def create_local_noise_model(noise_model: NoiseModel, first_site: int, last_site
         NoiseModel: The local noise model.
     """
     affected_sites = [first_site, last_site]
-    noise_model_copy = copy.deepcopy(noise_model)
 
     local_processes = [
         process
-        for process in noise_model_copy.processes
+        for process in noise_model.processes
         if process["sites"] == affected_sites or process["sites"] == [first_site] or process["sites"] == [last_site]
     ]
     return NoiseModel(local_processes)
