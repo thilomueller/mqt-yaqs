@@ -142,9 +142,7 @@ def create_probability_distribution(
 
     # Normalize the probabilities
     dp: float = np.sum(dp_m_list)
-    normalized_probabilities = (np.array(dp_m_list) / dp).tolist() if dp > 0 else [0.0] * len(dp_m_list)
-
-    return normalized_probabilities
+    return (np.array(dp_m_list) / dp).tolist() if dp > 0 else [0.0] * len(dp_m_list)
 
 
 def stochastic_process(
