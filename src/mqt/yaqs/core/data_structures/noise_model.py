@@ -94,9 +94,7 @@ class NoiseModel:
                     if str(name).startswith("crosstalk_"):
                         # infer matrix from suffix ab
                         suffix = str(name).rsplit("_", 1)[-1]
-                        assert len(suffix) == 2, (
-                            "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
-                        )
+                        assert len(suffix) == 2, "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                         assert all(c in "xyz" for c in suffix), (
                             "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                         )
@@ -111,9 +109,7 @@ class NoiseModel:
                 if str(name).startswith("crosstalk_"):
                     if "factors" not in proc:
                         suffix = str(name).rsplit("_", 1)[-1]
-                        assert len(suffix) == 2, (
-                            "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
-                        )
+                        assert len(suffix) == 2, "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                         assert all(c in "xyz" for c in suffix), (
                             "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                         )
@@ -200,9 +196,7 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
             if is_adjacent:
                 if str(name).startswith("crosstalk_"):
                     suffix = str(name).rsplit("_", 1)[-1]
-                    assert len(suffix) == 2, (
-                        "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
-                    )
+                    assert len(suffix) == 2, "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                     assert all(c in "xyz" for c in suffix), (
                         "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                     )
@@ -217,9 +211,7 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
             if str(name).startswith("crosstalk_"):
                 if "factors" not in proc:
                     suffix = str(name).rsplit("_", 1)[-1]
-                    assert len(suffix) == 2, (
-                        "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
-                    )
+                    assert len(suffix) == 2, "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                     assert all(c in "xyz" for c in suffix), (
                         "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                     )
