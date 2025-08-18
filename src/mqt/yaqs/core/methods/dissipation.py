@@ -52,9 +52,26 @@ def is_longrange(proc: dict[str, Any]) -> bool:
     s = proc["sites"]
     return bool(abs(s[1] - s[0]) > 1)
 
+
 def is_pauli(proc: dict[str, Any]) -> bool:
     """Return True if the process is a Pauli process."""
-    return bool(proc["name"] in {"pauli_x", "pauli_y", "pauli_z", "crosstalk_xx", "crosstalk_yy", "crosstalk_zz", "crosstalk_xy", "crosstalk_yx", "crosstalk_zy", "crosstalk_zx", "crosstalk_yz", "crosstalk_xz"})
+    return bool(
+        proc["name"]
+        in {
+            "pauli_x",
+            "pauli_y",
+            "pauli_z",
+            "crosstalk_xx",
+            "crosstalk_yy",
+            "crosstalk_zz",
+            "crosstalk_xy",
+            "crosstalk_yx",
+            "crosstalk_zy",
+            "crosstalk_zx",
+            "crosstalk_yz",
+            "crosstalk_xz",
+        }
+    )
 
 
 def apply_dissipation(
