@@ -36,7 +36,6 @@ from unittest.mock import patch
 
 import numpy as np
 
-
 from mqt.yaqs import simulator
 from mqt.yaqs.analog.analog_tjm import analog_tjm_1, analog_tjm_2, initialize, step_through
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
