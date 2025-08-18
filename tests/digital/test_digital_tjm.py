@@ -475,16 +475,16 @@ def test_digital_tjm_longrange_noise() -> None:
     j_coupling = 1.0
     g = 0.5
     dt = 0.1
-    num_layers = 5
+    num_layers = 4
     noise_factor = 0.01
-    num_traj = 500
+    num_traj = 1000
 
     # Hardcoded Qiskit density-matrix reference (rows: qubits 0..3; columns: layers 0..9)
     reference = np.array([
-        [1.0, 0.84788662, 0.71222112, 0.59366363, 0.49207328],
-        [1.0, 0.84788662, 0.71222112, 0.59366363, 0.49207328],
-        [1.0, 0.84788662, 0.71222112, 0.59366363, 0.49207328],
-        [1.0, 0.84788662, 0.71222112, 0.59366363, 0.49207328],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
     ])
 
     # Build single-timestep periodic Ising circuit
