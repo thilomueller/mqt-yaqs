@@ -36,6 +36,7 @@ from unittest.mock import patch
 import numpy as np
 from typing import Any
 
+
 from mqt.yaqs import simulator
 from mqt.yaqs.analog.analog_tjm import analog_tjm_1, analog_tjm_2, initialize, step_through
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
@@ -378,12 +379,12 @@ def test_analog_simulation_twositeprocesses() -> None:
 def test_analog_simulation_two_site_lowering_against_qutip() -> None:
     """Analog simulation with single-site and two-site lowering against QuTiP.
 
-    This test simulates a 3-qubit Ising chain with both single-site lowering (σ−)
-    and adjacent two-site lowering (σ− ⊗ σ−) noise processes. It compares YAQS
+    This test simulates a 3-qubit Ising chain with both single-site lowering (sigma-)
+    and adjacent two-site lowering (sigma- x sigma-) noise processes. It compares YAQS
     analog simulation results to a hardcoded QuTiP master-equation reference
     with a tolerance of 0.1 across all Z observables and time points. The setup
-    matches the reference parameters: L=3, J=1.0, g=0.5, γ_single=0.02,
-    γ_pair=0.01, T=1.0, dt=0.05, and num_traj=200.
+    matches the reference parameters: L=3, J=1.0, g=0.5, gamma_single=0.02,
+    gamma_pair=0.01, T=1.0, dt=0.05, and num_traj=200.
     """
 
 
