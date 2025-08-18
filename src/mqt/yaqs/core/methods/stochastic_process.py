@@ -16,12 +16,12 @@ to simulate noise-induced evolution in quantum many-body systems.
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING 
+from typing import TYPE_CHECKING
 
 import numpy as np
 import opt_einsum as oe
 
-from mqt.yaqs.core.methods.dissipation import is_pauli, is_longrange
+from mqt.yaqs.core.methods.dissipation import is_longrange, is_pauli
 
 from ..methods.tdvp import merge_mps_tensors, split_mps_tensor
 
