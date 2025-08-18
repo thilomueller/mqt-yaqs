@@ -94,8 +94,11 @@ class NoiseModel:
                     if str(name).startswith("crosstalk_"):
                         # infer matrix from suffix ab
                         suffix = str(name).rsplit("_", 1)[-1]
-                        assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
-                            f"Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x, y, z}."
+                        assert len(suffix) == 2, (
+                            "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                        )
+                        assert all(c in "xyz" for c in suffix), (
+                            "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                         )
                         a, b = suffix[0], suffix[1]
                         proc["matrix"] = np.kron(PAULI_MAP[a], PAULI_MAP[b])
@@ -108,8 +111,11 @@ class NoiseModel:
                 if str(name).startswith("crosstalk_"):
                     if "factors" not in proc:
                         suffix = str(name).rsplit("_", 1)[-1]
-                        assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
-                            f"Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x, y, z}."
+                        assert len(suffix) == 2, (
+                            "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                        )
+                        assert all(c in "xyz" for c in suffix), (
+                            "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                         )
                         a, b = suffix[0], suffix[1]
                         proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
@@ -120,8 +126,11 @@ class NoiseModel:
                 if str(name).startswith(CROSSTALK_PREFIX):
                     if "factors" not in proc:
                         suffix = str(name).rsplit("_", 1)[-1]
-                        assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
-                            f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                        assert len(suffix) == 2, (
+                            f"Invalid crosstalk label. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                        )
+                        assert all(c in "xyz" for c in suffix), (
+                            f"Invalid crosstalk label. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
                         )
                         a, b = suffix[0], suffix[1]
                         proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
@@ -168,10 +177,6 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
     -------
     list[dict[str, Any]]
         The validated and completed list of process dictionaries.
-
-    Raises:
-        AssertionError: If required keys are missing or if a non-adjacent 2-site process
-            is neither a recognized 'longrange_crosstalk_{ab}' nor provides explicit 'factors'.
     """
     filled_processes: list[dict[str, Any]] = []
     for original in processes:
@@ -195,8 +200,11 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
             if is_adjacent:
                 if str(name).startswith("crosstalk_"):
                     suffix = str(name).rsplit("_", 1)[-1]
-                    assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
-                        f"Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x, y, z}."
+                    assert len(suffix) == 2, (
+                        "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                    )
+                    assert all(c in "xyz" for c in suffix), (
+                        "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                     )
                     a, b = suffix[0], suffix[1]
                     proc["matrix"] = np.kron(PAULI_MAP[a], PAULI_MAP[b])
@@ -209,8 +217,11 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
             if str(name).startswith("crosstalk_"):
                 if "factors" not in proc:
                     suffix = str(name).rsplit("_", 1)[-1]
-                    assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
-                        f"Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x, y, z}."
+                    assert len(suffix) == 2, (
+                        "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                    )
+                    assert all(c in "xyz" for c in suffix), (
+                        "Invalid crosstalk label. Expected 'crosstalk_ab' with a,b in {x,y,z}."
                     )
                     a, b = suffix[0], suffix[1]
                     proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
@@ -221,8 +232,11 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
             if str(name).startswith(CROSSTALK_PREFIX):
                 if "factors" not in proc:
                     suffix = str(name).rsplit("_", 1)[-1]
-                    assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
-                        f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                    assert len(suffix) == 2, (
+                        f"Invalid crosstalk label. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                    )
+                    assert all(c in "xyz" for c in suffix), (
+                        f"Invalid crosstalk label. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
                     )
                     a, b = suffix[0], suffix[1]
                     proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
