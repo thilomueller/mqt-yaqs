@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ..data_structures.noise_model import NoiseModel
     from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
+
 def is_adjacent(proc: dict[str, Any]) -> bool:
     """Return True if the two-site process targets nearest neighbors.
 
