@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 from ..libraries.noise_library import NoiseLibrary
 
 if TYPE_CHECKING:
@@ -87,22 +89,40 @@ class NoiseModel:
                 i, j = proc["sites"]
                 is_adjacent = abs(j - i) == 1
 
-                # Adjacent two-site
+                # Adjacent two-site: use full matrix
                 if is_adjacent:
-                    if "matrix" not in proc:
+                    if str(name).startswith("crosstalk_"):
+                        # infer matrix from suffix ab
+                        suffix = str(name).rsplit("_", 1)[-1]
+                        assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
+                            "Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                        )
+                        a, b = suffix[0], suffix[1]
+                        proc["matrix"] = np.kron(PAULI_MAP[a], PAULI_MAP[b])
+                    elif "matrix" not in proc:
                         proc["matrix"] = NoiseModel.get_operator(name)
                     filled_processes.append(proc)
                     continue
 
-                # Long-range two-site with canonical label
+                # Non-adjacent two-site: attach per-site factors for crosstalk labels
+                if str(name).startswith("crosstalk_"):
+                    if "factors" not in proc:
+                        suffix = str(name).rsplit("_", 1)[-1]
+                        assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
+                            "Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                        )
+                        a, b = suffix[0], suffix[1]
+                        proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
+                    filled_processes.append(proc)
+                    continue
+
+                # Long-range two-site with canonical legacy label
                 if str(name).startswith(CROSSTALK_PREFIX):
                     if "factors" not in proc:
                         suffix = str(name).rsplit("_", 1)[-1]
-                        if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
-                            msg = (
-                                f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
-                            )
-                            raise AssertionError(msg)
+                        assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
+                            f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                        )
                         a, b = suffix[0], suffix[1]
                         proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
                     filled_processes.append(proc)
@@ -110,7 +130,7 @@ class NoiseModel:
 
                 # Other long-range two-site: require explicit factors
                 assert "factors" in proc, (
-                    "Non-adjacent 2-site processes must specify 'factors' unless named 'longrange_crosstalk_{ab}'."
+                    "Non-adjacent 2-site processes must specify 'factors' unless named 'crosstalk_{ab}'."
                 )
                 filled_processes.append(proc)
                 continue
@@ -173,8 +193,27 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
 
             # Adjacent two-site
             if is_adjacent:
-                if "matrix" not in proc:
+                if str(name).startswith("crosstalk_"):
+                    suffix = str(name).rsplit("_", 1)[-1]
+                    assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
+                        "Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                    )
+                    a, b = suffix[0], suffix[1]
+                    proc["matrix"] = np.kron(PAULI_MAP[a], PAULI_MAP[b])
+                elif "matrix" not in proc:
                     proc["matrix"] = NoiseModel.get_operator(name)
+                filled_processes.append(proc)
+                continue
+
+            # Non-adjacent two-site with standard crosstalk label
+            if str(name).startswith("crosstalk_"):
+                if "factors" not in proc:
+                    suffix = str(name).rsplit("_", 1)[-1]
+                    assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
+                        "Invalid crosstalk label '{name}'. Expected 'crosstalk_ab' with a,b in {x,y,z}."
+                    )
+                    a, b = suffix[0], suffix[1]
+                    proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
                 filled_processes.append(proc)
                 continue
 
@@ -182,11 +221,9 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
             if str(name).startswith(CROSSTALK_PREFIX):
                 if "factors" not in proc:
                     suffix = str(name).rsplit("_", 1)[-1]
-                    if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
-                        msg = (
-                            f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
-                        )
-                        raise AssertionError(msg)
+                    assert len(suffix) == 2 and all(c in "xyz" for c in suffix), (
+                        f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
+                    )
                     a, b = suffix[0], suffix[1]
                     proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
                 filled_processes.append(proc)
@@ -194,7 +231,7 @@ def _fill_noise_processes_flat(processes: list[dict[str, Any]]) -> list[dict[str
 
             # Other long-range two-site: require explicit factors
             assert "factors" in proc, (
-                "Non-adjacent 2-site processes must specify 'factors' unless named 'longrange_crosstalk_{ab}'."
+                "Non-adjacent 2-site processes must specify 'factors' unless named 'crosstalk_{ab}'."
             )
             filled_processes.append(proc)
             continue

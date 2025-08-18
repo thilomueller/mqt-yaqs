@@ -174,7 +174,7 @@ def test_longrange_unknown_label_without_factors_raises() -> None:
         AssertionError: If the model accepts an unknown long-range label without factors.
     """
     try:
-        # Name is not a recognized 'longrange_crosstalk_{ab}' and no factors provided
+        # Name is not a recognized non-adjacent 'crosstalk_{ab}' and no factors provided
         _ = NoiseModel([{"name": "foo_bar", "sites": [0, 2], "strength": 0.1}])
     except AssertionError:
         return

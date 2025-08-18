@@ -236,7 +236,7 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_yy", "sites": [3, 4], "strength": 0.08},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
-        {"name": "longrange_crosstalk_xx", "sites": [1, 3], "strength": 0.06},
+        {"name": "crosstalk_xx", "sites": [1, 3], "strength": 0.06},
     ]
     global_noise_model = NoiseModel(global_processes)
 
@@ -339,7 +339,7 @@ def test_create_local_noise_model() -> None:
     expected_processes_5 = [
         {"name": "pauli_x", "sites": [1], "strength": 0.02},
         {"name": "pauli_x", "sites": [3], "strength": 0.04},
-        {"name": "longrange_crosstalk_xx", "sites": [1, 3], "strength": 0.06},
+        {"name": "crosstalk_xx", "sites": [1, 3], "strength": 0.06},
     ]
 
     assert len(local_model_5.processes) == len(expected_processes_5)
@@ -499,13 +499,13 @@ def test_digital_tjm_longrange_noise() -> None:
     noise_model = NoiseModel(
         [{"name": "pauli_x", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
         + [{"name": "crosstalk_xx", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
-        + [{"name": "longrange_crosstalk_xx", "sites": [0, num_qubits - 1], "strength": noise_factor}]
+        + [{"name": "crosstalk_xx", "sites": [0, num_qubits - 1], "strength": noise_factor}]
         + [{"name": "pauli_y", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
         + [{"name": "crosstalk_yy", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
-        + [{"name": "longrange_crosstalk_yy", "sites": [0, num_qubits - 1], "strength": noise_factor}]
+        + [{"name": "crosstalk_yy", "sites": [0, num_qubits - 1], "strength": noise_factor}]
         + [{"name": "pauli_z", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
         + [{"name": "crosstalk_zz", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
-        + [{"name": "longrange_crosstalk_zz", "sites": [0, num_qubits - 1], "strength": noise_factor}]
+        + [{"name": "crosstalk_zz", "sites": [0, num_qubits - 1], "strength": noise_factor}]
     )
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]

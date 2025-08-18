@@ -196,64 +196,6 @@ class CrossTalkXZ:
     matrix = np.kron(PauliX.matrix, PauliZ.matrix)
 
 
-class LongRangeCrosstalkXX:
-    """Long-range crosstalk factors X ⊗ X (factor-only, no full matrix).
-
-    Attributes:
-        factors (tuple[np.ndarray, np.ndarray]): Per-site 2x2 operators (A at first site, B at second).
-    """
-
-    factors = [PauliX.matrix, PauliX.matrix]
-
-
-class LongRangeCrosstalkXY:
-    """Long-range crosstalk factors X ⊗ Y (factor-only, no full matrix)."""
-
-    factors = [PauliX.matrix, PauliY.matrix]
-
-
-class LongRangeCrosstalkXZ:
-    """Long-range crosstalk factors X ⊗ Z (factor-only, no full matrix)."""
-
-    factors = [PauliX.matrix, PauliZ.matrix]
-
-
-class LongRangeCrosstalkYX:
-    """Long-range crosstalk factors Y ⊗ X (factor-only, no full matrix)."""
-
-    factors = [PauliY.matrix, PauliX.matrix]
-
-
-class LongRangeCrosstalkYY:
-    """Long-range crosstalk factors Y ⊗ Y (factor-only, no full matrix)."""
-
-    factors = [PauliY.matrix, PauliY.matrix]
-
-
-class LongRangeCrosstalkYZ:
-    """Long-range crosstalk factors Y ⊗ Z (factor-only, no full matrix)."""
-
-    factors = [PauliY.matrix, PauliZ.matrix]
-
-
-class LongRangeCrosstalkZX:
-    """Long-range crosstalk factors Z ⊗ X (factor-only, no full matrix)."""
-
-    factors = [PauliZ.matrix, PauliX.matrix]
-
-
-class LongRangeCrosstalkZY:
-    """Long-range crosstalk factors Z ⊗ Y (factor-only, no full matrix)."""
-
-    factors = [PauliZ.matrix, PauliY.matrix]
-
-
-class LongRangeCrosstalkZZ:
-    """Long-range crosstalk factors Z ⊗ Z (factor-only, no full matrix)."""
-
-    factors = [PauliZ.matrix, PauliZ.matrix]
-
-
 class NoiseLibrary:
     """A library of noise processes.
 
@@ -274,15 +216,8 @@ class NoiseLibrary:
         crosstalk_zx: Cross talk between neighboring sites with Z x X.
         crosstalk_yz: Cross talk between neighboring sites with Y x Z.
         crosstalk_xz: Cross talk between neighboring sites with X x Z.
-        longrange_crosstalk_xx: Long-range crosstalk factors X,X (factor-only, no full matrix).
-        longrange_crosstalk_xy: Long-range crosstalk factors X,Y (factor-only, no full matrix).
-        longrange_crosstalk_xz: Long-range crosstalk factors X,Z (factor-only, no full matrix).
-        longrange_crosstalk_yx: Long-range crosstalk factors Y,X (factor-only, no full matrix).
-        longrange_crosstalk_yy: Long-range crosstalk factors Y,Y (factor-only, no full matrix).
-        longrange_crosstalk_yz: Long-range crosstalk factors Y,Z (factor-only, no full matrix).
-        longrange_crosstalk_zx: Long-range crosstalk factors Z,X (factor-only, no full matrix).
-        longrange_crosstalk_zy: Long-range crosstalk factors Z,Y (factor-only, no full matrix).
-        longrange_crosstalk_zz: Long-range crosstalk factors Z,Z (factor-only, no full matrix).
+        Note: Long-range crosstalk is handled by NoiseModel by attaching per-site
+        factors for non-adjacent pairs based on the process name (e.g., 'crosstalk_xy').
     """
 
     # Canonical names
@@ -302,12 +237,3 @@ class NoiseLibrary:
     crosstalk_zx = CrossTalkZX
     crosstalk_yz = CrossTalkYZ
     crosstalk_xz = CrossTalkXZ
-    longrange_crosstalk_xx = LongRangeCrosstalkXX
-    longrange_crosstalk_xy = LongRangeCrosstalkXY
-    longrange_crosstalk_xz = LongRangeCrosstalkXZ
-    longrange_crosstalk_yx = LongRangeCrosstalkYX
-    longrange_crosstalk_yy = LongRangeCrosstalkYY
-    longrange_crosstalk_yz = LongRangeCrosstalkYZ
-    longrange_crosstalk_zx = LongRangeCrosstalkZX
-    longrange_crosstalk_zy = LongRangeCrosstalkZY
-    longrange_crosstalk_zz = LongRangeCrosstalkZZ

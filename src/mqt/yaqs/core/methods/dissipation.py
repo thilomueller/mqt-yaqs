@@ -52,26 +52,9 @@ def is_longrange(proc: dict[str, Any]) -> bool:
     s = proc["sites"]
     return bool(abs(s[1] - s[0]) > 1)
 
-
-def is_pauli_crosstalk_adjacent(proc: dict[str, Any]) -> bool:
-    """Return True for adjacent two-site Pauli crosstalk processes.
-
-    Matches names like "crosstalk_xy" for nearest-neighbor pairs.
-    """
-    return is_two_site(proc) and is_adjacent(proc) and str(proc["name"]).startswith("crosstalk_")
-
-
-def is_pauli_crosstalk_longrange(proc: dict[str, Any]) -> bool:
-    """Return True for long-range two-site Pauli crosstalk processes.
-
-    Matches canonical names like "longrange_crosstalk_xy" or any process that
-    carries explicit per-site "factors" in lieu of a full Kronecker matrix.
-    """
-    return (
-        is_two_site(proc)
-        and is_longrange(proc)
-        and (str(proc["name"]).startswith("longrange_crosstalk_") or "factors" in proc)
-    )
+def is_pauli(proc: dict[str, Any]) -> bool:
+    """Return True if the process is a Pauli process."""
+    return bool(proc["name"] in {"pauli_x", "pauli_y", "pauli_z", "crosstalk_xx", "crosstalk_yy", "crosstalk_zz", "crosstalk_xy", "crosstalk_yx", "crosstalk_zy", "crosstalk_zx", "crosstalk_yz", "crosstalk_xz"})
 
 
 def apply_dissipation(
@@ -129,7 +112,7 @@ def apply_dissipation(
         if i != 0:
             for process in processes_here:
                 gamma = process["strength"]
-                if is_pauli_crosstalk_adjacent(process) or is_pauli_crosstalk_longrange(process):
+                if is_pauli(process):
                     dissipative_factor = np.exp(-0.5 * dt * gamma)
                     state.tensors[i] *= dissipative_factor
 
