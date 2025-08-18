@@ -68,7 +68,7 @@ class NoiseModel:
         self.processes: list[dict[str, Any]] = []
         if processes is None:
             return
-        
+
         filled_processes: list[dict[str, Any]] = []
         for original in processes:
             assert "name" in original, "Each process must have a 'name' key"
@@ -99,9 +99,7 @@ class NoiseModel:
                     if "factors" not in proc:
                         suffix = str(name).rsplit("_", 1)[-1]
                         if len(suffix) != 2 or any(c not in "xyz" for c in suffix):
-                            msg = (
-                                f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
-                            )
+                            msg = f"Invalid crosstalk label '{name}'. Expected '{CROSSTALK_PREFIX}ab' with a,b in {{x,y,z}}."
                             raise AssertionError(msg)
                         a, b = suffix[0], suffix[1]
                         proc["factors"] = (PAULI_MAP[a], PAULI_MAP[b])
