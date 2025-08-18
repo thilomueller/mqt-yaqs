@@ -28,16 +28,6 @@ if TYPE_CHECKING:
     from ..data_structures.noise_model import NoiseModel
     from ..data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, WeakSimParams
 
-
-def is_two_site(proc: dict[str, Any]) -> bool:
-    """Return True if the process acts on exactly two sites.
-
-    Expects a process dict with a "sites" field holding the target indices.
-    """
-    s = proc.get("sites")
-    return isinstance(s, list) and len(s) == 2
-
-
 def is_adjacent(proc: dict[str, Any]) -> bool:
     """Return True if the two-site process targets nearest neighbors.
 
