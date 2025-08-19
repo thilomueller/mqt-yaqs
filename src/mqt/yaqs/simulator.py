@@ -24,10 +24,36 @@ All simulation results (e.g., observables, measurements) are aggregated and retu
 
 from __future__ import annotations
 
+# ---------------------------------------------------------------------------
+# Thread caps MUST be set before importing numpy/qiskit/etc.
+# (Placed immediately after __future__ to satisfy Python's import rules.)
+# ---------------------------------------------------------------------------
+import os as _os
+
+for _k, _v in {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1",
+    "BLIS_NUM_THREADS": "1",
+}.items():
+    _os.environ.setdefault(_k, _v)
+
+# ---------------------------------------------------------------------------
+
 import concurrent.futures
 import copy
 import multiprocessing
-from typing import TYPE_CHECKING
+import os
+from typing import TYPE_CHECKING, Iterable, List, Tuple
+
+# Soft dependency; we guard usage if unavailable
+try:
+    from threadpoolctl import threadpool_limits, threadpool_info  # type: ignore
+except Exception:  # pragma: no cover - optional dep
+    threadpool_limits = None  # type: ignore[assignment]
+    threadpool_info = None  # type: ignore[assignment]
 
 from qiskit.circuit import QuantumCircuit
 from tqdm import tqdm
@@ -42,25 +68,106 @@ if TYPE_CHECKING:
     from .core.data_structures.noise_model import NoiseModel
 
 
-import os
-
-
+# --------------------------
+# Linux/cgroup-safe CPU count
+# --------------------------
 def available_cpus() -> int:
-    """Determine the number of available CPU cores for parallel execution.
+    """Determine the number of CPUs visible to this process.
 
-    This function checks if the SLURM_CPUS_ON_NODE environment variable is set (indicating a SLURM-managed cluster job).
-    If so, it returns the number of CPUs specified by SLURM. Otherwise, it returns the total number of CPUs available
-    on the machine as reported by multiprocessing.cpu_count().
-
-    Returns:
-        int: The number of available CPU cores for parallel execution.
+    Prefers Linux cpu affinity/cgroups when available, then SLURM variables,
+    and finally falls back to multiprocessing.cpu_count().
     """
-    slurm_cpus = int(os.environ["SLURM_CPUS_ON_NODE"]) if "SLURM_CPUS_ON_NODE" in os.environ else None
-    machine_cpus = multiprocessing.cpu_count()
+    # 1) Respect Linux affinity/cgroups (taskset, container limits)
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:
+        pass
 
-    if slurm_cpus is None:
-        return machine_cpus
-    return slurm_cpus
+    # 2) Respect SLURM allocations if present
+    for var in ("SLURM_CPUS_PER_TASK", "SLURM_CPUS_ON_NODE"):
+        value = os.environ.get(var, "").strip()
+        if value:
+            try:
+                n = int(value)
+                if n > 0:
+                    return n
+            except ValueError:
+                pass
+
+    # 3) Fallback
+    return multiprocessing.cpu_count() or 1
+
+
+# ----------------------------------------
+# Prevent thread oversubscription per worker
+# ----------------------------------------
+THREAD_ENV_VARS = {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1",  # harmless on Linux
+    "BLIS_NUM_THREADS": "1",
+}
+
+
+def _limit_worker_threads(n_threads: int = 1) -> None:
+    """Initializer for worker processes to cap BLAS/OpenMP threads."""
+    # Env vars are already set at import time; setdefault keeps user overrides
+    for k, v in THREAD_ENV_VARS.items():
+        os.environ.setdefault(k, str(n_threads))
+
+    # Optional hardening if these libs are available
+    try:
+        import numexpr  # type: ignore
+        numexpr.set_num_threads(n_threads)
+    except Exception:
+        pass
+
+    try:
+        import mkl  # type: ignore
+        mkl.set_num_threads(n_threads)
+    except Exception:
+        pass
+
+    if threadpool_limits is not None:
+        try:
+            threadpool_limits(limits=n_threads)
+        except Exception:
+            pass
+
+    # Debug: print pools per worker if requested
+    if os.environ.get("YAQS_THREAD_DEBUG", "") == "1" and threadpool_info is not None:
+        try:
+            info = threadpool_info()
+            print(f"[worker {os.getpid()}] threadpoolctl info: {info}")
+        except Exception:
+            pass
+
+
+def _call_backend(backend, arg):
+    """Call backend(arg) with strict 1-thread cap even if libraries spawn later."""
+    if threadpool_limits is not None:
+        try:
+            with threadpool_limits(limits=1):
+                return backend(arg)
+        except Exception:
+            return backend(arg)
+    return backend(arg)
+
+
+def _chunks(seq: List, size: int) -> Iterable[List]:
+    """Yield successive chunks from seq of length size."""
+    for i in range(0, len(seq), size):
+        yield seq[i : i + size]
+
+
+def _run_batch(backend, batch_args: List[Tuple]):
+    """Run a list of backend calls in-process, applying per-call caps."""
+    out = []
+    for arg in batch_args:
+        out.append(_call_backend(backend, arg))
+    return out
 
 
 def _run_strong_sim(
@@ -71,22 +178,7 @@ def _run_strong_sim(
     *,
     parallel: bool,
 ) -> None:
-    """Run strong simulation trajectories for a quantum circuit using a strong simulation scheme.
-
-    This function executes circuit-based simulation trajectories using the 'digital_tjm' backend.
-    If the noise model is absent or its strengths are all zero, only a single trajectory is executed.
-    For each observable in sim_params.sorted_observables, the function initializes the observable,
-    runs the simulation trajectories (in parallel if specified), and aggregates the results.
-
-    Args:
-        initial_state (MPS): The initial system state as an MPS.
-        operator (QuantumCircuit): The quantum circuit representing the operation to simulate.
-        sim_params (StrongSimParams): Simulation parameters for strong simulation,
-                                      including the number of trajectories (num_traj),
-                                      time step (dt), and sorted observables.
-        noise_model (NoiseModel | None): The noise model applied during simulation.
-        parallel (bool): Flag indicating whether to run trajectories in parallel.
-    """
+    """Run strong simulation trajectories for a quantum circuit using a strong simulation scheme."""
     backend = digital_tjm
 
     if noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes):
@@ -98,21 +190,48 @@ def _run_strong_sim(
         observable.initialize(sim_params)
 
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
+
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(backend, arg): arg[0] for arg in args}
+        ctx = multiprocessing.get_context("spawn")
+
+        # Batch trajectories to reduce overhead
+        batch_size = 4
+        batches = list(_chunks(args, batch_size))
+
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=max_workers,
+            mp_context=ctx,
+            initializer=_limit_worker_threads,
+            initargs=(1,),
+        ) as executor:
+            futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
             with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
-                for future in concurrent.futures.as_completed(futures):
-                    i = futures[future]
-                    result = future.result()
-                    for obs_index, observable in enumerate(sim_params.sorted_observables):
-                        assert observable.trajectories is not None, "Trajectories should have been initialized"
-                        observable.trajectories[i] = result[obs_index]
-                    pbar.update(1)
+                while futures:
+                    done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                    for future in done:
+                        batch_index = futures.pop(future)
+                        try:
+                            results = future.result()  # list of results for that batch
+                        except Exception:
+                            # simple retry once for the whole batch
+                            new_fut = executor.submit(_run_batch, backend, batches[batch_index])
+                            futures[new_fut] = batch_index
+                            continue
+
+                        # Write back results for this batch
+                        batch = batches[batch_index]
+                        for local_j, result in enumerate(results):
+                            global_i = batch_index * batch_size + local_j
+                            if global_i >= len(args):
+                                break
+                            for obs_index, observable in enumerate(sim_params.sorted_observables):
+                                assert observable.trajectories is not None, "Trajectories should have been initialized"
+                                observable.trajectories[global_i] = result[obs_index]
+                            pbar.update(1)
     else:
         for i, arg in enumerate(args):
-            result = backend(arg)
+            result = _call_backend(backend, arg)
             for obs_index, observable in enumerate(sim_params.sorted_observables):
                 assert observable.trajectories is not None, "Trajectories should have been initialized"
                 observable.trajectories[i] = result[obs_index]
@@ -127,24 +246,7 @@ def _run_weak_sim(
     *,
     parallel: bool,
 ) -> None:
-    """Run weak simulation trajectories for a quantum circuit using a weak simulation scheme.
-
-    This function executes circuit-based simulation trajectories using the 'digital_tjm' backend,
-    adjusted for weak simulation parameters. If the noise model is absent or its strengths are all zero,
-    only a single trajectory is executed; otherwise, sim_params.num_traj is set to sim_params.shots and then shots
-    is set to 1. The trajectories are then executed (in parallel if specified) and the measurement results
-    are aggregated.
-
-    Args:
-        initial_state (MPS): The initial system state as an MPS.
-        operator (QuantumCircuit): The quantum circuit representing the operation to simulate.
-        sim_params (WeakSimParams): Simulation parameters for weak simulation,
-                                    including shot count and sorted observables.
-        noise_model (NoiseModel | None): The noise model applied during simulation.
-        parallel (bool): Flag indicating whether to run trajectories in parallel.
-
-
-    """
+    """Run weak simulation trajectories for a quantum circuit using a weak simulation scheme."""
     backend = digital_tjm
 
     if noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes):
@@ -155,19 +257,44 @@ def _run_weak_sim(
         assert not sim_params.get_state, "Cannot return state in noisy circuit simulation due to stochastics."
 
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
+
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(backend, arg): arg[0] for arg in args}
+        ctx = multiprocessing.get_context("spawn")
+
+        batch_size = 4
+        batches = list(_chunks(args, batch_size))
+
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=max_workers,
+            mp_context=ctx,
+            initializer=_limit_worker_threads,
+            initargs=(1,),
+        ) as executor:
+            futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
             with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
-                for future in concurrent.futures.as_completed(futures):
-                    i = futures[future]
-                    result = future.result()
-                    sim_params.measurements[i] = result
-                    pbar.update(1)
+                while futures:
+                    done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                    for future in done:
+                        batch_index = futures.pop(future)
+                        try:
+                            results = future.result()
+                        except Exception:
+                            new_fut = executor.submit(_run_batch, backend, batches[batch_index])
+                            futures[new_fut] = batch_index
+                            continue
+
+                        batch = batches[batch_index]
+                        for local_j, result in enumerate(results):
+                            global_i = batch_index * batch_size + local_j
+                            if global_i >= len(args):
+                                break
+                            # For weak sim, result is the measurement outcome structure
+                            sim_params.measurements[global_i] = result
+                            pbar.update(1)
     else:
         for i, arg in enumerate(args):
-            result = backend(arg)
+            result = _call_backend(backend, arg)
             sim_params.measurements[i] = result
     sim_params.aggregate_measurements()
 
@@ -180,21 +307,7 @@ def _run_circuit(
     *,
     parallel: bool,
 ) -> None:
-    """Run circuit-based simulation trajectories.
-
-    This function validates that the number of qubits in the quantum circuit matches the length of the MPS,
-    reverses the bit order of the circuit, and dispatches the simulation to the appropriate backend based on
-    whether the simulation parameters indicate strong or weak simulation.
-
-    Args:
-        initial_state (MPS): The initial system state as an MPS.
-        operator (QuantumCircuit): The quantum circuit to simulate.
-        sim_params (WeakSimParams | StrongSimParams): Simulation parameters for circuit simulation.
-        noise_model (NoiseModel | None): The noise model applied during simulation.
-        parallel (bool): Flag indicating whether to run trajectories in parallel.
-
-
-    """
+    """Run circuit-based simulation trajectories."""
     assert initial_state.length == operator.num_qubits, "State and circuit qubit counts do not match."
     operator = copy.deepcopy(operator.reverse_bits())
 
@@ -207,22 +320,7 @@ def _run_circuit(
 def _run_analog(
     initial_state: MPS, operator: MPO, sim_params: AnalogSimParams, noise_model: NoiseModel | None, *, parallel: bool
 ) -> None:
-    """Run analog simulation trajectories for Hamiltonian evolution.
-
-    This function selects the appropriate analog simulation backend based on sim_params.order
-    (either one-site or two-site evolution) and runs the simulation trajectories for the given Hamiltonian
-    (represented as an MPO). The trajectories are executed (in parallel if specified) and the results are aggregated.
-
-    Args:
-        initial_state (MPS): The initial system state as an MPS.
-        operator (MPO): The Hamiltonian operator represented as an MPO.
-        sim_params (AnalogSimParams): Simulation parameters for analog simulation,
-                                       including time step and evolution order.
-        noise_model (NoiseModel | None): The noise model applied during simulation.
-        parallel (bool): Flag indicating whether to run trajectories in parallel.
-
-
-    """
+    """Run analog simulation trajectories for Hamiltonian evolution."""
     backend = analog_tjm_1 if sim_params.order == 1 else analog_tjm_2
 
     if noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes):
@@ -236,19 +334,42 @@ def _run_analog(
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(backend, arg): arg[0] for arg in args}
+        ctx = multiprocessing.get_context("spawn")
+
+        batch_size = 1
+        batches = list(_chunks(args, batch_size))
+
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=max_workers,
+            mp_context=ctx,
+            initializer=_limit_worker_threads,
+            initargs=(1,),
+        ) as executor:
+            futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
             with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
-                for future in concurrent.futures.as_completed(futures):
-                    i = futures[future]
-                    result = future.result()
-                    for obs_index, observable in enumerate(sim_params.sorted_observables):
-                        assert observable.trajectories is not None, "Trajectories should have been initialized"
-                        observable.trajectories[i] = result[obs_index]
-                    pbar.update(1)
+                while futures:
+                    done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                    for future in done:
+                        batch_index = futures.pop(future)
+                        try:
+                            results = future.result()
+                        except Exception:
+                            new_fut = executor.submit(_run_batch, backend, batches[batch_index])
+                            futures[new_fut] = batch_index
+                            continue
+
+                        batch = batches[batch_index]
+                        for local_j, result in enumerate(results):
+                            global_i = batch_index * batch_size + local_j
+                            if global_i >= len(args):
+                                break
+                            for obs_index, observable in enumerate(sim_params.sorted_observables):
+                                assert observable.trajectories is not None, "Trajectories should have been initialized"
+                                observable.trajectories[global_i] = result[obs_index]
+                            pbar.update(1)
     else:
         for i, arg in enumerate(args):
-            result = backend(arg)
+            result = _call_backend(backend, arg)
             for obs_index, observable in enumerate(sim_params.sorted_observables):
                 assert observable.trajectories is not None, "Trajectories should have been initialized"
                 observable.trajectories[i] = result[obs_index]
@@ -263,23 +384,7 @@ def run(
     *,
     parallel: bool = True,
 ) -> None:
-    """Execute the common simulation routine for both circuit and Hamiltonian simulations.
-
-    This function first normalizes the initial state (MPS) to B normalization, then dispatches the simulation
-    to the appropriate backend based on the type of simulation parameters provided. For circuit-based simulations,
-    the operator must be a QuantumCircuit; for Hamiltonian simulations, the operator must be an MPO.
-
-    Args:
-        initial_state (MPS): The initial state of the system as an MPS. Must be B normalized.
-        operator (MPO | QuantumCircuit): The operator representing the evolution; an MPO for analog simulations
-            or a QuantumCircuit for circuit simulations.
-        sim_params (AnalogSimParams | StrongSimParams | WeakSimParams): Simulation parameters specifying
-                                                                         the simulation mode and settings.
-        noise_model (NoiseModel | None): The noise model to apply during simulation.
-        parallel (bool, optional): Whether to run trajectories in parallel. Defaults to True.
-
-
-    """
+    """Execute the common simulation routine for both circuit and Hamiltonian simulations."""
     # State must start in B normalization
     initial_state.normalize("B")
 
