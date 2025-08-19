@@ -198,7 +198,7 @@ def stochastic_process(
         jump_op = chosen_process["matrix"]
         state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
 
-    elif len(sites) == 2:
+    else:
         # 2-site jump: check if long-range or adjacent
         i, j = sites
 
@@ -221,9 +221,6 @@ def stochastic_process(
             )
             state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
 
-    else:
-        msg = "Jump operator must act on 1 or 2 sites."
-        raise ValueError(msg)
 
     # Normalize MPS after jump
     state.normalize("B", decomposition="SVD")

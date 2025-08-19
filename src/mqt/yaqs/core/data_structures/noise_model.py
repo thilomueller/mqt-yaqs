@@ -76,6 +76,7 @@ class NoiseModel:
             assert "name" in original, "Each process must have a 'name' key"
             assert "sites" in original, "Each process must have a 'sites' key"
             assert "strength" in original, "Each process must have a 'strength' key"
+            assert len(original["sites"]) <= 2, "Each noise process must have at most 2 sites"
 
             proc = dict(original)
             name = proc["name"]
