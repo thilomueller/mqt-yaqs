@@ -85,7 +85,7 @@ def create_probability_distribution(
     if noise_model is None or not noise_model.processes:
         return []
 
-    dp_m_list = []
+    dp_m_list: list[float] = []
 
     for site in range(state.length):
         # Shift ortho center to the right as needed (no shift for site 0)
@@ -101,7 +101,7 @@ def create_probability_distribution(
                 jumped_state = copy.deepcopy(state)
                 jumped_state.tensors[site] = oe.contract("ab, bcd->acd", jump_op, state.tensors[site])
                 dp_m = dt * gamma * jumped_state.norm(site)
-                dp_m_list.append(dp_m.real)
+                dp_m_list.append(float(dp_m.real))
 
         # --- 2-site jumps starting at [site, site+1] ---
         if site < state.length - 1:
@@ -110,7 +110,7 @@ def create_probability_distribution(
                     if is_pauli(process) and is_longrange(process):
                         gamma = process["strength"]
                         dp_m = dt * gamma * state.norm(site)
-                        dp_m_list.append(dp_m.real)
+                        dp_m_list.append(float(dp_m.real))
 
                     elif process["sites"][1] == site + 1:
                         gamma = process["strength"]
@@ -134,11 +134,11 @@ def create_probability_distribution(
                         jumped_state.tensors[site], jumped_state.tensors[site + 1] = tensor_left_new, tensor_right_new
                         # compute the norm at `site`
 
-                        dp_m_list.append(dp_m.real)
+                        dp_m_list.append(float(dp_m.real))
 
     # Normalize the probabilities
-    dp: float = np.sum(dp_m_list)
-    return (np.array(dp_m_list) / dp).tolist()
+    dp: float = float(np.sum(dp_m_list))
+    return [val / dp for val in dp_m_list]
 
 
 def stochastic_process(
