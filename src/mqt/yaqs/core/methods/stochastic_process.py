@@ -107,7 +107,7 @@ def create_probability_distribution(
         if site < state.length - 1:
             for process in noise_model.processes:
                 if len(process["sites"]) == 2 and process["sites"][0] == site:
-                    if is_pauli(process) and is_longrange(process):
+                    if is_pauli(process):
                         gamma = process["strength"]
                         dp_m = dt * gamma * state.norm(site)
                         dp_m_list.append(float(dp_m.real))
