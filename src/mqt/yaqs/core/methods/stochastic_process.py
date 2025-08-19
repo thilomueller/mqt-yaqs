@@ -221,7 +221,6 @@ def stochastic_process(
             )
             state.tensors[i], state.tensors[j] = tensor_left_new, tensor_right_new
 
-
     # Normalize MPS after jump
     state.normalize("B", decomposition="SVD")
     return state
