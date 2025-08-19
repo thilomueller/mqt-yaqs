@@ -256,7 +256,7 @@ def test_analog_simulation_twositeprocesses() -> None:
     gamma_pair = 0.01
     T = 1.0
     dt = 0.05
-    num_traj = 200
+    num_traj = 400
 
     # Setup YAQS simulation
     H = MPO()
