@@ -277,6 +277,8 @@ class WeakSimParams:
         The window size for the simulation.
     get_state:
         If True, output MPS is returned.
+    sample_layers:
+        If True, sample layers.
 
     Methods:
     --------
