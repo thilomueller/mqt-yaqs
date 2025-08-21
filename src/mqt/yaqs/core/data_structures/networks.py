@@ -385,7 +385,7 @@ class MPS:
         _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
 
         padded = np.full(K, np.nan)
-        padded[:min(K, len(s_vec))] = s_vec[:K]
+        padded[: min(K, len(s_vec))] = s_vec[:K]
         return padded
 
     def flip_network(self) -> None:
