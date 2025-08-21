@@ -281,79 +281,115 @@ class MPS:
 
         return global_max
 
+
     def get_total_bond(self) -> int:
-        bonds = [tensor.shape[1] for tensor in self.tensors[1::]]
+        """Compute total bond dimension.
+
+        Calculates the sum of all internal bond dimensions of the network.
+        Specifically, this sums the second index (left bond dimension)
+        of each tensor except for the first tensor.
+
+        Returns:
+            int: The total bond dimension across all internal bonds.
+        """
+        bonds = [tensor.shape[1] for tensor in self.tensors[1:]]
         return sum(bonds)
 
+
     def get_cost(self) -> int:
-        cost = [tensor.shape[1] ** 3 for tensor in self.tensors[1::]]
+        """Estimate contraction cost.
+
+        Approximates the computational cost of simulating the network
+        by summing the cube of each internal bond dimension. This is a
+        heuristic metric for the cost of tensor contractions.
+
+        Returns:
+            int: The estimated contraction cost of the network.
+        """
+        cost = [tensor.shape[1] ** 3 for tensor in self.tensors[1:]]
         return sum(cost)
 
+
     def get_entropy(self, sites: list[int]) -> np.float64:
-        """Von Neumann (Shannon) entropy of the Schmidt spectrum across bond (i, i+1)."""
+        """Compute bipartite entanglement entropy.
+
+        Calculates the von Neumann entropy of the reduced density matrix
+        across the bond between two adjacent sites. The entropy is obtained
+        from the Schmidt spectrum of the two-site state.
+
+        Args:
+            sites (list[int]): A list of exactly two adjacent site indices (i, i+1).
+
+        Returns:
+            np.float64: The entanglement entropy across the specified bond.
+
+        Raises:
+            AssertionError: If the sites list does not contain exactly two adjacent sites.
+        """
         assert len(sites) == 2, "Entropy is defined on a bond (two adjacent sites)."
         i, j = sites
         assert i + 1 == j, "Entropy is only defined for nearest-neighbor cut."
 
         a, b = self.tensors[i], self.tensors[j]
 
-        # Product state: right bond dimension = 1 → zero entanglement.
         if a.shape[2] == 1:
             return np.float64(0.0)
 
-        # 1) Two-site tensor theta_{(phys_i, L_i),(phys_j, R_j)}
         theta = np.tensordot(a, b, axes=(2, 1))
         phys_i, left = a.shape[0], a.shape[1]
         phys_j, right = b.shape[0], b.shape[2]
-
-        # 2) Matrix M with shape (L_i * phys_i) × (phys_j * R_j)
         theta_mat = theta.reshape(left * phys_i, phys_j * right)
 
-        # 3) SVD singular values (nonnegative reals)
-        s = np.linalg.svd(theta_mat, full_matrices=False, compute_uv=False)  # (k,) float64
-
-        # Turn singular values into probabilities and compute entropy safely
+        s = np.linalg.svd(theta_mat, full_matrices=False, compute_uv=False)
         s2 = (s.astype(np.float64)) ** 2
         norm: np.float64 = np.sum(s2, dtype=np.float64)
         if norm == np.float64(0.0):
             return np.float64(0.0)
 
         p = s2 / norm
-        # Avoid log(0) by adding tiny epsilon; stays in float64
         eps = np.finfo(np.float64).tiny
         ent = -1 * np.sum(p * np.log(p + eps), dtype=np.float64)
 
         return np.float64(ent)
 
     def get_schmidt_spectrum(self, sites: list[int]) -> NDArray[np.float64]:
-        assert len(sites) == 2, "Schmidt spectrum not defined on a bond."
-        assert sites[0] + 1 == sites[1], "Schmidt spectrum defined on long-range sites."
+        """Compute Schmidt spectrum.
+
+        Calculates the singular values of the bipartition between two
+        adjacent sites (the Schmidt coefficients). The spectrum is padded
+        or truncated to length 500 for consistent output size.
+
+        Args:
+            sites (list[int]): A list of exactly two adjacent site indices (i, i+1).
+
+        Returns:
+            NDArray[np.float64]: The Schmidt spectrum (length 500),
+            with unused entries filled with NaN.
+
+        Raises:
+            AssertionError: If the sites list does not contain exactly two adjacent sites.
+        """
+        assert len(sites) == 2, "Schmidt spectrum is defined on a bond (two adjacent sites)."
+        assert sites[0] + 1 == sites[1], "Schmidt spectrum only defined for nearest-neighbor cut."
         K = 500
         i, j = sites
         a, b = self.tensors[i], self.tensors[j]
 
-        # Avoids NaN if product state
         if a.shape[2] == 1:
             padded = np.full(K, np.nan)
             padded[0] = 1.0
             return padded
 
-        # 1) build the two-site tensor theta_{(phys_i,L),(phys_j,R)}
         theta = np.tensordot(a, b, axes=(2, 1))
         phys_i, left = a.shape[0], a.shape[1]
         phys_j, right = b.shape[0], b.shape[2]
-
-        # 2) reshape to matrix M of shape (L*phys_i) x (phys_j*R)
         theta_mat = theta.reshape(left * phys_i, phys_j * right)
 
-        # 3) full SVD
         _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
 
-        # 4) pad or trim to length 500
         padded = np.full(K, np.nan)
         padded[:min(K, len(s_vec))] = s_vec[:K]
         return padded
-
 
     def flip_network(self) -> None:
         """Flip MPS.
