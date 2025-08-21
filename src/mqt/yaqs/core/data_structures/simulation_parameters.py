@@ -217,10 +217,14 @@ class AnalogSimParams:
         self.observables = observables
         if self.observables:
             sortable = [
-                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
+                obs
+                for obs in observables
+                if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             unsorted = [
-                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond",  "schmidt_spectrum"}
+                obs
+                for obs in observables
+                if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             sorted_obs = sorted(
                 sortable,
@@ -428,10 +432,14 @@ class StrongSimParams:
         self.observables = observables
         if self.observables:
             sortable = [
-                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
+                obs
+                for obs in observables
+                if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             unsorted = [
-                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
+                obs
+                for obs in observables
+                if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             sorted_obs = sorted(
                 sortable,
