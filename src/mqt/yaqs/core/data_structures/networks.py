@@ -281,7 +281,6 @@ class MPS:
 
         return global_max
 
-
     def get_total_bond(self) -> int:
         """Compute total bond dimension.
 
@@ -295,7 +294,6 @@ class MPS:
         bonds = [tensor.shape[1] for tensor in self.tensors[1:]]
         return sum(bonds)
 
-
     def get_cost(self) -> int:
         """Estimate contraction cost.
 
@@ -308,7 +306,6 @@ class MPS:
         """
         cost = [tensor.shape[1] ** 3 for tensor in self.tensors[1:]]
         return sum(cost)
-
 
     def get_entropy(self, sites: list[int]) -> np.float64:
         """Compute bipartite entanglement entropy.
