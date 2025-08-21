@@ -325,7 +325,7 @@ class MPS:
 
         return np.float64(ent)
 
-    def get_schmidt_spectrum(self, sites: list[int]) -> NDArray[float]:
+    def get_schmidt_spectrum(self, sites: list[int]) -> NDArray[np.float64]:
         assert len(sites) == 2, "Schmidt spectrum not defined on a bond."
         assert sites[0] + 1 == sites[1], "Schmidt spectrum defined on long-range sites."
         i, j = sites
