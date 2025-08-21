@@ -320,8 +320,6 @@ class MPS:
         Returns:
             np.float64: The entanglement entropy across the specified bond.
 
-        Raises:
-            AssertionError: If the sites list does not contain exactly two adjacent sites.
         """
         assert len(sites) == 2, "Entropy is defined on a bond (two adjacent sites)."
         i, j = sites
@@ -362,18 +360,15 @@ class MPS:
         Returns:
             NDArray[np.float64]: The Schmidt spectrum (length 500),
             with unused entries filled with NaN.
-
-        Raises:
-            AssertionError: If the sites list does not contain exactly two adjacent sites.
         """
         assert len(sites) == 2, "Schmidt spectrum is defined on a bond (two adjacent sites)."
         assert sites[0] + 1 == sites[1], "Schmidt spectrum only defined for nearest-neighbor cut."
-        K = 500
+        top_schmidt_vals = 500
         i, j = sites
         a, b = self.tensors[i], self.tensors[j]
 
         if a.shape[2] == 1:
-            padded = np.full(K, np.nan)
+            padded = np.full(top_schmidt_vals, np.nan)
             padded[0] = 1.0
             return padded
 
@@ -384,8 +379,8 @@ class MPS:
 
         _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
 
-        padded = np.full(K, np.nan)
-        padded[: min(K, len(s_vec))] = s_vec[:K]
+        padded = np.full(top_schmidt_vals, np.nan)
+        padded[: min(top_schmidt_vals, len(s_vec))] = s_vec[:top_schmidt_vals]
         return padded
 
     def flip_network(self) -> None:
