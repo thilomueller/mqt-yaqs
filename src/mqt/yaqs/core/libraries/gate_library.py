@@ -1627,7 +1627,7 @@ class GateLibrary:
         p1: Class for projector |1⟩⟨1|.
         pvm: Class for projection-valued measurement onto a given bitstring.
 
-        runtime_cost: Class representing a diagnostic “runtime/contraction cost” metric.
+        runtime_cost: Class representing a diagnostic "runtime/contraction cost" metric.
         max_bond:     Class representing a diagnostic for maximum bond dimension.
         total_bond:   Class representing a diagnostic for the sum of internal bond dimensions.
         entropy:      Class representing a request for bipartite entanglement entropy across a cut.
