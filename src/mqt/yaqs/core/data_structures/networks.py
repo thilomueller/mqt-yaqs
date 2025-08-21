@@ -328,12 +328,15 @@ class MPS:
     def get_schmidt_spectrum(self, sites: list[int]) -> NDArray[np.float64]:
         assert len(sites) == 2, "Schmidt spectrum not defined on a bond."
         assert sites[0] + 1 == sites[1], "Schmidt spectrum defined on long-range sites."
+        K = 500
         i, j = sites
         a, b = self.tensors[i], self.tensors[j]
 
         # Avoids NaN if product state
         if a.shape[2] == 1:
-            return [1]
+            padded = np.full(K, np.nan)
+            padded[0] = 1.0
+            return padded
 
         # 1) build the two-site tensor theta_{(phys_i,L),(phys_j,R)}
         theta = np.tensordot(a, b, axes=(2, 1))
@@ -346,7 +349,11 @@ class MPS:
         # 3) full SVD
         _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
 
-        return s_vec[0:20]
+        # 4) pad or trim to length 500
+        padded = np.full(K, np.nan)
+        padded[:min(K, len(s_vec))] = s_vec[:K]
+        return padded
+
 
     def flip_network(self) -> None:
         """Flip MPS.
