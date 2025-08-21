@@ -217,10 +217,10 @@ class AnalogSimParams:
         self.observables = observables
         if self.observables:
             sortable = [
-                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             unsorted = [
-                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond",  "schmidt_spectrum"}
             ]
             sorted_obs = sorted(
                 sortable,
@@ -428,10 +428,10 @@ class StrongSimParams:
         self.observables = observables
         if self.observables:
             sortable = [
-                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             unsorted = [
-                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond", "schmidt_spectrum"}
             ]
             sorted_obs = sorted(
                 sortable,
@@ -449,11 +449,16 @@ class StrongSimParams:
         self.num_mid_measurements = num_mid_measurements
 
     def aggregate_trajectories(self) -> None:
-        """Aggregate trajectories for result.
+        """Aggregates trajectories for result.
 
-        Aggregates the trajectories of each observable by computing the mean across all trajectories.
-        This method iterates over all observables and replaces their `results` attribute with the mean
-        of their `trajectories` along the first axis.
+        Aggregates the trajectories of each observable by computing the mean
+        across all trajectories and storing the result in the observable's results.
+        This method iterates over all observables and updates their results
+        attribute with the mean value of their trajectories along the specified axis.
         """
         for observable in self.observables:
-            observable.results = np.mean(observable.trajectories, axis=0)
+            if observable.gate.name == "schmidt_spectrum":
+                all_values = [np.asarray(trajectory).ravel() for trajectory in observable.trajectories]
+                observable.results = np.concatenate(all_values)
+            else:
+                observable.results = np.mean(observable.trajectories, axis=0)
