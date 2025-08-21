@@ -51,7 +51,7 @@ class MPS:
         Initializes the MPS with given length, tensors, physical dimensions, and initial state.
     pad_bond_dimension():
         Pads bond dimension with zeros
-    write_max_bond_dim() -> int:
+    get_max_bond() -> int:
         Returns the maximum bond dimension in the MPS.
     flip_network() -> None:
         Flips the bond dimensions in the network to allow operations from right to left.

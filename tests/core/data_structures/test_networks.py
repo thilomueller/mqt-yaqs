@@ -449,8 +449,8 @@ def test_mps_custom_tensors() -> None:
         assert np.allclose(tensor, tensors[i])
 
 
-def test_write_max_bond_dim() -> None:
-    """Test that write_max_bond_dim returns the maximum bond dimension of an MPS.
+def test_get_max_bond() -> None:
+    """Test that get_max_bond returns the maximum bond dimension of an MPS.
 
     Constructs an MPS with varying bond dimensions and checks that the maximum bond dimension is reported correctly.
     """
@@ -461,7 +461,7 @@ def test_write_max_bond_dim() -> None:
     t3 = rng.random(size=(pdim, 5, 2))
     mps = MPS(length, tensors=[t1, t2, t3], physical_dimensions=[pdim] * length)
 
-    max_bond = mps.write_max_bond_dim()
+    max_bond = mps.get_max_bond()
     assert max_bond == 5
 
 
