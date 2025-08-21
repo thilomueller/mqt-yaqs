@@ -289,31 +289,41 @@ class MPS:
         cost = [tensor.shape[1] ** 3 for tensor in self.tensors[1::]]
         return sum(cost)
 
-    def get_entropy(self, sites: list[int]) -> int:
-        assert len(sites) == 2, "Entropy not defined on a bond."
-        assert sites[0] + 1 == sites[1], "Entropy defined on long-range sites."
+    def get_entropy(self, sites: list[int]) -> np.float64:
+        """Von Neumann (Shannon) entropy of the Schmidt spectrum across bond (i, i+1)."""
+        assert len(sites) == 2, "Entropy is defined on a bond (two adjacent sites)."
         i, j = sites
+        assert i + 1 == j, "Entropy is only defined for nearest-neighbor cut."
+
         a, b = self.tensors[i], self.tensors[j]
 
-        # Avoids NaN if product state
+        # Product state: right bond dimension = 1 → zero entanglement.
         if a.shape[2] == 1:
-            return 0
+            return np.float64(0.0)
 
-        # 1) build the two-site tensor theta_{(phys_i,L),(phys_j,R)}
+        # 1) Two-site tensor theta_{(phys_i, L_i),(phys_j, R_j)}
         theta = np.tensordot(a, b, axes=(2, 1))
         phys_i, left = a.shape[0], a.shape[1]
         phys_j, right = b.shape[0], b.shape[2]
 
-        # 2) reshape to matrix M of shape (L*phys_i) x (phys_j*R)
+        # 2) Matrix M with shape (L_i * phys_i) × (phys_j * R_j)
         theta_mat = theta.reshape(left * phys_i, phys_j * right)
 
-        # 3) full SVD
-        _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
+        # 3) SVD singular values (nonnegative reals)
+        s = np.linalg.svd(theta_mat, full_matrices=False, compute_uv=False)  # (k,) float64
 
-        entropy = -np.sum(s_vec**2 * np.log(s_vec**2))
-        if np.isnan(entropy):
-            return 0
-        return entropy
+        # Turn singular values into probabilities and compute entropy safely
+        s2 = (s.astype(np.float64)) ** 2
+        norm: np.float64 = np.sum(s2, dtype=np.float64)
+        if norm == np.float64(0.0):
+            return np.float64(0.0)
+
+        p = s2 / norm
+        # Avoid log(0) by adding tiny epsilon; stays in float64
+        eps = np.finfo(np.float64).tiny
+        ent = -1 * np.sum(p * np.log(p + eps), dtype=np.float64)
+
+        return np.float64(ent)
 
     def get_schmidt_spectrum(self, sites: list[int]) -> NDArray[float]:
         assert len(sites) == 2, "Schmidt spectrum not defined on a bond."
@@ -637,13 +647,36 @@ class MPS:
         temp_state = copy.deepcopy(self)
         last_site = 0
         for obs_index, observable in enumerate(sim_params.sorted_observables):
-            if observable.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}:
+            if observable.gate.name == "runtime_cost":
+                results[obs_index, column_index] = self.get_cost()
+            elif observable.gate.name == "max_bond":
+                results[obs_index, column_index] = self.get_max_bond()
+            elif observable.gate.name == "total_bond":
+                results[obs_index, column_index] = self.get_total_bond()
+            elif observable.gate.name in {"entropy", "schmidt_spectrum"}:
+                assert isinstance(observable.sites, list), "Given metric requires a list of sites"
+                assert len(observable.sites) == 2, "Given metric requires 2 sites to act on."
+                max_site = max(observable.sites)
+                min_site = min(observable.sites)
+                assert max_site - min_site == 1, "Entropy and Schmidt cuts must be nearest neighbor."
+                for s in observable.sites:
+                    assert s in range(self.length), f"Observable acting on non-existing site: {s}"
+                if observable.gate.name == "entropy":
+                    results[obs_index, column_index] = self.get_entropy(observable.sites)
+                elif observable.gate.name == "schmidt_spectrum":
+                    results[obs_index, column_index] = self.get_schmidt_spectrum(observable.sites)
+
+            elif observable.gate.name == "pvm":
+                assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
+                results[obs_index, column_index] = self.project_onto_bitstring(observable.gate.bitstring)
+
+            else:
                 idx = observable.sites[0] if isinstance(observable.sites, list) else observable.sites
                 if idx > last_site:
                     for site in range(last_site, idx):
                         temp_state.shift_orthogonality_center_right(site)
                     last_site = idx
-            results[obs_index, column_index] = temp_state.expect(observable)
+                results[obs_index, column_index] = temp_state.expect(observable)
 
     def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.
@@ -657,36 +690,20 @@ class MPS:
         Returns:
             np.float64: The real part of the expectation value of the observable.
         """
-        if observable.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}:
-            sites_list = None
-            if isinstance(observable.sites, int):
-                sites_list = [observable.sites]
-            elif isinstance(observable.sites, list):
-                sites_list = observable.sites
+        sites_list = None
+        if isinstance(observable.sites, int):
+            sites_list = [observable.sites]
+        elif isinstance(observable.sites, list):
+            sites_list = observable.sites
 
-            assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
+        assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
 
-            assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
+        assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
 
-            for s in sites_list:
-                assert s in range(self.length), f"Observable acting on non-existing site: {s}"
+        for s in sites_list:
+            assert s in range(self.length), f"Observable acting on non-existing site: {s}"
 
-            # Copying done to stop the state from messing up its own canonical form
-            if observable.gate.name == "entropy":
-                exp = self.get_entropy(sites_list)
-            elif observable.gate.name == "schmidt_spectrum":
-                return self.get_schmidt_spectrum(sites_list)
-            else:
-                exp = self.local_expect(observable, sites_list)
-        elif observable.gate.name == "pvm":
-            assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
-            exp = self.project_onto_bitstring(observable.gate.bitstring)
-        elif observable.gate.name == "runtime_cost":
-            exp = self.get_cost()
-        elif observable.gate.name == "max_bond":
-            exp = self.get_max_bond()
-        elif observable.gate.name == "total_bond":
-            exp = self.get_total_bond()
+        exp = self.local_expect(observable, sites_list)
 
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
