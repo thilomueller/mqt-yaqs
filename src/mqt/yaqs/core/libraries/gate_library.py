@@ -525,33 +525,75 @@ class BaseGate:
 
     @classmethod
     def pvm(cls, bitstring: str) -> PVM:
-        """Returns the projection-valued measurement projector.
+        """Create a projection-valued measurement (PVM) operator.
 
         Args:
-            bitstring: Computational state bitstring
+            bitstring: The computational basis bitstring (e.g., "0101") that the state
+                should be projected onto.
+
         Returns:
-            PVM: An instance of the PVM gate.
+            PVM: An instance of the PVM gate representing the projection.
         """
         return PVM(bitstring)
 
     @classmethod
     def runtime_cost(cls) -> RuntimeCost:
+        """Create a runtime cost diagnostic operator.
+
+        This is not a physical observable but a diagnostic metric that estimates
+        the computational cost of simulating the network.
+
+        Returns:
+            RuntimeCost: An instance of the runtime cost diagnostic gate.
+        """
         return RuntimeCost()
 
     @classmethod
     def max_bond(cls) -> MaxBond:
+        """Create a maximum bond dimension diagnostic operator.
+
+        This is not a physical observable but a diagnostic metric that reports
+        the maximum bond dimension in the tensor network.
+
+        Returns:
+            MaxBond: An instance of the max bond dimension diagnostic gate.
+        """
         return MaxBond()
 
     @classmethod
     def total_bond(cls) -> TotalBond:
+        """Create a total bond dimension diagnostic operator.
+
+        This is not a physical observable but a diagnostic metric that reports
+        the sum of internal bond dimensions in the tensor network.
+
+        Returns:
+            TotalBond: An instance of the total bond dimension diagnostic gate.
+        """
         return TotalBond()
 
     @classmethod
     def entropy(cls) -> Entropy:
+        """Create an entropy diagnostic operator.
+
+        This is a meta-observable used to request the bipartite entanglement
+        entropy across a given nearest-neighbor cut.
+
+        Returns:
+            Entropy: An instance of the entropy diagnostic gate.
+        """
         return Entropy()
 
     @classmethod
     def schmidt_spectrum(cls) -> SchmidtSpectrum:
+        """Create a Schmidt spectrum diagnostic operator.
+
+        This is a meta-observable used to request the Schmidt coefficients
+        across a given nearest-neighbor cut, padded or truncated to a fixed length.
+
+        Returns:
+            SchmidtSpectrum: An instance of the Schmidt spectrum diagnostic gate.
+        """
         return SchmidtSpectrum()
 
 
@@ -1538,9 +1580,6 @@ class Entropy(BaseGate):
 
         Args:
             *sites: One or two integers or a list of two integers indicating the cut.
-
-        Raises:
-            ValueError: If the provided indices cannot be flattened to two sites.
         """
         sites_list: list[int] = []
         for s in sites:
@@ -1570,9 +1609,6 @@ class SchmidtSpectrum(BaseGate):
 
         Args:
             *sites: One or two integers or a list of two integers indicating the cut.
-
-        Raises:
-            ValueError: If the provided indices cannot be flattened to two sites.
         """
         sites_list: list[int] = []
         for s in sites:
