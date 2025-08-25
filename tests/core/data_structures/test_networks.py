@@ -1100,16 +1100,17 @@ def test_evaluate_observables_diagnostics_and_meta_then_pvm_separately() -> None
     mps.evaluate_observables(sim_diag, results_diag, column_index=0)
 
     # Diagnostics
-    assert results_diag[0, 0] == 3  # runtime_cost
-    assert results_diag[1, 0] == 2  # max_bond
-    assert results_diag[2, 0] == 3  # total_bond
+    # Ordering based on sorted_observables
+    assert results_diag[2, 0] == 3  # runtime_cost
+    assert results_diag[3, 0] == 2  # max_bond
+    assert results_diag[4, 0] == 3  # total_bond
 
     # Entropy
-    assert isinstance(results_diag[3, 0], (float, np.floating))
-    assert np.isclose(results_diag[3, 0], 0.0, atol=1e-12)
+    assert isinstance(results_diag[0, 0], (float, np.floating))
+    assert np.isclose(results_diag[0, 0], 0.0, atol=1e-12)
 
     # Schmidt spectrum
-    spec = results_diag[4, 0]
+    spec = results_diag[1, 0]
     assert isinstance(spec, np.ndarray)
     assert spec.shape == (500,)
     assert np.isclose(spec[0], 1.0, atol=1e-12)
