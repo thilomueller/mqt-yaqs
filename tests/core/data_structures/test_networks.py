@@ -1065,7 +1065,6 @@ def test_get_schmidt_spectrum_asserts_on_invalid_sites() -> None:
         _ = mps.get_schmidt_spectrum([1, 3])  # non-adjacent
 
 
-
 def test_evaluate_observables_diagnostics_and_meta_then_pvm_separately() -> None:
     """Evaluate diagnostics/meta (no PVM) and PVM in separate calls to satisfy params typing/rules.
 
