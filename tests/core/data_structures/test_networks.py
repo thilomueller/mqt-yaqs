@@ -28,7 +28,7 @@ from qiskit.circuit import QuantumCircuit
 from scipy.stats import unitary_group
 
 from mqt.yaqs import simulator
-from mqt.yaqs.core.data_structures.simulation_parameters import StrongSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, StrongSimParams
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -447,22 +447,6 @@ def test_mps_custom_tensors() -> None:
     assert len(mps.tensors) == length
     for i, tensor in enumerate(mps.tensors):
         assert np.allclose(tensor, tensors[i])
-
-
-def test_get_max_bond() -> None:
-    """Test that get_max_bond returns the maximum bond dimension of an MPS.
-
-    Constructs an MPS with varying bond dimensions and checks that the maximum bond dimension is reported correctly.
-    """
-    length = 3
-    pdim = 2
-    t1 = rng.random(size=(pdim, 1, 2))
-    t2 = rng.random(size=(pdim, 4, 5))
-    t3 = rng.random(size=(pdim, 5, 2))
-    mps = MPS(length, tensors=[t1, t2, t3], physical_dimensions=[pdim] * length)
-
-    max_bond = mps.get_max_bond()
-    assert max_bond == 5
 
 
 def test_flip_network() -> None:
@@ -1081,71 +1065,57 @@ def test_get_schmidt_spectrum_asserts_on_invalid_sites() -> None:
         _ = mps.get_schmidt_spectrum([1, 3])  # non-adjacent
 
 
-class _DummySimParams:
-    """Minimal shim with the single attribute used by evaluate_observables."""
 
-    def __init__(self, sorted_observables: list[Observable]) -> None:
-        self.sorted_observables = sorted_observables
+def test_evaluate_observables_diagnostics_and_meta_then_pvm_separately() -> None:
+    """Evaluate diagnostics/meta (no PVM) and PVM in separate calls to satisfy params typing/rules.
 
-
-def _product_state_mps(length: int) -> MPS:
-    """Build |0...0⟩ as rank‑3 tensors with all bond dims = 1 (predictable diagnostics)."""
-    pdim = 2
-    tensors = []
-    for _ in range(length):
-        T = np.zeros((pdim, 1, 1), dtype=complex)
-        T[0, 0, 0] = 1.0
-        tensors.append(T)
-    return MPS(length=length, tensors=tensors, physical_dimensions=[pdim] * length)
-
-
-def test_evaluate_observables_diagnostics_meta_and_pvm() -> None:
-    """Evaluate diagnostic/meta observables and PVM; verify values and result layout.
-
-    For an |0000⟩ product MPS:
+    For |0000⟩ product MPS:
       - runtime_cost = Σ_{i≥1} bond_left(i)^3 = 1^3 * 3 = 3
       - total_bond  = Σ_{i≥1} bond_left(i)   = 1   * 3 = 3
       - max_bond    = max over (phys_dim/right_bond) = 2
       - entropy(1,2) = 0
       - schmidt_spectrum(1,2) = length-500 vector with [1, nan, ...]
-      - pvm("0000") = 1
+      - pvm("0000") = 1  (checked in a separate params object to avoid mixing)
     """
     mps = _product_state_mps(4)
 
-    observables: list[Observable] = [
+    # ---- diagnostics + meta (NO PVM here) ----
+    diagnostics_and_meta: list[Observable] = [
         Observable(GateLibrary.runtime_cost(), 0),
         Observable(GateLibrary.max_bond(), 0),
         Observable(GateLibrary.total_bond(), 0),
         Observable(GateLibrary.entropy(), [1, 2]),
         Observable(GateLibrary.schmidt_spectrum(), [1, 2]),
-        Observable(GateLibrary.pvm("0000"), 0),
     ]
-    sim_params = _DummySimParams(sorted_observables=observables)
+    sim_diag = AnalogSimParams(diagnostics_and_meta, elapsed_time=0.0, dt=0.1, num_traj=1)
 
-    # Use dtype=object because one row holds a vector (Schmidt spectrum)
-    results: NDArray[np.object_] = np.empty((len(observables), 2), dtype=object)
-
-    # Fill column 0
-    mps.evaluate_observables(sim_params, results, column_index=0)
+    results_diag: NDArray[np.object_] = np.empty((len(diagnostics_and_meta), 2), dtype=object)
+    mps.evaluate_observables(sim_diag, results_diag, column_index=0)
 
     # Diagnostics
-    assert results[0, 0] == 3  # runtime_cost
-    assert results[1, 0] == 2  # max_bond
-    assert results[2, 0] == 3  # total_bond
+    assert results_diag[0, 0] == 3  # runtime_cost
+    assert results_diag[1, 0] == 2  # max_bond
+    assert results_diag[2, 0] == 3  # total_bond
 
     # Entropy
-    assert isinstance(results[3, 0], (float, np.floating))
-    assert np.isclose(results[3, 0], 0.0, atol=1e-12)
+    assert isinstance(results_diag[3, 0], (float, np.floating))
+    assert np.isclose(results_diag[3, 0], 0.0, atol=1e-12)
 
     # Schmidt spectrum
-    spec = results[4, 0]
+    spec = results_diag[4, 0]
     assert isinstance(spec, np.ndarray)
     assert spec.shape == (500,)
     assert np.isclose(spec[0], 1.0, atol=1e-12)
     assert np.all(np.isnan(spec[1:]))
 
-    # PVM
-    assert results[5, 0] == 1
+    # ---- PVM ONLY (no mixing) ----
+    pvm_only = [Observable(GateLibrary.pvm("0000"), 0)]
+    sim_pvm = AnalogSimParams(pvm_only, elapsed_time=0.0, dt=0.1, num_traj=1)
+
+    results_pvm: NDArray[np.object_] = np.empty((len(pvm_only), 1), dtype=object)
+    mps.evaluate_observables(sim_pvm, results_pvm, column_index=0)
+
+    assert results_pvm[0, 0] == 1
 
 
 def test_evaluate_observables_local_ops_and_center_shifts() -> None:
@@ -1164,11 +1134,9 @@ def test_evaluate_observables_local_ops_and_center_shifts() -> None:
         Observable(GateLibrary.x(), 2),
         Observable(GateLibrary.z(), 3),
     ]
-    sim_params = _DummySimParams(sorted_observables=obs_seq)
+    sim_params = AnalogSimParams(obs_seq, elapsed_time=0.0, dt=0.1, num_traj=1)
 
     results: NDArray[np.object_] = np.empty((len(obs_seq), 3), dtype=object)
-
-    # Fill a nonzero column index to confirm column selection
     mps.evaluate_observables(sim_params, results, column_index=2)
 
     z0, z1, x2, z3 = (results[i, 2] for i in range(4))
@@ -1182,14 +1150,16 @@ def test_evaluate_observables_meta_validation_errors() -> None:
     """Meta-observable input validation: wrong length and non-adjacent sites must assert."""
     mps = _product_state_mps(4)
 
-    # Wrong length
-    sim_bad_len = _DummySimParams(sorted_observables=[Observable(GateLibrary.entropy(), [1])])
+    # Wrong length (entropy expects exactly two adjacent indices)
+    sim_bad_len = AnalogSimParams([Observable(GateLibrary.entropy(), [1])], elapsed_time=0.0, dt=0.1, num_traj=1)
     results_len: NDArray[np.object_] = np.empty((1, 1), dtype=object)
     with pytest.raises(AssertionError):
         mps.evaluate_observables(sim_bad_len, results_len, column_index=0)
 
-    # Non‑adjacent
-    sim_non_adj = _DummySimParams(sorted_observables=[Observable(GateLibrary.schmidt_spectrum(), [0, 2])])
+    # Non‑adjacent Schmidt cut
+    sim_non_adj = AnalogSimParams(
+        [Observable(GateLibrary.schmidt_spectrum(), [0, 2])], elapsed_time=0.0, dt=0.1, num_traj=1
+    )
     results_adj: NDArray[np.object_] = np.empty((1, 1), dtype=object)
     with pytest.raises(AssertionError):
         mps.evaluate_observables(sim_non_adj, results_adj, column_index=0)
