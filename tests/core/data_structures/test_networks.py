@@ -940,13 +940,17 @@ def test_truncate_reduces_bond_dimensions_and_truncates() -> None:
 
 
 def _bell_pair_mps() -> MPS:
-    """Construct a 2-site MPS for the Bell state (|00> + |11>)/√2.
+    """Auxillary function to create a Bell-pair MPS.
+
+    Construct a 2-site MPS for the Bell state (|00> + |11>)/√2.
+    Contracting the bond yields θ = diag(1/√2, 1/√2).
 
     Shapes:
         A: (phys=2, left=1, right=2)
         B: (phys=2, left=2, right=1)
 
-    Contracting the bond yields θ = diag(1/√2, 1/√2).
+    Returns:
+        MPS: The product-state MPS.
     """
     A = np.zeros((2, 1, 2), dtype=complex)
     B = np.zeros((2, 2, 1), dtype=complex)
@@ -963,7 +967,11 @@ def _bell_pair_mps() -> MPS:
 
 
 def _product_state_mps(length: int) -> MPS:
-    """Construct a product-state MPS |0…0⟩ with all bonds = 1."""
+    """Construct a product-state MPS |0…0⟩ with all bonds = 1.
+
+    Returns:
+        MPS: The product-state MPS.
+    """
     pdim = 2
     tensors = []
     for _ in range(length):
@@ -1065,7 +1073,6 @@ def test_get_schmidt_spectrum_asserts_on_invalid_sites() -> None:
         _ = mps.get_schmidt_spectrum([1, 3])  # non-adjacent
 
 
-
 def test_evaluate_observables_diagnostics_and_meta_then_pvm_separately() -> None:
     """Evaluate diagnostics/meta (no PVM) and PVM in separate calls to satisfy params typing/rules.
 
@@ -1156,7 +1163,7 @@ def test_evaluate_observables_meta_validation_errors() -> None:
     with pytest.raises(AssertionError):
         mps.evaluate_observables(sim_bad_len, results_len, column_index=0)
 
-    # Non‑adjacent Schmidt cut
+    # Non-adjacent Schmidt cut
     sim_non_adj = AnalogSimParams(
         [Observable(GateLibrary.schmidt_spectrum(), [0, 2])], elapsed_time=0.0, dt=0.1, num_traj=1
     )

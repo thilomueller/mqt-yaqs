@@ -615,7 +615,7 @@ def _assert_identity_gate_like(g: BaseGate) -> None:
     """Helper function to validate diagnostic/meta-observable gates.
 
     This asserts that the given gate behaves like an identity placeholder:
-    it must be a 2×2 identity matrix, with matching tensor, and report
+    it must be a 2x2 identity matrix, with matching tensor, and report
     an interaction level of 1.
 
     Parameters

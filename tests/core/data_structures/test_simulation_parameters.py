@@ -193,7 +193,7 @@ def test_observable_from_gate_instance_with_list_sites() -> None:
 def test_aggregate_trajectories_regular_observable_mean() -> None:
     """Regular observables: results = mean(trajectories, axis=0).
 
-    We create a single-site Z observable with a (num_traj × T) trajectory array and
+    We create a single-site Z observable with a (num_traj x T) trajectory array and
     verify that `results` equals the columnwise mean.
     """
     # Observable to aggregate
@@ -240,7 +240,7 @@ def test_aggregate_trajectories_schmidt_concatenation() -> None:
 
 def test_aggregate_trajectories_mixed_regular_and_schmidt() -> None:
     """Combination: both regular and Schmidt observables are updated correctly."""
-    # Regular observable with 3 trajectories × 2 time steps
+    # Regular observable with 3 trajectories x 2 time steps
     x_obs = Observable(GateLibrary.x(), sites=2)
     x_obs.trajectories = np.array([[0.0, 1.0], [1.0, 1.0], [2.0, 1.0]], dtype=np.float64)
 
@@ -338,7 +338,7 @@ def test_strong_params_accepts_all_pvm_or_all_non_pvm() -> None:
     p2 = Observable(GateLibrary.pvm("1"), sites=None)
     _ = StrongSimParams([p1, p2])  # should not raise
 
-    # All non‑PVM
+    # All non-PVM
     z0 = Observable(GateLibrary.z(), sites=0)
     x1 = Observable(GateLibrary.x(), sites=1)
     _ = StrongSimParams([z0, x1])  # should not raise
