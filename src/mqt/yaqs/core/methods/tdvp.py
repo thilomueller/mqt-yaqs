@@ -823,7 +823,7 @@ def global_dynamic_tdvp(
 
     This function evolves the state by choosing between a two-site TDVP (2TDVP) and a single-site TDVP (1TDVP)
     based on the current maximum bond dimension of the MPS. The decision is made by comparing the state's bond
-    dimension (obtained via `state.write_max_bond_dim()`) to the maximum allowed bond dimension specified in
+    dimension (obtained via `state.get_max_bond()`) to the maximum allowed bond dimension specified in
     `sim_params`.
 
     Args:
@@ -832,7 +832,7 @@ def global_dynamic_tdvp(
         sim_params (AnalogSimParams | StrongSimParams | WeakSimParams): Simulation parameters containing settings
             such as the maximum allowable bond dimension for the MPS.
     """
-    current_max_bond_dim = state.write_max_bond_dim()
+    current_max_bond_dim = state.get_max_bond()
     if current_max_bond_dim < sim_params.max_bond_dim:
         # Perform 2TDVP when the current bond dimension is within the allowed limit
         two_site_tdvp(state, hamiltonian, sim_params, dynamic=True)
