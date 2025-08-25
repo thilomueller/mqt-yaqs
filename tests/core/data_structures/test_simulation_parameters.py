@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 
 from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable
-from mqt.yaqs.core.libraries.gate_library import X
+from mqt.yaqs.core.libraries.gate_library import X, GateLibrary
 
 
 def test_observable_creation_valid() -> None:
@@ -122,3 +122,68 @@ def test_observable_initialize_without_sample_timesteps() -> None:
     assert obs.results.shape == (len(sim_params.times),)
     assert obs.trajectories.shape == (sim_params.num_traj, 1)
     assert obs.times == 1.0, "If sample_timesteps=False, obs.times should be equal to elapsed_time."
+
+
+def test_observable_from_string_runtime_cost() -> None:
+    """Constructor maps 'runtime_cost' string to the runtime_cost diagnostic gate."""
+    obs = Observable("runtime_cost", sites=0)
+    assert obs.gate.name == "runtime_cost"
+    # placeholder identity backing for diagnostics
+    assert obs.gate.matrix.shape == (2, 2)
+    assert np.allclose(obs.gate.matrix, np.eye(2))
+
+
+def test_observable_from_string_max_total_bond() -> None:
+    """Constructor maps 'max_bond' and 'total_bond' to their diagnostic gates."""
+    obs_max = Observable("max_bond", sites=1)
+    obs_tot = Observable("total_bond", sites=2)
+
+    assert obs_max.gate.name == "max_bond"
+    assert obs_tot.gate.name == "total_bond"
+    assert np.allclose(obs_max.gate.matrix, np.eye(2))
+    assert np.allclose(obs_tot.gate.matrix, np.eye(2))
+
+
+def test_observable_from_string_entropy_and_spectrum_with_list_sites() -> None:
+    """Constructor maps 'entropy' and 'schmidt_spectrum' and accepts list[int] sites."""
+    cut = [3, 4]
+    obs_ent = Observable("entropy", sites=cut)
+    obs_ssp = Observable("schmidt_spectrum", sites=cut)
+
+    assert obs_ent.gate.name == "entropy"
+    assert obs_ssp.gate.name == "schmidt_spectrum"
+    # meta-observables use identity placeholders for BaseGate compatibility
+    assert np.allclose(obs_ent.gate.matrix, np.eye(2))
+    assert np.allclose(obs_ssp.gate.matrix, np.eye(2))
+    assert obs_ent.sites == cut
+    assert obs_ssp.sites == cut
+
+
+def test_observable_from_string_falls_back_to_pvm() -> None:
+    """Any other string is interpreted as a PVM bitstring; gate must store that bitstring."""
+    bitstring = "10101"
+    obs = Observable(bitstring, sites=None)
+    assert obs.gate.name == "pvm"
+    # gate must expose the queried bitstring
+    assert hasattr(obs.gate, "bitstring")
+    assert obs.gate.bitstring == bitstring
+    # PVM uses identity placeholder matrix for compatibility in your implementation
+    assert np.allclose(obs.gate.matrix, np.eye(2))
+
+
+def test_observable_from_gate_instance_keeps_gate_and_sites_int() -> None:
+    """Passing a concrete BaseGate instance should be preserved and sites can be an int."""
+    x_gate = GateLibrary.x()
+    obs = Observable(x_gate, sites=5)
+    # same object semantics not required; equality via matrix is sufficient
+    assert obs.gate.name == "x"
+    assert np.allclose(obs.gate.matrix, x_gate.matrix)
+    assert obs.sites == 5
+
+
+def test_observable_from_gate_instance_with_list_sites() -> None:
+    """Gate instance + list[int] sites should preserve the list (for two-site ops)."""
+    cz_gate = GateLibrary.cz()
+    obs = Observable(cz_gate, sites=[1, 3])
+    assert obs.gate.name == "cz"
+    assert obs.sites == [1, 3]
