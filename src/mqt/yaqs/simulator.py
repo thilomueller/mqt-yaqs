@@ -54,6 +54,10 @@ try:
 except Exception:  # pragma: no cover - optional dep
     threadpool_limits = None  # type: ignore[assignment]
     threadpool_info = None  # type: ignore[assignment]
+import copy
+import multiprocessing
+from concurrent.futures import FIRST_COMPLETED, CancelledError, Future, ProcessPoolExecutor, wait
+from typing import TYPE_CHECKING, TypeVar
 
 from qiskit.circuit import QuantumCircuit
 from qiskit.converters import circuit_to_dag
@@ -65,6 +69,8 @@ from .core.data_structures.simulation_parameters import AnalogSimParams, StrongS
 from .digital.digital_tjm import digital_tjm
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator, Sequence
+
     from .core.data_structures.networks import MPS
     from .core.data_structures.noise_model import NoiseModel
 
@@ -72,6 +78,12 @@ if TYPE_CHECKING:
 # --------------------------
 # Linux/cgroup-safe CPU count
 # --------------------------
+import os
+
+TArg = TypeVar("TArg")
+TRes = TypeVar("TRes")
+
+
 def available_cpus() -> int:
     """Determine the number of CPUs visible to this process.
 
@@ -171,6 +183,47 @@ def _run_batch(backend, batch_args: List[Tuple]):
     return out
 
 
+def _run_parallel_with_retries(
+    backend: Callable[[TArg], TRes],
+    args: Sequence[TArg],
+    *,
+    max_workers: int,
+    desc: str,
+    total: int | None = None,
+    max_retries: int = 10,
+    retry_exceptions: tuple[type[BaseException], ...] = (CancelledError, TimeoutError, OSError),
+) -> Iterator[tuple[int, TRes]]:
+    """Execute jobs in parallel with simple retry logic and a progress bar.
+
+    Yields:
+    ------
+    (i, result) for each trajectory index i in `args`.
+
+    Notes:
+    -----
+    - Only exceptions in `retry_exceptions` are retried (fixes blind-catch lint).
+    - Others propagate immediately (fail fast).
+    """
+    total = len(args) if total is None else total
+    with ProcessPoolExecutor(max_workers=max_workers) as ex, tqdm(total=total, desc=desc, ncols=80) as pbar:
+        retries = dict.fromkeys(range(len(args)), 0)
+        futures: dict[Future[TRes], int] = {ex.submit(backend, args[i]): i for i in range(len(args))}
+        while futures:
+            done, _ = wait(futures, return_when=FIRST_COMPLETED)
+            for fut in done:
+                i = futures.pop(fut)
+                try:
+                    res = fut.result()
+                except retry_exceptions:
+                    if retries[i] < max_retries:
+                        retries[i] += 1
+                        futures[ex.submit(backend, args[i])] = i
+                        continue
+                    raise
+                yield i, res
+                pbar.update(1)
+
+
 def _run_strong_sim(
     initial_state: MPS,
     operator: QuantumCircuit,
@@ -202,42 +255,55 @@ def _run_strong_sim(
 
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        ctx = multiprocessing.get_context("spawn")
+        # ctx = multiprocessing.get_context("spawn")
 
-        # Batch trajectories to reduce overhead
-        batch_size = 4
-        batches = list(_chunks(args, batch_size))
+        # # Batch trajectories to reduce overhead
+        # batch_size = 4
+        # batches = list(_chunks(args, batch_size))
 
-        with concurrent.futures.ProcessPoolExecutor(
+        # with concurrent.futures.ProcessPoolExecutor(
+        #     max_workers=max_workers,
+        #     mp_context=ctx,
+        #     initializer=_limit_worker_threads,
+        #     initargs=(1,),
+        # ) as executor:
+        #     futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
+        #     with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
+        #         while futures:
+        #             done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+        #             for future in done:
+        #                 batch_index = futures.pop(future)
+        #                 try:
+        #                     results = future.result()  # list of results for that batch
+        #                 except Exception:
+        #                     # simple retry once for the whole batch
+        #                     new_fut = executor.submit(_run_batch, backend, batches[batch_index])
+        #                     futures[new_fut] = batch_index
+        #                     continue
+
+        #                 # Write back results for this batch
+        #                 batch = batches[batch_index]
+        #                 for local_j, result in enumerate(results):
+        #                     global_i = batch_index * batch_size + local_j
+        #                     if global_i >= len(args):
+        #                         break
+        #                     for obs_index, observable in enumerate(sim_params.sorted_observables):
+        #                         assert observable.trajectories is not None, "Trajectories should have been initialized"
+        #                         observable.trajectories[global_i] = result[obs_index]
+        #                     pbar.update(1)
+        for i, result in _run_parallel_with_retries(
+            backend=backend,
+            args=args,
             max_workers=max_workers,
-            mp_context=ctx,
-            initializer=_limit_worker_threads,
-            initargs=(1,),
-        ) as executor:
-            futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
-            with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
-                while futures:
-                    done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-                    for future in done:
-                        batch_index = futures.pop(future)
-                        try:
-                            results = future.result()  # list of results for that batch
-                        except Exception:
-                            # simple retry once for the whole batch
-                            new_fut = executor.submit(_run_batch, backend, batches[batch_index])
-                            futures[new_fut] = batch_index
-                            continue
-
-                        # Write back results for this batch
-                        batch = batches[batch_index]
-                        for local_j, result in enumerate(results):
-                            global_i = batch_index * batch_size + local_j
-                            if global_i >= len(args):
-                                break
-                            for obs_index, observable in enumerate(sim_params.sorted_observables):
-                                assert observable.trajectories is not None, "Trajectories should have been initialized"
-                                observable.trajectories[global_i] = result[obs_index]
-                            pbar.update(1)
+            desc="Running trajectories",
+            total=sim_params.num_traj,
+            max_retries=10,
+            # add other transient errors here if needed:
+            retry_exceptions=(CancelledError, TimeoutError, OSError),
+        ):
+            for obs_index, observable in enumerate(sim_params.sorted_observables):
+                assert observable.trajectories is not None, "Trajectories should have been initialized"
+                observable.trajectories[i] = result[obs_index]
     else:
         for i, arg in enumerate(args):
             result = _call_backend(backend, arg)
@@ -270,42 +336,53 @@ def _run_weak_sim(
 
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        ctx = multiprocessing.get_context("spawn")
+        # ctx = multiprocessing.get_context("spawn")
 
-        batch_size = 4
-        batches = list(_chunks(args, batch_size))
+        # batch_size = 4
+        # batches = list(_chunks(args, batch_size))
 
-        with concurrent.futures.ProcessPoolExecutor(
+        # with concurrent.futures.ProcessPoolExecutor(
+        #     max_workers=max_workers,
+        #     mp_context=ctx,
+        #     initializer=_limit_worker_threads,
+        #     initargs=(1,),
+        # ) as executor:
+        #     futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
+        #     with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
+        #         while futures:
+        #             done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+        #             for future in done:
+        #                 batch_index = futures.pop(future)
+        #                 try:
+        #                     results = future.result()
+        #                 except Exception:
+        #                     new_fut = executor.submit(_run_batch, backend, batches[batch_index])
+        #                     futures[new_fut] = batch_index
+        #                     continue
+
+        #                 batch = batches[batch_index]
+        #                 for local_j, result in enumerate(results):
+        #                     global_i = batch_index * batch_size + local_j
+        #                     if global_i >= len(args):
+        #                         break
+        #                     # For weak sim, result is the measurement outcome structure
+        #                     sim_params.measurements[global_i] = result
+        #                     pbar.update(1)
+        for i, result in _run_parallel_with_retries(  # <- helper introduced earlier
+            backend=backend,
+            args=args,
             max_workers=max_workers,
-            mp_context=ctx,
-            initializer=_limit_worker_threads,
-            initargs=(1,),
-        ) as executor:
-            futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
-            with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
-                while futures:
-                    done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-                    for future in done:
-                        batch_index = futures.pop(future)
-                        try:
-                            results = future.result()
-                        except Exception:
-                            new_fut = executor.submit(_run_batch, backend, batches[batch_index])
-                            futures[new_fut] = batch_index
-                            continue
-
-                        batch = batches[batch_index]
-                        for local_j, result in enumerate(results):
-                            global_i = batch_index * batch_size + local_j
-                            if global_i >= len(args):
-                                break
-                            # For weak sim, result is the measurement outcome structure
-                            sim_params.measurements[global_i] = result
-                            pbar.update(1)
+            desc="Running trajectories",
+            total=sim_params.num_traj,
+            max_retries=10,
+            retry_exceptions=(CancelledError, TimeoutError, OSError),
+        ):
+            sim_params.measurements[i] = result
     else:
         for i, arg in enumerate(args):
             result = _call_backend(backend, arg)
             sim_params.measurements[i] = result
+
     sim_params.aggregate_measurements()
 
 
@@ -342,47 +419,62 @@ def _run_analog(
         observable.initialize(sim_params)
 
     args = [(i, initial_state, noise_model, sim_params, operator) for i in range(sim_params.num_traj)]
+
     if parallel and sim_params.num_traj > 1:
         max_workers = max(1, available_cpus() - 1)
-        ctx = multiprocessing.get_context("spawn")
+        # ctx = multiprocessing.get_context("spawn")
 
-        batch_size = 1
-        batches = list(_chunks(args, batch_size))
+        # batch_size = 1
+        # batches = list(_chunks(args, batch_size))
 
-        with concurrent.futures.ProcessPoolExecutor(
+        # with concurrent.futures.ProcessPoolExecutor(
+        #     max_workers=max_workers,
+        #     mp_context=ctx,
+        #     initializer=_limit_worker_threads,
+        #     initargs=(1,),
+        # ) as executor:
+        #     futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
+        #     with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
+        #         while futures:
+        #             done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+        #             for future in done:
+        #                 batch_index = futures.pop(future)
+        #                 try:
+        #                     results = future.result()
+        #                 except Exception:
+        #                     new_fut = executor.submit(_run_batch, backend, batches[batch_index])
+        #                     futures[new_fut] = batch_index
+        #                     continue
+
+        #                 batch = batches[batch_index]
+        #                 for local_j, result in enumerate(results):
+        #                     global_i = batch_index * batch_size + local_j
+        #                     if global_i >= len(args):
+        #                         break
+        #                     for obs_index, observable in enumerate(sim_params.sorted_observables):
+        #                         assert observable.trajectories is not None, "Trajectories should have been initialized"
+        #                         observable.trajectories[global_i] = result[obs_index]
+        #                     pbar.update(1)
+        for i, result in _run_parallel_with_retries(
+            backend=backend,
+            args=args,
             max_workers=max_workers,
-            mp_context=ctx,
-            initializer=_limit_worker_threads,
-            initargs=(1,),
-        ) as executor:
-            futures = {executor.submit(_run_batch, backend, batch): idx for idx, batch in enumerate(batches)}
-            with tqdm(total=sim_params.num_traj, desc="Running trajectories", ncols=80) as pbar:
-                while futures:
-                    done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-                    for future in done:
-                        batch_index = futures.pop(future)
-                        try:
-                            results = future.result()
-                        except Exception:
-                            new_fut = executor.submit(_run_batch, backend, batches[batch_index])
-                            futures[new_fut] = batch_index
-                            continue
-
-                        batch = batches[batch_index]
-                        for local_j, result in enumerate(results):
-                            global_i = batch_index * batch_size + local_j
-                            if global_i >= len(args):
-                                break
-                            for obs_index, observable in enumerate(sim_params.sorted_observables):
-                                assert observable.trajectories is not None, "Trajectories should have been initialized"
-                                observable.trajectories[global_i] = result[obs_index]
-                            pbar.update(1)
+            desc="Running trajectories",
+            total=sim_params.num_traj,
+            max_retries=10,
+            # add other transient errors here if needed:
+            retry_exceptions=(CancelledError, TimeoutError, OSError),
+        ):
+            for obs_index, observable in enumerate(sim_params.sorted_observables):
+                assert observable.trajectories is not None, "Trajectories should have been initialized"
+                observable.trajectories[i] = result[obs_index]
     else:
         for i, arg in enumerate(args):
             result = _call_backend(backend, arg)
             for obs_index, observable in enumerate(sim_params.sorted_observables):
                 assert observable.trajectories is not None, "Trajectories should have been initialized"
                 observable.trajectories[i] = result[obs_index]
+
     sim_params.aggregate_trajectories()
 
 

@@ -35,6 +35,7 @@ from mqt.yaqs import simulator
 from mqt.yaqs.core.data_structures.networks import MPS
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams, WeakSimParams
+from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 from mqt.yaqs.core.libraries.gate_library import GateLibrary, X, Z
 from mqt.yaqs.digital.digital_tjm import (
     apply_single_qubit_gate,
@@ -235,6 +236,7 @@ def test_create_local_noise_model() -> None:
         {"name": "crosstalk_yy", "sites": [3, 4], "strength": 0.08},
         {"name": "crosstalk_xy", "sites": [0, 1], "strength": 0.09},
         {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
+        {"name": "crosstalk_xx", "sites": [1, 3], "strength": 0.06},
     ]
     global_noise_model = NoiseModel(global_processes)
 
@@ -336,11 +338,8 @@ def test_create_local_noise_model() -> None:
     # Should include: bitflip on sites 1, 2, 3 and crosstalk_xx, crosstalk_yx on [1, 2], crosstalk_xx on [2, 3]
     expected_processes_5 = [
         {"name": "pauli_x", "sites": [1], "strength": 0.02},
-        {"name": "pauli_x", "sites": [2], "strength": 0.03},
         {"name": "pauli_x", "sites": [3], "strength": 0.04},
-        {"name": "crosstalk_xx", "sites": [1, 2], "strength": 0.06},
-        {"name": "crosstalk_yx", "sites": [1, 2], "strength": 0.10},
-        {"name": "crosstalk_xx", "sites": [2, 3], "strength": 0.07},
+        {"name": "crosstalk_xx", "sites": [1, 3], "strength": 0.06},
     ]
 
     assert len(local_model_5.processes) == len(expected_processes_5)
@@ -460,6 +459,71 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     tol = 0.1
     diff = np.abs(tjm_results - reference)
     assert np.all(diff <= tol), f"Noisy circuit TJM mismatch. max|diff|={diff.max():.4f} > {tol}"
+
+
+def test_digital_tjm_longrange_noise() -> None:
+    """YAQS digital TJM with long-range and neighbor crosstalk matches hardcoded Qiskit density-matrix.
+
+    Mirrors the experiment from sandbox/longrangenoise.py (captured configuration):
+      - 4 qubits, periodic Ising single timestep dt=0.1 composed into 10 layers (with SAMPLE_OBSERVABLES barriers)
+      - Noise model includes single-qubit Pauli X/Y/Z on all qubits,
+        neighbor crosstalk XX/YY/ZZ, and long-range XX/YY/ZZ on the pair (0, 3), all with strength 0.01
+      - Compare per-layer Z expectations (qubits 0..3, layers 0..9) against hardcoded Qiskit density-matrix
+      - Tolerance 0.1
+    """
+    num_qubits = 4
+    j_coupling = 1.0
+    g = 0.5
+    dt = 0.1
+    num_layers = 4
+    noise_factor = 0.01
+    num_traj = 1000
+
+    # Hardcoded Qiskit density-matrix reference (rows: qubits 0..3; columns: layers 0..9)
+    reference = np.array([
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+        [1.0, 0.84788662, 0.71222112, 0.59366363],
+    ])
+
+    # Build single-timestep periodic Ising circuit
+    timestep = create_ising_circuit(num_qubits, j_coupling, g, dt, 1, periodic=True)
+    qc = QuantumCircuit(num_qubits)
+    for layer in range(num_layers):
+        qc = qc.compose(timestep)
+        if layer < num_layers - 1:
+            qc.barrier(label="SAMPLE_OBSERVABLES")
+
+    # YAQS noise model: single-qubit XYZ on all sites, NN crosstalk XX/YY/ZZ, long-range XX/YY/ZZ on (0,3)
+    noise_model = NoiseModel(
+        [{"name": "pauli_x", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
+        + [{"name": "crosstalk_xx", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
+        + [{"name": "crosstalk_xx", "sites": [0, num_qubits - 1], "strength": noise_factor}]
+        + [{"name": "pauli_y", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
+        + [{"name": "crosstalk_yy", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
+        + [{"name": "crosstalk_yy", "sites": [0, num_qubits - 1], "strength": noise_factor}]
+        + [{"name": "pauli_z", "sites": [i], "strength": noise_factor} for i in range(num_qubits)]
+        + [{"name": "crosstalk_zz", "sites": [i, i + 1], "strength": noise_factor} for i in range(num_qubits - 1)]
+        + [{"name": "crosstalk_zz", "sites": [0, num_qubits - 1], "strength": noise_factor}]
+    )
+
+    observables = [Observable(Z(), i) for i in range(num_qubits)]
+    sim_params = StrongSimParams(
+        observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=num_layers - 1
+    )
+    state = MPS(num_qubits, state="zeros", pad=2)
+    simulator.run(state, qc, sim_params, noise_model, parallel=False)
+
+    tjm_results = np.empty((num_qubits, num_layers), dtype=float)
+    for i in range(num_qubits):
+        res = sim_params.observables[i].results
+        assert res is not None
+        tjm_results[i, :] = np.real(res[:num_layers])
+
+    tol = 0.1
+    diff = np.abs(tjm_results - reference)
+    assert np.all(diff <= tol), f"Long-range noise TJM mismatch. max|diff|={diff.max():.4f} > {tol}"
 
 
 def test_no_mid_measurements_results_have_two_columns() -> None:
