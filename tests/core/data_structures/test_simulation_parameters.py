@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, Observable
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable, StrongSimParams
 from mqt.yaqs.core.libraries.gate_library import GateLibrary, X
 
 
@@ -190,7 +190,6 @@ def test_observable_from_gate_instance_with_list_sites() -> None:
     assert obs.sites == [1, 3]
 
 
-
 def test_aggregate_trajectories_regular_observable_mean() -> None:
     """Regular observables: results = mean(trajectories, axis=0).
 
@@ -202,8 +201,7 @@ def test_aggregate_trajectories_regular_observable_mean() -> None:
 
     # Two trajectories across 3 time steps → mean is easy to verify
     traj = np.array(
-        [[1.0, 2.0, 3.0],
-         [3.0, 4.0, 5.0]],
+        [[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]],
         dtype=np.float64,
     )
     z_obs.trajectories = traj
@@ -228,8 +226,8 @@ def test_aggregate_trajectories_schmidt_concatenation() -> None:
 
     # List of arrays (the method requires a list, not a single ndarray)
     a = np.array([0.8, 0.6], dtype=np.float64)
-    b = np.array([[0.4, 0.3]], dtype=np.float64)      # will ravel to [0.4, 0.3]
-    c = np.array([[0.2], [0.1]], dtype=np.float64)    # will ravel to [0.2, 0.1]
+    b = np.array([[0.4, 0.3]], dtype=np.float64)  # will ravel to [0.4, 0.3]
+    c = np.array([[0.2], [0.1]], dtype=np.float64)  # will ravel to [0.2, 0.1]
     ss_obs.trajectories = [a, b, c]
 
     sim = AnalogSimParams([ss_obs], elapsed_time=0.1, dt=0.1, num_traj=3)
@@ -244,11 +242,7 @@ def test_aggregate_trajectories_mixed_regular_and_schmidt() -> None:
     """Combination: both regular and Schmidt observables are updated correctly."""
     # Regular observable with 3 trajectories × 2 time steps
     x_obs = Observable(GateLibrary.x(), sites=2)
-    x_obs.trajectories = np.array(
-        [[0.0, 1.0],
-         [1.0, 1.0],
-         [2.0, 1.0]], dtype=np.float64
-    )
+    x_obs.trajectories = np.array([[0.0, 1.0], [1.0, 1.0], [2.0, 1.0]], dtype=np.float64)
 
     # Schmidt spectrum list
     ss_obs = Observable(GateLibrary.schmidt_spectrum(), sites=[0, 1])
@@ -311,13 +305,13 @@ def test_strong_params_sorting_and_fields() -> None:
         elif j == 1:
             assert o is obs_ssp
         elif j == 2:
-          assert o is obs_x2
+            assert o is obs_x2
         elif j == 3:
-          assert o is obs_z3
+            assert o is obs_z3
         elif j == 4:
-          assert o is obs_cost
+            assert o is obs_cost
         elif j == 5:
-          assert o is obs_tot
+            assert o is obs_tot
 
     # Parameter fields are retained
     assert params.num_traj == 7
@@ -354,9 +348,7 @@ def test_strong_aggregate_regular_mean() -> None:
     """Regular observables: results = mean(trajectories, axis=0)."""
     x = Observable(GateLibrary.x(), sites=2)
     traj = np.array(
-        [[0.0, 1.0, 2.0],
-         [2.0, 1.0, 0.0],
-         [1.0, 1.0, 1.0]],
+        [[0.0, 1.0, 2.0], [2.0, 1.0, 0.0], [1.0, 1.0, 1.0]],
         dtype=np.float64,
     )
     x.trajectories = traj
@@ -373,8 +365,8 @@ def test_strong_aggregate_schmidt_concat() -> None:
     ssp = Observable(GateLibrary.schmidt_spectrum(), sites=[0, 1])
     ssp.trajectories = [
         np.array([0.9, 0.8], dtype=np.float64),
-        np.array([[0.6], [0.4]], dtype=np.float64),   # ravel -> [0.6, 0.4]
-        np.array([[0.2, 0.1]], dtype=np.float64),     # ravel -> [0.2, 0.1]
+        np.array([[0.6], [0.4]], dtype=np.float64),  # ravel -> [0.6, 0.4]
+        np.array([[0.2, 0.1]], dtype=np.float64),  # ravel -> [0.2, 0.1]
     ]
 
     params = StrongSimParams([ssp], num_traj=3)
