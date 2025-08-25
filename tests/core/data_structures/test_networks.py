@@ -940,7 +940,7 @@ def test_truncate_reduces_bond_dimensions_and_truncates() -> None:
 
 
 def _bell_pair_mps() -> MPS:
-    """Auxillary function to create a Bell-pair MPS.
+    """Auxiliary function to create a Bell-pair MPS.
 
     Construct a 2-site MPS for the Bell state (|00> + |11>)/√2.
     Contracting the bond yields θ = diag(1/√2, 1/√2).
