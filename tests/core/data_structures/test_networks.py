@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable
-from mqt.yaqs.core.libraries.gate_library import Id, X, Y, Z, GateLibrary
+from mqt.yaqs.core.libraries.gate_library import GateLibrary, Id, X, Y, Z
 
 
 def untranspose_block(mpo_tensor: NDArray[np.complex128]) -> NDArray[np.complex128]:
@@ -1083,6 +1083,7 @@ def test_get_schmidt_spectrum_asserts_on_invalid_sites() -> None:
 
 class _DummySimParams:
     """Minimal shim with the single attribute used by evaluate_observables."""
+
     def __init__(self, sorted_observables: list[Observable]) -> None:
         self.sorted_observables = sorted_observables
 

@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 
 from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, StrongSimParams, Observable
-from mqt.yaqs.core.libraries.gate_library import X, GateLibrary
+from mqt.yaqs.core.libraries.gate_library import GateLibrary, X
 
 
 def test_observable_creation_valid() -> None:
@@ -188,6 +188,7 @@ def test_observable_from_gate_instance_with_list_sites() -> None:
     obs = Observable(cz_gate, sites=[1, 3])
     assert obs.gate.name == "cz"
     assert obs.sites == [1, 3]
+
 
 
 def test_aggregate_trajectories_regular_observable_mean() -> None:
