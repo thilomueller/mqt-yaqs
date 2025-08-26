@@ -68,6 +68,7 @@ def test_initialize() -> None:
         max_bond_dim=2,
         threshold=1e-6,
         order=1,
+        show_progress=False
     )
     with (
         patch("mqt.yaqs.analog.analog_tjm.apply_dissipation") as mock_dissipation,
@@ -103,6 +104,7 @@ def test_step_through() -> None:
         max_bond_dim=2,
         threshold=1e-6,
         order=1,
+        show_progress=False
     )
     with (
         patch("mqt.yaqs.analog.analog_tjm.local_dynamic_tdvp") as mock_dynamic_tdvp,
@@ -139,6 +141,7 @@ def test_analog_tjm_2() -> None:
         max_bond_dim=4,
         threshold=1e-6,
         order=2,
+        show_progress=False
     )
     args = (0, state, noise_model, sim_params, H)
     results = analog_tjm_2(args)
@@ -169,6 +172,7 @@ def test_analog_tjm_2_sample_timesteps() -> None:
         max_bond_dim=4,
         threshold=1e-6,
         order=2,
+        show_progress=False
     )
     args = (0, state, noise_model, sim_params, H)
     results = analog_tjm_2(args)
@@ -199,6 +203,7 @@ def test_analog_tjm_1() -> None:
         max_bond_dim=4,
         threshold=1e-6,
         order=1,
+        show_progress=False
     )
     args = (0, state, noise_model, sim_params, H)
     results = analog_tjm_1(args)
@@ -229,6 +234,7 @@ def test_analog_tjm_1_sample_timesteps() -> None:
         max_bond_dim=4,
         threshold=1e-6,
         order=1,
+        show_progress=False
     )
     args = (0, state, noise_model, sim_params, H)
     results = analog_tjm_1(args)
@@ -274,6 +280,7 @@ def test_analog_simulation_twositeprocesses() -> None:
         order=2,
         sample_timesteps=True,
         get_state=False,
+        show_progress=False
     )
 
     # Setup noise model with single-site and two-site crosstalk processes
@@ -402,6 +409,7 @@ def test_analog_simulation_two_site_lowering_against_qutip() -> None:
         order=2,
         sample_timesteps=True,
         get_state=False,
+        show_progress=False
     )
 
     gamma_single = 0.02

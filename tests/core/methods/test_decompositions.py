@@ -132,6 +132,7 @@ def test_truncated_right_svd_thresh() -> None:
         max_bond_dim=4,
         threshold=0.2,
         order=1,
+        show_progress=False
     )
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])
     u_tensor_i, _ = right_qr(crandn(2, 3, 4))
@@ -163,6 +164,7 @@ def test_truncated_right_svd_maxbd() -> None:
         max_bond_dim=3,
         threshold=1e-4,
         order=1,
+        show_progress=False
     )
 
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])
