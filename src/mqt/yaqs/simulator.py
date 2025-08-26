@@ -42,6 +42,8 @@ for _k, _v in {
 }.items():
     os.environ.setdefault(_k, _v)
 
+# ruff: noqa: E402
+
 # ---------------------------------------------------------------------------
 # 1) STANDARD/LIB IMPORTS (safe after thread-cap env is set)
 # ---------------------------------------------------------------------------
@@ -53,18 +55,29 @@ from concurrent.futures import (
     ProcessPoolExecutor,
     wait,
 )
-from typing import TYPE_CHECKING, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
-# Optional: extra control over threadpools inside worker processes
-# If not available, code still runs (we guard usage below).
+# Optional: extra control over threadpools inside worker processes.
+# We keep references as optionals, set by a guarded import.
+threadpool_limits: Callable[..., Any] | None
+threadpool_info: Callable[[], Any] | None
 try:
-    from threadpoolctl import threadpool_info, threadpool_limits  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover - optional dependency
-    threadpool_limits = None 
+    from threadpoolctl import (  # type: ignore[import-not-found]
+        threadpool_info as _threadpool_info,
+    )
+    from threadpoolctl import (
+        threadpool_limits as _threadpool_limits,
+    )
+except ImportError:  # pragma: no cover - optional dependency
+    threadpool_limits = None
     threadpool_info = None
+else:
+    threadpool_limits = _threadpool_limits
+    threadpool_info = _threadpool_info
 
 import contextlib
 import copy
+import importlib
 
 # ---------------------------------------------------------------------------
 # 2) THIRD-PARTY IMPORTS
@@ -82,8 +95,7 @@ from .core.data_structures.simulation_parameters import AnalogSimParams, StrongS
 from .digital.digital_tjm import digital_tjm
 
 if TYPE_CHECKING:
-    # TYPE_CHECKING avoids runtime import cycles/cost; only used by mypy.
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
     from .core.data_structures.networks import MPS
     from .core.data_structures.noise_model import NoiseModel
@@ -180,33 +192,24 @@ def _limit_worker_threads(n_threads: int = 1) -> None:
         - Uses ``threadpoolctl`` if available to force limits on vendored pools.
         - Has no effect if libraries are not present or ignore thread caps.
     """
-    # a) Re-assert env caps in the *child* process
     for k in THREAD_ENV_VARS:
         os.environ.setdefault(k, str(n_threads))
+    os.environ.setdefault("OMP_DYNAMIC", "FALSE")
+    os.environ.setdefault("MKL_DYNAMIC", "FALSE")
 
-    # b) Library-specific caps (best effort)
-    try:
-        import numexpr  # type: ignore[import-not-found]
-
+    # Import optional libs safely without inline `import` statements
+    with contextlib.suppress(Exception):
+        numexpr = importlib.import_module("numexpr")
         numexpr.set_num_threads(n_threads)
-    except Exception:
-        pass
 
-    try:
-        import mkl  # type: ignore[import-not-found]
-
+    with contextlib.suppress(Exception):
+        mkl = importlib.import_module("mkl")
         mkl.set_num_threads(n_threads)
-    except Exception:
-        pass
 
-    # c) Vendored OpenMP pools (OpenBLAS/MKL via threadpoolctl)
     if threadpool_limits is not None:
-        try:
-            threadpool_limits(limits=n_threads)  # hard cap in this process
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            threadpool_limits(limits=n_threads)
 
-    # Optional debug printout to verify pools in each worker
     if os.environ.get("YAQS_THREAD_DEBUG", "") == "1" and threadpool_info is not None:
         with contextlib.suppress(Exception):
             threadpool_info()
@@ -237,14 +240,10 @@ def _call_backend(backend: Callable[[TArg], TRes], arg: TArg) -> TRes:
         - If enforcing thread limits fails, falls back silently to direct call.
     """
     if threadpool_limits is not None:
-        try:
-            # Caps any pools entered/created within the context
-            with threadpool_limits(limits=1):
-                return backend(arg)
-        except Exception:
-            # If threadpoolctl fails for any reason, fallback to direct call
+        # Caps any pools entered/created within the context
+        with contextlib.suppress(Exception), threadpool_limits(limits=1):
             return backend(arg)
-    # If threadpoolctl is unavailable, just call directly (env caps still help)
+    # If threadpoolctl fails for any reason, fallback to direct call
     return backend(arg)
 
 
