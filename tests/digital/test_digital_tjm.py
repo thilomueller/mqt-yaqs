@@ -206,7 +206,7 @@ def test_apply_two_qubit_gate() -> None:
     threshold = 1e-12
     min_bond_dim = 2
     observable = Observable(Z(), 0)
-    sim_params = StrongSimParams([observable], num_traj, max_bond_dim, min_bond_dim, threshold)
+    sim_params = StrongSimParams([observable], num_traj, max_bond_dim, min_bond_dim, threshold, show_progress=False)
     copy.deepcopy(mps0.tensors)
     apply_two_qubit_gate(mps0, node, sim_params)
     mps0.normalize(decomposition="SVD")
@@ -374,7 +374,7 @@ def test_digital_tjm_strong() -> None:
     min_bond_dim = 2
     threshold = 1e-12
     observable = Observable(Z(), 0)
-    sim_params = StrongSimParams([observable], num_traj, max_bond_dim, min_bond_dim, threshold)
+    sim_params = StrongSimParams([observable], num_traj, max_bond_dim, min_bond_dim, threshold, show_progress=False)
     args = 0, mps0, None, sim_params, qc
     digital_tjm(args)
 
@@ -396,7 +396,7 @@ def test_digital_tjm_weak() -> None:
     min_bond_dim = 2
     threshold = 1e-12
     shots = 10
-    sim_params = WeakSimParams(shots, max_bond_dim, min_bond_dim, threshold)
+    sim_params = WeakSimParams(shots, max_bond_dim, min_bond_dim, threshold, show_progress=False)
     args = 0, mps0, None, sim_params, qc
     digital_tjm(args)
 
@@ -445,7 +445,9 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     qc.rzz(0.5, 1, 2)
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
-    sim_params = StrongSimParams(observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=4)
+    sim_params = StrongSimParams(
+        observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=4, show_progress=False
+    )
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
 
@@ -510,7 +512,11 @@ def test_digital_tjm_longrange_noise() -> None:
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
     sim_params = StrongSimParams(
-        observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=num_layers - 1
+        observables=observables,
+        num_traj=num_traj,
+        sample_layers=True,
+        num_mid_measurements=num_layers - 1,
+        show_progress=False,
     )
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
@@ -542,7 +548,7 @@ def test_no_mid_measurements_results_have_two_columns() -> None:
     qc.rzz(0.1, 1, 2)
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
-    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True)
+    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True, show_progress=False)
     state = MPS(num_qubits, state="zeros")
 
     simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
@@ -576,7 +582,7 @@ def test_counts_multiple_mid_measurement_barriers() -> None:
     qc.cx(2, 3)
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
-    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True)
+    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True, show_progress=False)
     state = MPS(num_qubits, state="zeros")
 
     simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
@@ -606,7 +612,7 @@ def test_ignores_non_mid_barriers_and_handles_measures() -> None:
     qc.rzz(0.2, 0, 1)
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
-    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True)
+    sim_params = StrongSimParams(observables, num_traj=1, sample_layers=True, show_progress=False)
     state = MPS(num_qubits, state="zeros")
 
     simulator.run(state, qc, sim_params, noise_model=None, parallel=False)

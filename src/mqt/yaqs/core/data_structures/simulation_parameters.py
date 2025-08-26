@@ -158,6 +158,8 @@ class AnalogSimParams:
         The order of the simulation (default is 1).
     get_state:
         If True, output MPS is returned.
+    how_progress:
+        If True, a progress bar is printed as trajectories finish.
 
     Methods:
     --------
@@ -181,6 +183,7 @@ class AnalogSimParams:
         sample_timesteps: bool = True,
         evolution_mode: EvolutionMode = EvolutionMode.TDVP,
         get_state: bool = False,
+        show_progress: bool = True,
     ) -> None:
         """Physics simulation parameters initialization.
 
@@ -210,6 +213,8 @@ class AnalogSimParams:
             Mode of tensor evolution in the simulation, by default EvolutionMode.TDVP.
         get_state :
             If True, output MPS is returned.
+        show_progress:
+            If True, a progress bar is printed as trajectories finish.
         """
         assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
             "We currently have not implemented mixed observable and projective-measurement simulation."
@@ -241,6 +246,7 @@ class AnalogSimParams:
         self.order = order
         self.evolution_mode = evolution_mode
         self.get_state = get_state
+        self.show_progress = show_progress
 
     def aggregate_trajectories(self) -> None:
         """Aggregates trajectories for result.
@@ -280,6 +286,8 @@ class WeakSimParams:
         If True, output MPS is returned.
     sample_layers:
         If True, sample layers.
+    show_progress:
+        If True, a progress bar is printed as trajectories finish.
 
     Methods:
     --------
@@ -302,6 +310,7 @@ class WeakSimParams:
         threshold: float = 1e-9,
         *,
         get_state: bool = False,
+        show_progress: bool = True,
     ) -> None:
         """Weak circuit simulation initialization.
 
@@ -319,6 +328,8 @@ class WeakSimParams:
             Accuracy threshold for truncating tensors, by default 1e-6.
         get_state:
             If True, output MPS is returned.
+        show_progress:
+            If True, a progress bar is printed as trajectories finish.
         """
         self.measurements: list[dict[int, int] | None] = [None] * shots
         self.shots = shots
@@ -326,6 +337,7 @@ class WeakSimParams:
         self.min_bond_dim = min_bond_dim
         self.threshold = threshold
         self.get_state = get_state
+        self.show_progress = show_progress
 
     def aggregate_measurements(self) -> None:
         """Aggregates shots into final result.
@@ -380,6 +392,8 @@ class StrongSimParams:
         The size of the window for the simulation. Default is None.
     get_state:
         If True, output MPS is returned.
+    show_progress:
+        If True, a progress bar is printed as trajectories finish.
 
     Methods:
     --------
@@ -405,6 +419,7 @@ class StrongSimParams:
         get_state: bool = False,
         sample_layers: bool = False,
         num_mid_measurements: int = 0,
+        show_progress: bool = True,
     ) -> None:
         """Strong circuit simulation parameters initialization.
 
@@ -422,6 +437,8 @@ class StrongSimParams:
             Threshold for simulation accuracy, by default 1e-6.
         get_state:
             If True, output MPS is returned.
+        show_progress:
+            If True, a progress bar is printed as trajectories finish.
         """
         assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
             "We currently have not implemented mixed observable and projective-measurement simulation."
@@ -448,6 +465,7 @@ class StrongSimParams:
         self.get_state = get_state
         self.sample_layers = sample_layers
         self.num_mid_measurements = num_mid_measurements
+        self.show_progress = show_progress
 
     def aggregate_trajectories(self) -> None:
         """Aggregates trajectories for result.
