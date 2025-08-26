@@ -58,10 +58,10 @@ from typing import TYPE_CHECKING, Callable, TypeVar
 # Optional: extra control over threadpools inside worker processes
 # If not available, code still runs (we guard usage below).
 try:
-    from threadpoolctl import threadpool_info, threadpool_limits  # type: ignore
+    from threadpoolctl import threadpool_info, threadpool_limits  # type: ignore[import-not-found]
 except Exception:  # pragma: no cover - optional dependency
-    threadpool_limits = None  # type: ignore[assignment]
-    threadpool_info = None  # type: ignore[assignment]
+    threadpool_limits = None 
+    threadpool_info = None
 
 import contextlib
 import copy
@@ -186,14 +186,14 @@ def _limit_worker_threads(n_threads: int = 1) -> None:
 
     # b) Library-specific caps (best effort)
     try:
-        import numexpr  # type: ignore
+        import numexpr  # type: ignore[import-not-found]
 
         numexpr.set_num_threads(n_threads)
     except Exception:
         pass
 
     try:
-        import mkl  # type: ignore
+        import mkl  # type: ignore[import-not-found]
 
         mkl.set_num_threads(n_threads)
     except Exception:
@@ -478,7 +478,7 @@ def _run_weak_sim(
         parallel: Flag indicating whether to run trajectories in parallel.
     """
     # digital_tjm returns a measurement outcome structure for weak sim
-    backend: Callable[[tuple[int, MPS, NoiseModel | None, WeakSimParams, QuantumCircuit]], object] = digital_tjm
+    backend: Callable[[tuple[int, MPS, NoiseModel | None, WeakSimParams, QuantumCircuit]], dict[int, int]] = digital_tjm
 
     # Trajectory count policy
     if noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes):
