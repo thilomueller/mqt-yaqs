@@ -86,7 +86,15 @@ def test_analog_simulation() -> None:
 
     measurements = [Observable(Z(), site) for site in range(length)]
     sim_params = AnalogSimParams(
-        measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps, show_progress=False
+        measurements,
+        elapsed_time,
+        dt,
+        num_traj,
+        max_bond_dim,
+        threshold,
+        order,
+        sample_timesteps=sample_timesteps,
+        show_progress=False,
     )
     gamma = 0.1
     noise_model = NoiseModel([
@@ -138,7 +146,15 @@ def test_analog_simulation_parallel_off() -> None:
 
     measurements = [Observable(Z(), [site]) for site in range(length)]
     sim_params = AnalogSimParams(
-        measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps, show_progress=False
+        measurements,
+        elapsed_time,
+        dt,
+        num_traj,
+        max_bond_dim,
+        threshold,
+        order,
+        sample_timesteps=sample_timesteps,
+        show_progress=False,
     )
     gamma = 0.1
     noise_model = NoiseModel([
@@ -195,7 +211,7 @@ def test_analog_simulation_get_state() -> None:
             order,
             sample_timesteps=sample_timesteps,
             get_state=True,
-            show_progress=False
+            show_progress=False,
         )
         simulator.run(initial_state, H, sim_params)
         assert sim_params.output_state is not None
@@ -267,7 +283,9 @@ def test_strong_simulation_no_noise() -> None:
 
     state = MPS(length=num_qubits)
     measurements = [Observable(X(), num_qubits // 2)]
-    sim_params = StrongSimParams(measurements, num_traj=1, max_bond_dim=16, threshold=1e-12, get_state=True, show_progress=False)
+    sim_params = StrongSimParams(
+        measurements, num_traj=1, max_bond_dim=16, threshold=1e-12, get_state=True, show_progress=False
+    )
     simulator.run(state, circ, sim_params)
     assert sim_params.output_state is not None
     assert isinstance(sim_params.output_state, MPS)
@@ -483,7 +501,7 @@ def test_two_site_correlator_left_boundary() -> None:
         dt=dt,
         max_bond_dim=max_bond_dim,
         sample_timesteps=sample_timesteps,
-        show_progress=False
+        show_progress=False,
     )
 
     simulator.run(state, H_0, sim_params)
@@ -655,7 +673,7 @@ def test_two_site_correlator_center() -> None:
         dt=dt,
         max_bond_dim=max_bond_dim,
         sample_timesteps=sample_timesteps,
-        show_progress=False
+        show_progress=False,
     )
 
     simulator.run(state, H_0, sim_params)
@@ -823,7 +841,7 @@ def test_two_site_correlator_right_boundary() -> None:
         dt=dt,
         max_bond_dim=max_bond_dim,
         sample_timesteps=sample_timesteps,
-        show_progress=False
+        show_progress=False,
     )
 
     simulator.run(state, H_0, sim_params)
@@ -1036,7 +1054,15 @@ def test_transmon_simulation() -> None:
     measurements = [Observable(bitstring) for bitstring in ["000", "001", "010", "011", "100", "101", "110", "111"]]
 
     sim_params = AnalogSimParams(
-        measurements, elapsed_time, dt, num_traj, max_bond_dim, threshold, order, sample_timesteps=sample_timesteps, show_progress=False
+        measurements,
+        elapsed_time,
+        dt,
+        num_traj,
+        max_bond_dim,
+        threshold,
+        order,
+        sample_timesteps=sample_timesteps,
+        show_progress=False,
     )
     simulator.run(state, H_0, sim_params)
 

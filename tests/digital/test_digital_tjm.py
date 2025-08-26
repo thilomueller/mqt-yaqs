@@ -445,7 +445,9 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     qc.rzz(0.5, 1, 2)
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
-    sim_params = StrongSimParams(observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=4, show_progress=False)
+    sim_params = StrongSimParams(
+        observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=4, show_progress=False
+    )
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
 
@@ -510,7 +512,11 @@ def test_digital_tjm_longrange_noise() -> None:
 
     observables = [Observable(Z(), i) for i in range(num_qubits)]
     sim_params = StrongSimParams(
-        observables=observables, num_traj=num_traj, sample_layers=True, num_mid_measurements=num_layers - 1, show_progress=False
+        observables=observables,
+        num_traj=num_traj,
+        sample_layers=True,
+        num_mid_measurements=num_layers - 1,
+        show_progress=False,
     )
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)

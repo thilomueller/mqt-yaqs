@@ -96,7 +96,9 @@ def test_observable_initialize_with_sample_timesteps() -> None:
     trajectories array has shape (num_traj, len(times)).
     """
     obs = Observable(X(), 1)
-    sim_params = AnalogSimParams([obs], elapsed_time=1.0, dt=0.5, sample_timesteps=True, num_traj=10, show_progress=False)
+    sim_params = AnalogSimParams(
+        [obs], elapsed_time=1.0, dt=0.5, sample_timesteps=True, num_traj=10, show_progress=False
+    )
     # sim_params.times => [0.0, 0.5, 1.0]
 
     obs.initialize(sim_params)
@@ -114,7 +116,9 @@ def test_observable_initialize_without_sample_timesteps() -> None:
     has shape (num_traj, 1), and that the observable's times attribute is set to elapsed_time.
     """
     obs = Observable(X(), 0)
-    sim_params = AnalogSimParams([obs], elapsed_time=1.0, dt=0.25, sample_timesteps=False, num_traj=5, show_progress=False)
+    sim_params = AnalogSimParams(
+        [obs], elapsed_time=1.0, dt=0.25, sample_timesteps=False, num_traj=5, show_progress=False
+    )
     # times => [0.0, 0.25, 0.5, 0.75, 1.0]
 
     obs.initialize(sim_params)
@@ -296,7 +300,7 @@ def test_strong_params_sorting_and_fields() -> None:
         get_state=True,
         sample_layers=True,
         num_mid_measurements=2,
-        show_progress=False
+        show_progress=False,
     )
 
     # Expect sortable by site: y@1, x@2, z@3 then diagnostics/meta in given order

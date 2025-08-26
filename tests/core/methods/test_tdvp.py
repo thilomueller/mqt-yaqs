@@ -77,7 +77,7 @@ def test_split_mps_tensor_left_right_sqrt() -> None:
         max_bond_dim=100,
         threshold=1e-16,
         order=1,
-        show_progress=False
+        show_progress=False,
     )
     physical_dimensions = [A.shape[0] // 2, A.shape[0] // 2]
     for distr in ["left", "right", "sqrt"]:
@@ -115,7 +115,7 @@ def test_split_mps_tensor_invalid_shape() -> None:
         max_bond_dim=100,
         threshold=1e-8,
         order=1,
-        show_progress=False
+        show_progress=False,
     )
     physical_dimensions = [3, 3]
     with pytest.raises(
@@ -263,7 +263,7 @@ def test_single_site_tdvp() -> None:
         max_bond_dim=4,
         threshold=1e-6,
         order=1,
-        show_progress=False
+        show_progress=False,
     )
     single_site_tdvp(state, H, sim_params, numiter_lanczos=5)
     assert state.length == L
@@ -299,7 +299,7 @@ def test_two_site_tdvp() -> None:
         max_bond_dim=16,
         threshold=1e-12,
         order=1,
-        show_progress=False
+        show_progress=False,
     )
     two_site_tdvp(state, H, sim_params, numiter_lanczos=25)
     assert state.length == L
@@ -358,7 +358,7 @@ def test_dynamic_tdvp_one_site() -> None:
         threshold,
         order,
         sample_timesteps=sample_timesteps,
-        show_progress=False
+        show_progress=False,
     )
 
     with patch("mqt.yaqs.core.methods.tdvp.single_site_tdvp") as mock_single_site:
@@ -405,7 +405,7 @@ def test_dynamic_tdvp_two_site() -> None:
         threshold,
         order,
         sample_timesteps=sample_timesteps,
-        show_progress=False
+        show_progress=False,
     )
 
     with patch("mqt.yaqs.core.methods.tdvp.two_site_tdvp") as mock_two_site:
