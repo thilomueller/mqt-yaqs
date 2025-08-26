@@ -188,7 +188,6 @@ def analog_tjm_1(args: tuple[int, MPS, NoiseModel | None, AnalogSimParams, MPO])
     if sim_params.sample_timesteps:
         state.evaluate_observables(sim_params, results, 0)
 
-
     for j, _ in enumerate(sim_params.times[1:], start=1):
         local_dynamic_tdvp(state, hamiltonian, sim_params)
         if noise_model is not None:
