@@ -91,7 +91,7 @@ def split_mps_tensor(
 
     # Handled by dynamic TDVP
     keep = min(len(s_vec), sim_params.max_bond_dim)
-    if not dynamic:
+    if sim_params.trunc_mode == "sum_squared":
         discard = 0.0
         min_keep = min(len(s_vec), sim_params.min_bond_dim)  # Prevents pathological dimension-1 truncation
         for idx, s in enumerate(reversed(s_vec)):
@@ -99,8 +99,11 @@ def split_mps_tensor(
             if discard >= sim_params.threshold:
                 keep = max(len(s_vec) - idx, min_keep)
                 break
-        if sim_params.max_bond_dim is not None:
-            keep = min(keep, sim_params.max_bond_dim)
+    elif sim_params.trunc_mode == "relative":
+        keep = min(sum(s_vec/max(s_vec) > sim_params.threshold), sim_params.max_bond_dim)
+        if sim_params.min_bond_dim > keep:
+            keep = sim_params.min_bond_dim
+        s_vec = s_vec[0:keep]
 
     left_tensor = u_mat[:, :keep]
     s_vec = s_vec[:keep]
