@@ -90,7 +90,11 @@ def split_mps_tensor(
     u_mat, s_vec, v_mat = np.linalg.svd(theta_mat, full_matrices=False)
 
     # Handled by dynamic TDVP
-    keep = min(len(s_vec), sim_params.max_bond_dim)
+    if not dynamic:
+        keep = min(len(s_vec), sim_params.max_bond_dim)
+    else:
+        keep = len(s_vec)
+
     if sim_params.trunc_mode == "sum_squared":
         discard = 0.0
         min_keep = min(len(s_vec), sim_params.min_bond_dim)  # Prevents pathological dimension-1 truncation
