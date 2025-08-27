@@ -198,6 +198,7 @@ def test_analog_simulation_get_state() -> None:
         sample_timesteps = False
         num_traj = 1
         max_bond_dim = 4
+        min_bond_dim = 2
         threshold = 0
 
         measurements = [Observable(X(), length // 2)]
@@ -207,6 +208,7 @@ def test_analog_simulation_get_state() -> None:
             dt,
             num_traj,
             max_bond_dim,
+            min_bond_dim,
             threshold,
             order,
             sample_timesteps=sample_timesteps,
@@ -1048,6 +1050,7 @@ def test_transmon_simulation() -> None:
     sample_timesteps = False
     num_traj = 1
     max_bond_dim = 2**length
+    min_bond_dim = 2
     threshold = 0
     order = 1
 
@@ -1059,6 +1062,7 @@ def test_transmon_simulation() -> None:
         dt,
         num_traj,
         max_bond_dim,
+        min_bond_dim,
         threshold,
         order,
         sample_timesteps=sample_timesteps,
