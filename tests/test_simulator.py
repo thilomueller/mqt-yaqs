@@ -81,7 +81,8 @@ def test_analog_simulation() -> None:
     sample_timesteps = False
     num_traj = 10
     max_bond_dim = 4
-    threshold = 0
+    min_bond_dim = 2
+    threshold = 1e-6
     order = 2
 
     measurements = [Observable(Z(), site) for site in range(length)]
@@ -91,6 +92,7 @@ def test_analog_simulation() -> None:
         dt,
         num_traj,
         max_bond_dim,
+        min_bond_dim,
         threshold,
         order,
         sample_timesteps=sample_timesteps,
@@ -141,6 +143,7 @@ def test_analog_simulation_parallel_off() -> None:
     sample_timesteps = False
     num_traj = 20
     max_bond_dim = 4
+    min_bond_dim = 2
     threshold = 0
     order = 2
 
@@ -151,6 +154,7 @@ def test_analog_simulation_parallel_off() -> None:
         dt,
         num_traj,
         max_bond_dim,
+        min_bond_dim,
         threshold,
         order,
         sample_timesteps=sample_timesteps,
