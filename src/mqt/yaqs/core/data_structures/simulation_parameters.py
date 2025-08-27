@@ -152,6 +152,8 @@ class AnalogSimParams:
         The number of samples to be taken (default is 1000).
     max_bond_dim :
         The maximum bond dimension (default is 2).
+    trunc_mode :
+        The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
     threshold :
         The threshold value for the simulation (default is 1e-6).
     order :
@@ -177,6 +179,7 @@ class AnalogSimParams:
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
+        trunc_mode: str = "sum_squared",
         threshold: float = 1e-9,
         order: int = 1,
         *,
@@ -203,6 +206,8 @@ class AnalogSimParams:
             Maximum bond dimension allowed, by default 2.
         min_bond_dim:
             The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
+        trunc_mode :
+            The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
         threshold :
             Threshold for simulation accuracy, by default 1e-6.
         order :
@@ -242,6 +247,7 @@ class AnalogSimParams:
         self.num_traj = num_traj
         self.max_bond_dim = max_bond_dim
         self.min_bond_dim = min_bond_dim
+        self.trunc_mode = trunc_mode
         self.threshold = threshold
         self.order = order
         self.evolution_mode = evolution_mode
@@ -278,6 +284,10 @@ class WeakSimParams:
         The number of shots for the simulation.
     max_bond_dim : int
         The maximum bond dimension for the simulation.
+    min_bond_dim:
+        The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
+    trunc_mode :
+        The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
     threshold : float
         The threshold value for the simulation.
     window_size : int | None
@@ -307,6 +317,7 @@ class WeakSimParams:
         shots: int,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
+        trunc_mode: str = "sum_squared",
         threshold: float = 1e-9,
         *,
         get_state: bool = False,
@@ -324,6 +335,8 @@ class WeakSimParams:
             Maximum bond dimension for simulation, by default 2.
         min_bond_dim:
             The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
+        trunc_mode:
+            The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
         threshold : float, optional
             Accuracy threshold for truncating tensors, by default 1e-6.
         get_state:
@@ -335,6 +348,7 @@ class WeakSimParams:
         self.shots = shots
         self.max_bond_dim = max_bond_dim
         self.min_bond_dim = min_bond_dim
+        self.trunc_mode = trunc_mode
         self.threshold = threshold
         self.get_state = get_state
         self.show_progress = show_progress
@@ -386,6 +400,8 @@ class StrongSimParams:
         The maximum bond dimension for the simulation. Default is 2.
     min_bond_dim:
         The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
+    trunc_mode :
+        The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
     threshold : float
         The threshold value for the simulation. Default is 1e-6.
     window_size : int or None
@@ -414,6 +430,7 @@ class StrongSimParams:
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
+        trunc_mode: str = "sum_squared",
         threshold: float = 1e-9,
         *,
         get_state: bool = False,
@@ -433,6 +450,8 @@ class StrongSimParams:
             Number of trajectories to simulate, by default 1000.
         max_bond_dim : int, optional
             Maximum bond dimension allowed in simulation, by default 2.
+        trunc_mode :
+            The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
         threshold : float, optional
             Threshold for simulation accuracy, by default 1e-6.
         get_state:
@@ -461,6 +480,7 @@ class StrongSimParams:
         self.num_traj = num_traj
         self.max_bond_dim = max_bond_dim
         self.min_bond_dim = min_bond_dim
+        self.trunc_mode = trunc_mode
         self.threshold = threshold
         self.get_state = get_state
         self.sample_layers = sample_layers
