@@ -45,7 +45,7 @@ def test_apply_dissipation_one_site_canonical_0() -> None:
     ])
     dt = 0.1
     sim_params = AnalogSimParams(
-        observables=[], elapsed_time=0.0, max_bond_dim=10, threshold=1e-10, show_progress=False
+        observables=[], elapsed_time=0.0
     )
 
     apply_dissipation(state, noise_model, dt, sim_params)
@@ -84,7 +84,7 @@ def test_apply_dissipation_two_site_canonical_0() -> None:
     ])
     dt = 0.1
     sim_params = AnalogSimParams(
-        observables=[], elapsed_time=0.0, max_bond_dim=10, threshold=1e-10, show_progress=False
+        observables=[], elapsed_time=0.0
     )
 
     apply_dissipation(state, noise_model, dt, sim_params)

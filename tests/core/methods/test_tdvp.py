@@ -67,18 +67,12 @@ def test_split_mps_tensor_left_right_sqrt() -> None:
     """
     A = rng.random(size=(4, 3, 5))
     # Placeholder
-    measurements = [Observable(Z(), site) for site in range(1)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=100,
-        trunc_mode="relative",
-        threshold=0,
-        order=1,
-        show_progress=False,
+        trunc_mode="relative"
     )
     physical_dimensions = [A.shape[0] // 2, A.shape[0] // 2]
     for distr in ["left", "right", "sqrt"]:
@@ -106,17 +100,11 @@ def test_split_mps_tensor_invalid_shape() -> None:
     """
     A = rng.random(size=(3, 3, 5))
     # Placeholder
-    measurements = [Observable(Z(), site) for site in range(1)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=100,
-        threshold=1e-8,
-        order=1,
-        show_progress=False,
     )
     physical_dimensions = [3, 3]
     with pytest.raises(
@@ -254,17 +242,11 @@ def test_single_site_tdvp() -> None:
     H = MPO()
     H.init_ising(L, J, g)
     state = MPS(L, state="zeros")
-    measurements = [Observable(Z(), site) for site in range(L)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=4,
-        threshold=1e-6,
-        order=1,
-        show_progress=False,
     )
     single_site_tdvp(state, H, sim_params, numiter_lanczos=5)
     assert state.length == L
@@ -290,17 +272,11 @@ def test_two_site_tdvp() -> None:
     H.init_ising(L, J, g)
     state = MPS(L, state="zeros")
     ref_mps = deepcopy(state)
-    measurements = [Observable(Z(), site) for site in range(L)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=16,
-        threshold=1e-12,
-        order=1,
-        show_progress=False,
     )
     two_site_tdvp(state, H, sim_params, numiter_lanczos=25)
     assert state.length == L
@@ -340,25 +316,12 @@ def test_dynamic_tdvp_one_site() -> None:
     state = MPS(L, state="zeros")
 
     # Define simulation parameters with max_bond_dim set to 0.
-    elapsed_time = 0.2
-    dt = 0.1
-    sample_timesteps = False
-    num_traj = 1
-    max_bond_dim = 0  # Force condition for single_site_TDVP.
-    min_bond_dim = 2
-    threshold = 1e-6
-    order = 1
-    measurements = [Observable(X(), site) for site in range(L)]
     sim_params = AnalogSimParams(
-        measurements,
-        elapsed_time,
-        dt,
-        num_traj,
-        max_bond_dim,
-        min_bond_dim,
-        threshold,
-        order,
-        sample_timesteps=sample_timesteps,
+        observables=[Observable(X(), 0)],
+        elapsed_time=0.2,
+        dt=0.1,
+        max_bond_dim=0,
+        sample_timesteps=False,
         show_progress=False,
     )
 
@@ -387,28 +350,15 @@ def test_dynamic_tdvp_two_site() -> None:
     state = MPS(L, state="zeros")
 
     # Define simulation parameters with max_bond_dim set to 2.
-    elapsed_time = 0.2
-    dt = 0.1
-    sample_timesteps = False
-    num_traj = 1
-    max_bond_dim = 8  # Force condition for two_site_tdvp.
-    min_bond_dim = 2
-    threshold = 1e-6
-    order = 1
-    measurements = [Observable(X(), site) for site in range(L)]
+
     sim_params = AnalogSimParams(
-        measurements,
-        elapsed_time,
-        dt,
-        num_traj,
-        max_bond_dim,
-        min_bond_dim,
-        threshold,
-        order,
-        sample_timesteps=sample_timesteps,
+        observables=[Observable(X(), 0)],
+        elapsed_time=0.2,
+        dt=0.1,
+        max_bond_dim=8,
+        sample_timesteps=False,
         show_progress=False,
     )
-
     with patch("mqt.yaqs.core.methods.tdvp.two_site_tdvp") as mock_two_site:
         global_dynamic_tdvp(state, H, sim_params)
         mock_two_site.assert_called_once_with(state, H, sim_params, dynamic=True)
@@ -460,20 +410,16 @@ def test_split_truncation_discarded_weight_kept_count(svs: np.NDArray[np.float64
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
     # Minimal params; set trunc_mode after construction to avoid signature mismatch.
-    measurements = [Observable(Z(), 0)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
-        sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=100,
-        threshold=threshold,
-        order=1,
-        show_progress=False,
         min_bond_dim=1,
+        threshold=threshold,
+        trunc_mode="discarded_weight",
+        sample_timesteps=True,
+        show_progress=False,
     )
-    sim_params.trunc_mode = "discarded_weight"
 
     A0, A1 = split_mps_tensor(
         A_in, svd_distribution="sqrt", sim_params=sim_params, physical_dimensions=[d0, d1], dynamic=True
@@ -499,20 +445,16 @@ def test_split_truncation_relative_kept_count(svs: np.NDArray[np.float64], rel_t
     theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=12)
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
-    measurements = [Observable(Z(), 0)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
-        sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=100,
-        threshold=rel_thr,   # interpreted as relative threshold in this mode
-        order=1,
-        show_progress=False,
         min_bond_dim=1,
+        threshold=rel_thr,
+        trunc_mode="relative",
+        sample_timesteps=True,
+        show_progress=False,
     )
-    sim_params.trunc_mode = "relative"
 
     A0, A1 = split_mps_tensor(
         A_in, svd_distribution="sqrt", sim_params=sim_params, physical_dimensions=[d0, d1], dynamic=True
@@ -536,41 +478,33 @@ def test_split_truncation_min_max_bond_enforced() -> None:
     theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=13)
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
-    measurements = [Observable(Z(), 0)]
-
     # relative would keep >2, cap at max_bond_dim=2
-    sim_rel = AnalogSimParams(
-        measurements,
+    sim_params = AnalogSimParams(
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
-        sample_timesteps=True,
-        num_traj=1,
         max_bond_dim=2,
         threshold=0.5,
-        order=1,
+        trunc_mode="relative",
+        sample_timesteps=True,
         show_progress=False,
-        min_bond_dim=2,
     )
-    sim_rel.trunc_mode = "relative"
-    A0, A1 = split_mps_tensor(A_in, "sqrt", sim_rel, [d0, d1], dynamic=True)
+    A0, A1 = split_mps_tensor(A_in, "sqrt", sim_params, [d0, d1], dynamic=True)
     assert A0.shape[2] == 2
     assert A1.shape[1] == 2
 
     # discarded_weight would keep 1 for high threshold; min_bond_dim=2 lifts it to 2
-    sim_dw = AnalogSimParams(
-        measurements,
+    sim_params = AnalogSimParams(
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
-        sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=10,
-        threshold=0.49,  # tail-power trigger
-        order=1,
-        show_progress=False,
         min_bond_dim=2,
+        threshold=0.5,
+        trunc_mode="discarded_weight",
+        sample_timesteps=True,
+        show_progress=False,
     )
-    sim_dw.trunc_mode = "discarded_weight"
-    A0, A1 = split_mps_tensor(A_in, "sqrt", sim_dw, [d0, d1], dynamic=True)
+    A0, A1 = split_mps_tensor(A_in, "sqrt", sim_params, [d0, d1], dynamic=True)
     assert A0.shape[2] == 2
     assert A1.shape[1] == 2
 
@@ -585,20 +519,16 @@ def test_split_truncation_distribution_reconstructs_optimal_rank(distr: str) -> 
 
     # Use a very permissive relative threshold so we keep k=4 (full rank) here;
     # the identity should still hold for any k produced.
-    measurements = [Observable(Z(), 0)]
     sim_params = AnalogSimParams(
-        measurements,
+        observables=[Observable(Z(), 0)],
         elapsed_time=0.2,
         dt=0.1,
+        max_bond_dim=2,
+        threshold=0.5,
+        trunc_mode="relative",
         sample_timesteps=True,
-        num_traj=1,
-        max_bond_dim=10,
-        threshold=0.05,
-        order=1,
         show_progress=False,
-        min_bond_dim=1,
     )
-    sim_params.trunc_mode = "relative"
 
     A0, A1 = split_mps_tensor(A_in, distr, sim_params, [d0, d1], dynamic=True)
     k = A0.shape[2]
