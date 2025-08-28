@@ -153,7 +153,7 @@ class AnalogSimParams:
     max_bond_dim :
         The maximum bond dimension (default is 2).
     trunc_mode :
-        The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
+        The type of truncation performed in TDVP. Options are "discarded_weight" and "relative".
     threshold :
         The threshold value for the simulation (default is 1e-6).
     order :
@@ -179,7 +179,7 @@ class AnalogSimParams:
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
-        trunc_mode: str = "sum_squared",
+        trunc_mode: str = "discarded_weight",
         threshold: float = 1e-9,
         order: int = 1,
         *,
@@ -207,7 +207,7 @@ class AnalogSimParams:
         min_bond_dim:
             The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
         trunc_mode :
-            The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
+            The type of truncation performed in TDVP. Options are "discarded_weight" and "relative".
         threshold :
             Threshold for simulation accuracy, by default 1e-6.
         order :
@@ -287,7 +287,7 @@ class WeakSimParams:
     min_bond_dim:
         The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
     trunc_mode :
-        The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
+        The type of truncation performed in TDVP. Options are "discarded_weight" and "relative".
     threshold : float
         The threshold value for the simulation.
     window_size : int | None
@@ -317,7 +317,7 @@ class WeakSimParams:
         shots: int,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
-        trunc_mode: str = "sum_squared",
+        trunc_mode: str = "discarded_weight",
         threshold: float = 1e-9,
         *,
         get_state: bool = False,
@@ -336,7 +336,7 @@ class WeakSimParams:
         min_bond_dim:
             The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
         trunc_mode:
-            The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
+            The type of truncation performed in TDVP. Options are "discarded_weight" and "relative".
         threshold : float, optional
             Accuracy threshold for truncating tensors, by default 1e-6.
         get_state:
@@ -401,7 +401,7 @@ class StrongSimParams:
     min_bond_dim:
         The minimum bond dimension if possible which gives TDVP better accuracy. Default is 2.
     trunc_mode :
-        The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
+        The type of truncation performed in TDVP. Options are "discarded_weight" and "relative".
     threshold : float
         The threshold value for the simulation. Default is 1e-6.
     window_size : int or None
@@ -430,7 +430,7 @@ class StrongSimParams:
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
-        trunc_mode: str = "sum_squared",
+        trunc_mode: str = "discarded_weight",
         threshold: float = 1e-9,
         *,
         get_state: bool = False,
@@ -451,7 +451,7 @@ class StrongSimParams:
         max_bond_dim : int, optional
             Maximum bond dimension allowed in simulation, by default 2.
         trunc_mode :
-            The type of truncation performed in TDVP. Options are "sum_squared" and "relative".
+            The type of truncation performed in TDVP. Options are "discarded_weight" and "relative".
         threshold : float, optional
             Threshold for simulation accuracy, by default 1e-6.
         get_state:
