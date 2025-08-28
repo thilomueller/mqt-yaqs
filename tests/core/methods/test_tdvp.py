@@ -75,7 +75,8 @@ def test_split_mps_tensor_left_right_sqrt() -> None:
         sample_timesteps=True,
         num_traj=1,
         max_bond_dim=100,
-        threshold=1e-16,
+        trunc_mode="relative",
+        threshold=0,
         order=1,
         show_progress=False,
     )
@@ -411,3 +412,191 @@ def test_dynamic_tdvp_two_site() -> None:
     with patch("mqt.yaqs.core.methods.tdvp.two_site_tdvp") as mock_two_site:
         global_dynamic_tdvp(state, H, sim_params)
         mock_two_site.assert_called_once_with(state, H, sim_params, dynamic=True)
+
+
+def _rand_unitary_like(m: int, n: int, *, seed: int) -> np.ndarray:
+    """Return an m×n semi-unitary (orthonormal columns) for deterministic tests."""
+    rng_local = np.random.default_rng(seed)
+    A = rng_local.normal(size=(m, n)) + 1j * rng_local.normal(size=(m, n))
+    # QR gives orthonormal columns
+    Q, _ = np.linalg.qr(A)
+    return Q[:, :n]
+
+def _theta_from_singulars(s: np.ndarray, m: int, n: int, *, seed: int) -> np.ndarray:
+    """Construct θ = U diag(s) V† with shape (m, n), using deterministic U,V."""
+    r = min(len(s), m, n)
+    U = _rand_unitary_like(m, r, seed=seed)
+    V = _rand_unitary_like(n, r, seed=seed + 1)
+    S = np.diag(s[:r])
+    return U @ S @ V.conj().T
+
+def _as_input_tensor(theta: np.ndarray, d0: int, d1: int, D0: int, D2: int) -> np.ndarray:
+    """Map (d0*D0, d1*D2) matrix to split_mps_tensor input shape (d0*d1, D0, D2)."""
+    # theta: (d0*D0) x (d1*D2)
+    t = theta.reshape(d0, D0, d1, D2).transpose(0, 2, 1, 3)  # (d0, d1, D0, D2)
+    return t.reshape(d0 * d1, D0, D2)
+
+
+@pytest.mark.parametrize("svs,threshold,expected_keep", [
+    # Tail power (sum of discarded s^2) crosses threshold exactly at the boundary.
+    (np.array([1.0, 0.5, 0.1, 0.01]), 1e-4, 3),                     # discard 0.01 -> 1e-4
+    (np.array([1.0, 0.5, 0.01, 0.001]), 1e-4, 2),                   # 1e-4 + 1e-6 >= 1e-4
+    (np.array([1.0, 0.2, 0.2, 0.2]), 0.2**2 + 0.2**2 + 0.2**2, 1),  # keep only the largest
+])
+def test_split_truncation_discarded_weight_kept_count(svs, threshold, expected_keep) -> None:
+    """discarded_weight: keep count matches tail-power threshold; shapes consistent."""
+    d0, d1, D0, D2 = 2, 2, 3, 3
+    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=11)
+    A_in = _as_input_tensor(theta, d0, d1, D0, D2)
+
+    # Minimal params; set trunc_mode after construction to avoid signature mismatch.
+    measurements = [Observable(Z(), 0)]
+    sim_params = AnalogSimParams(
+        measurements,
+        elapsed_time=0.2,
+        dt=0.1,
+        sample_timesteps=True,
+        num_traj=1,
+        max_bond_dim=100,
+        threshold=threshold,
+        order=1,
+        show_progress=False,
+        min_bond_dim=1,
+    )
+    sim_params.trunc_mode = "discarded_weight"
+
+    A0, A1 = split_mps_tensor(
+        A_in, svd_distribution="sqrt", sim_params=sim_params, physical_dimensions=[d0, d1], dynamic=True
+    )
+    keep = A0.shape[2]
+    assert keep == expected_keep
+    assert A1.shape[1] == keep
+
+    # Verify tail power condition that triggered this selection.
+    tail = svs[expected_keep:] if expected_keep < len(svs) else np.array([], dtype=svs.dtype)
+    assert np.sum(tail**2) >= threshold or expected_keep == len(svs)
+
+
+@pytest.mark.parametrize("svs,rel_thr,expected_keep", [
+    # Keep all s_i strictly greater than rel_thr * s_max
+    (np.array([1.0, 0.6, 0.4, 0.1]), 0.5, 2),   # keep 1.0, 0.6
+    (np.array([1.0, 0.99, 0.98]),     0.95, 3), # keep all
+    (np.array([1.0, 0.49, 0.3]),      0.5,  1), # keep only 1.0
+])
+def test_split_truncation_relative_kept_count(svs, rel_thr, expected_keep) -> None:
+    """relative: keep count matches s_i/s_max > threshold; shapes consistent."""
+    d0, d1, D0, D2 = 2, 3, 2, 3
+    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=12)
+    A_in = _as_input_tensor(theta, d0, d1, D0, D2)
+
+    measurements = [Observable(Z(), 0)]
+    sim_params = AnalogSimParams(
+        measurements,
+        elapsed_time=0.2,
+        dt=0.1,
+        sample_timesteps=True,
+        num_traj=1,
+        max_bond_dim=100,
+        threshold=rel_thr,   # interpreted as relative threshold in this mode
+        order=1,
+        show_progress=False,
+        min_bond_dim=1,
+    )
+    sim_params.trunc_mode = "relative"
+
+    A0, A1 = split_mps_tensor(
+        A_in, svd_distribution="sqrt", sim_params=sim_params, physical_dimensions=[d0, d1], dynamic=True
+    )
+    keep = A0.shape[2]
+    assert keep == expected_keep
+    assert A1.shape[1] == keep
+
+    # Sanity around threshold boundary (strict >)
+    smax = float(np.max(svs))
+    if expected_keep > 0:
+        assert np.all(svs[:expected_keep] / smax > rel_thr)
+    if expected_keep < len(svs):
+        assert not (svs[expected_keep] / smax > rel_thr)
+
+
+def test_split_truncation_min_max_bond_enforced() -> None:
+    """min_bond_dim/max_bond_dim are respected in both modes."""
+    svs = np.array([1.0, 0.9, 0.8, 0.7])
+    d0, d1, D0, D2 = 2, 2, 3, 3
+    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=13)
+    A_in = _as_input_tensor(theta, d0, d1, D0, D2)
+
+    measurements = [Observable(Z(), 0)]
+
+    # relative would keep >2, cap at max_bond_dim=2
+    sim_rel = AnalogSimParams(
+        measurements,
+        elapsed_time=0.2,
+        dt=0.1,
+        sample_timesteps=True,
+        num_traj=1,
+        max_bond_dim=2,
+        threshold=0.5,
+        order=1,
+        show_progress=False,
+        min_bond_dim=2,
+    )
+    sim_rel.trunc_mode = "relative"
+    A0, A1 = split_mps_tensor(A_in, "sqrt", sim_rel, [d0, d1], dynamic=True)
+    assert A0.shape[2] == 2 and A1.shape[1] == 2
+
+    # discarded_weight would keep 1 for high threshold; min_bond_dim=2 lifts it to 2
+    sim_dw = AnalogSimParams(
+        measurements,
+        elapsed_time=0.2,
+        dt=0.1,
+        sample_timesteps=True,
+        num_traj=1,
+        max_bond_dim=10,
+        threshold=0.49,  # tail-power trigger
+        order=1,
+        show_progress=False,
+        min_bond_dim=2,
+    )
+    sim_dw.trunc_mode = "discarded_weight"
+    A0, A1 = split_mps_tensor(A_in, "sqrt", sim_dw, [d0, d1], dynamic=True)
+    assert A0.shape[2] == 2 and A1.shape[1] == 2
+
+
+@pytest.mark.parametrize("distr", ["left", "right", "sqrt"])
+def test_split_truncation_distribution_reconstructs_optimal_rank(distr: str) -> None:
+    """All SVD distribution choices reconstruct the optimal rank-k approximation."""
+    svs = np.array([1.0, 0.7, 0.3, 0.1])
+    d0, d1, D0, D2 = 2, 2, 3, 3
+    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=14)
+    A_in = _as_input_tensor(theta, d0, d1, D0, D2)
+
+    # Use a very permissive relative threshold so we keep k=4 (full rank) here;
+    # the identity should still hold for any k produced.
+    measurements = [Observable(Z(), 0)]
+    sim_params = AnalogSimParams(
+        measurements,
+        elapsed_time=0.2,
+        dt=0.1,
+        sample_timesteps=True,
+        num_traj=1,
+        max_bond_dim=10,
+        threshold=0.05,
+        order=1,
+        show_progress=False,
+        min_bond_dim=1,
+    )
+    sim_params.trunc_mode = "relative"
+
+    A0, A1 = split_mps_tensor(A_in, distr, sim_params, [d0, d1], dynamic=True)
+    k = A0.shape[2]
+
+    # Recompose (d0*D0, k) @ (k, d1*D2)
+    L = A0.reshape(d0*D0, k)
+    R = A1.transpose(1, 0, 2).reshape(k, d1*D2)
+    theta_recon = L @ R
+
+    # Compare with best rank-k SVD approximation of the original theta
+    u, s, v = np.linalg.svd(theta, full_matrices=False)
+    theta_opt_k = (u[:, :k] * s[:k]) @ v[:k, :]
+    np.testing.assert_allclose(theta_recon, theta_opt_k, atol=1e-10, rtol=1e-8)
