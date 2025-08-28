@@ -29,6 +29,7 @@ These tests confirm the correctness and stability of TDVP-based simulations with
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import numpy as np
@@ -52,6 +53,9 @@ from mqt.yaqs.core.methods.tdvp import (
     update_right_environment,
     update_site,
 )
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 rng = np.random.default_rng()
 
@@ -364,37 +368,31 @@ def test_dynamic_tdvp_two_site() -> None:
         mock_two_site.assert_called_once_with(state, H, sim_params, dynamic=True)
 
 
-def _rand_unitary_like(m: int, n: int, *, seed: int) -> np.ndarray:
-    """Return an m x n semi-unitary (orthonormal columns) for deterministic tests."""
+def _rand_unitary_like(m: int, n: int, *, seed: int) -> NDArray[np.complex128]:
     rng_local = np.random.default_rng(seed)
     A = rng_local.normal(size=(m, n)) + 1j * rng_local.normal(size=(m, n))
-    # QR gives orthonormal columns
     Q, _ = np.linalg.qr(A)
-    return Q[:, :n]
+    # ensure dtype and shape for mypy
+    Q = np.asarray(Q, dtype=np.complex128)
+    return cast("NDArray[np.complex128]", Q[:, :n])
 
 
-def _theta_from_singulars(s: np.ndarray, m: int, n: int, *, seed: int) -> np.ndarray:
-    """Construct θ = U diag(s) V† with shape (m, n), using deterministic U,V.
-
-    Returns:
-        Re-constructed matrix
-    """
+def _theta_from_singulars(
+    s: NDArray[np.float64], m: int, n: int, *, seed: int
+) -> NDArray[np.complex128]:
     r = min(len(s), m, n)
     U = _rand_unitary_like(m, r, seed=seed)
     V = _rand_unitary_like(n, r, seed=seed + 1)
-    S = np.diag(s[:r])
-    return U @ S @ V.conj().T
+    S = np.diag(s[:r].astype(np.complex128))  # complex diag
+    theta = (U @ S @ V.conj().T).astype(np.complex128, copy=False)
+    return cast("NDArray[np.complex128]", theta)
 
 
-def _as_input_tensor(theta: np.ndarray, d0: int, d1: int, d2: int, d3: int) -> np.ndarray:
-    """Map (d0*D0, d1*D2) matrix to split_mps_tensor input shape (d0*d1, d2, d3).
-
-    Returns:
-        Reshaped input tensor
-    """
-    # theta: (d0*D0) x (d1*D2)
+def _as_input_tensor(
+    theta: NDArray[np.complex128], d0: int, d1: int, d2: int, d3: int
+) -> NDArray[np.complex128]:
     t = theta.reshape(d0, d2, d1, d3).transpose(0, 2, 1, 3)  # (d0, d1, d2, d3)
-    return t.reshape(d0 * d1, d2, d3)
+    return cast("NDArray[np.complex128]", t.reshape(d0 * d1, d2, d3))
 
 
 @pytest.mark.parametrize(("svs", "threshold", "expected_keep"), [
@@ -403,7 +401,7 @@ def _as_input_tensor(theta: np.ndarray, d0: int, d1: int, d2: int, d3: int) -> n
     (np.array([1.0, 0.5, 0.01, 0.001]), 1e-4, 2),                   # 1e-4 + 1e-6 >= 1e-4
     (np.array([1.0, 0.2, 0.2, 0.2]), 0.2**2 + 0.2**2 + 0.2**2, 1),  # keep only the largest
 ])
-def test_split_truncation_discarded_weight_kept_count(svs: np.NDArray[np.float64], threshold: float, expected_keep: int) -> None:
+def test_split_truncation_discarded_weight_kept_count(svs: NDArray[np.float64], threshold: float, expected_keep: int) -> None:
     """discarded_weight: keep count matches tail-power threshold; shapes consistent."""
     d0, d1, D0, D2 = 2, 2, 3, 3
     theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=11)
@@ -439,7 +437,7 @@ def test_split_truncation_discarded_weight_kept_count(svs: np.NDArray[np.float64
     (np.array([1.0, 0.99, 0.98]), 0.95, 3),  # keep all
     (np.array([1.0, 0.49, 0.3]), 0.5, 1),  # keep only 1.0
 ])
-def test_split_truncation_relative_kept_count(svs: np.NDArray[np.float64], rel_thr: float, expected_keep: int) -> None:
+def test_split_truncation_relative_kept_count(svs: NDArray[np.float64], rel_thr: float, expected_keep: int) -> None:
     """relative: keep count matches s_i/s_max > threshold; shapes consistent."""
     d0, d1, D0, D2 = 2, 3, 2, 3
     theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=12)
