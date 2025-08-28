@@ -12,7 +12,7 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-# Transmon-Resonator Chain Simulation
+# Transmon-Resonator Chain Emulation
 
 This example demonstrates how to run an analog simulation of a chain consisting of transmon qubits and resonators using YAQS.
 
