@@ -513,7 +513,7 @@ def _run_weak_sim(
             sim_params.measurements[i] = result
 
     # Reset shots back from trajectories
-    if not(noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes)):
+    if not (noise_model is None or all(proc["strength"] == 0 for proc in noise_model.processes)):
         sim_params.shots = sim_params.num_traj
 
     # Aggregate individual measurements into the requested statistics/histograms

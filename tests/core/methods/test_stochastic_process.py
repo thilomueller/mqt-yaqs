@@ -107,7 +107,7 @@ def test_create_probability_distribution_no_noise() -> None:
     state = random_mps([(2, 1, 2), (2, 2, 2), (2, 2, 1)])
     noise_model = NoiseModel([])
     dt = 0.1
-    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0,)
+    sim_params = AnalogSimParams(observables=[], elapsed_time=0.0)
     probabilities = create_probability_distribution(state, noise_model, dt, sim_params)
     assert len(probabilities) == 0, "No probabilities should be computed with empty noise model."
 

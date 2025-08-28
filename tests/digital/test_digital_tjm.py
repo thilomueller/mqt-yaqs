@@ -463,7 +463,6 @@ def test_digital_tjm_longrange_noise() -> None:
     dt = 0.1
     num_layers = 4
     noise_factor = 0.01
-    num_traj = 1000
 
     # Hardcoded Qiskit density-matrix reference (rows: qubits 0..3; columns: layers 0..9)
     reference = np.array([
@@ -495,7 +494,7 @@ def test_digital_tjm_longrange_noise() -> None:
     )
 
     sim_params = StrongSimParams(
-        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, num_mid_measurements=num_layers-1, show_progress=False
+        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, num_mid_measurements=num_layers - 1, show_progress=False
     )
 
     state = MPS(num_qubits, state="zeros", pad=2)

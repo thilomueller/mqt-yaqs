@@ -634,7 +634,7 @@ def test_two_site_correlator_center() -> None:
     state = MPS(L, state="zeros")
 
     sim_params = AnalogSimParams(
-        observables= [Observable(XX(), [L // 2, L // 2 + 1]), Observable(YY(), [L // 2, L // 2 + 1]), Observable(ZZ(), [L // 2, L // 2 + 1])],
+        observables=[Observable(XX(), [L // 2, L // 2 + 1]), Observable(YY(), [L // 2, L // 2 + 1]), Observable(ZZ(), [L // 2, L // 2 + 1])],
         elapsed_time=4,
         dt=0.1,
         max_bond_dim=4,
@@ -797,7 +797,7 @@ def test_two_site_correlator_right_boundary() -> None:
     state = MPS(L, state="zeros")
 
     sim_params = AnalogSimParams(
-        observables= [Observable(XX(), [L - 2, L - 1]), Observable(YY(), [L - 2, L - 1]), Observable(ZZ(), [L - 2, L - 1])],
+        observables=[Observable(XX(), [L - 2, L - 1]), Observable(YY(), [L - 2, L - 1]), Observable(ZZ(), [L - 2, L - 1])],
         elapsed_time=4,
         dt=0.1,
         max_bond_dim=4,
@@ -1008,7 +1008,7 @@ def test_transmon_simulation() -> None:
     sim_params = AnalogSimParams(
         observables=[Observable(bitstring) for bitstring in ["000", "001", "010", "011", "100", "101", "110", "111"]],
         elapsed_time=T_swap,
-        dt=T_swap/1000,
+        dt=T_swap / 1000,
         sample_timesteps=False,
         show_progress=False,
     )
