@@ -415,38 +415,48 @@ def test_dynamic_tdvp_two_site() -> None:
 
 
 def _rand_unitary_like(m: int, n: int, *, seed: int) -> np.ndarray:
-    """Return an m×n semi-unitary (orthonormal columns) for deterministic tests."""
+    """Return an m x n semi-unitary (orthonormal columns) for deterministic tests."""
     rng_local = np.random.default_rng(seed)
     A = rng_local.normal(size=(m, n)) + 1j * rng_local.normal(size=(m, n))
     # QR gives orthonormal columns
     Q, _ = np.linalg.qr(A)
     return Q[:, :n]
 
+
 def _theta_from_singulars(s: np.ndarray, m: int, n: int, *, seed: int) -> np.ndarray:
-    """Construct θ = U diag(s) V† with shape (m, n), using deterministic U,V."""
+    """Construct θ = U diag(s) V† with shape (m, n), using deterministic U,V.
+
+    Returns:
+        Re-constructed matrix
+    """
     r = min(len(s), m, n)
     U = _rand_unitary_like(m, r, seed=seed)
     V = _rand_unitary_like(n, r, seed=seed + 1)
     S = np.diag(s[:r])
     return U @ S @ V.conj().T
 
-def _as_input_tensor(theta: np.ndarray, d0: int, d1: int, D0: int, D2: int) -> np.ndarray:
-    """Map (d0*D0, d1*D2) matrix to split_mps_tensor input shape (d0*d1, D0, D2)."""
+
+def _as_input_tensor(theta: np.ndarray, d0: int, d1: int, d2: int, d3: int) -> np.ndarray:
+    """Map (d0*D0, d1*D2) matrix to split_mps_tensor input shape (d0*d1, d2, d3).
+
+    Returns:
+        Reshaped input tensor
+    """
     # theta: (d0*D0) x (d1*D2)
-    t = theta.reshape(d0, D0, d1, D2).transpose(0, 2, 1, 3)  # (d0, d1, D0, D2)
-    return t.reshape(d0 * d1, D0, D2)
+    t = theta.reshape(d0, d2, d1, d3).transpose(0, 2, 1, 3)  # (d0, d1, d2, d3)
+    return t.reshape(d0 * d1, d2, d3)
 
 
-@pytest.mark.parametrize("svs,threshold,expected_keep", [
+@pytest.mark.parametrize(("svs", "threshold", "expected_keep"), [
     # Tail power (sum of discarded s^2) crosses threshold exactly at the boundary.
     (np.array([1.0, 0.5, 0.1, 0.01]), 1e-4, 3),                     # discard 0.01 -> 1e-4
     (np.array([1.0, 0.5, 0.01, 0.001]), 1e-4, 2),                   # 1e-4 + 1e-6 >= 1e-4
     (np.array([1.0, 0.2, 0.2, 0.2]), 0.2**2 + 0.2**2 + 0.2**2, 1),  # keep only the largest
 ])
-def test_split_truncation_discarded_weight_kept_count(svs, threshold, expected_keep) -> None:
+def test_split_truncation_discarded_weight_kept_count(svs: np.NDArray[np.float64], threshold: float, expected_keep: int) -> None:
     """discarded_weight: keep count matches tail-power threshold; shapes consistent."""
     d0, d1, D0, D2 = 2, 2, 3, 3
-    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=11)
+    theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=11)
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
     # Minimal params; set trunc_mode after construction to avoid signature mismatch.
@@ -477,16 +487,16 @@ def test_split_truncation_discarded_weight_kept_count(svs, threshold, expected_k
     assert np.sum(tail**2) >= threshold or expected_keep == len(svs)
 
 
-@pytest.mark.parametrize("svs,rel_thr,expected_keep", [
+@pytest.mark.parametrize(("svs", "rel_thr", "expected_keep"), [
     # Keep all s_i strictly greater than rel_thr * s_max
     (np.array([1.0, 0.6, 0.4, 0.1]), 0.5, 2),   # keep 1.0, 0.6
-    (np.array([1.0, 0.99, 0.98]),     0.95, 3), # keep all
-    (np.array([1.0, 0.49, 0.3]),      0.5,  1), # keep only 1.0
+    (np.array([1.0, 0.99, 0.98]), 0.95, 3),  # keep all
+    (np.array([1.0, 0.49, 0.3]), 0.5, 1),  # keep only 1.0
 ])
-def test_split_truncation_relative_kept_count(svs, rel_thr, expected_keep) -> None:
+def test_split_truncation_relative_kept_count(svs: np.NDArray[np.float64], rel_thr: float, expected_keep: int) -> None:
     """relative: keep count matches s_i/s_max > threshold; shapes consistent."""
     d0, d1, D0, D2 = 2, 3, 2, 3
-    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=12)
+    theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=12)
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
     measurements = [Observable(Z(), 0)]
@@ -523,7 +533,7 @@ def test_split_truncation_min_max_bond_enforced() -> None:
     """min_bond_dim/max_bond_dim are respected in both modes."""
     svs = np.array([1.0, 0.9, 0.8, 0.7])
     d0, d1, D0, D2 = 2, 2, 3, 3
-    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=13)
+    theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=13)
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
     measurements = [Observable(Z(), 0)]
@@ -543,7 +553,8 @@ def test_split_truncation_min_max_bond_enforced() -> None:
     )
     sim_rel.trunc_mode = "relative"
     A0, A1 = split_mps_tensor(A_in, "sqrt", sim_rel, [d0, d1], dynamic=True)
-    assert A0.shape[2] == 2 and A1.shape[1] == 2
+    assert A0.shape[2] == 2
+    assert A1.shape[1] == 2
 
     # discarded_weight would keep 1 for high threshold; min_bond_dim=2 lifts it to 2
     sim_dw = AnalogSimParams(
@@ -560,7 +571,8 @@ def test_split_truncation_min_max_bond_enforced() -> None:
     )
     sim_dw.trunc_mode = "discarded_weight"
     A0, A1 = split_mps_tensor(A_in, "sqrt", sim_dw, [d0, d1], dynamic=True)
-    assert A0.shape[2] == 2 and A1.shape[1] == 2
+    assert A0.shape[2] == 2
+    assert A1.shape[1] == 2
 
 
 @pytest.mark.parametrize("distr", ["left", "right", "sqrt"])
@@ -568,7 +580,7 @@ def test_split_truncation_distribution_reconstructs_optimal_rank(distr: str) -> 
     """All SVD distribution choices reconstruct the optimal rank-k approximation."""
     svs = np.array([1.0, 0.7, 0.3, 0.1])
     d0, d1, D0, D2 = 2, 2, 3, 3
-    theta = _theta_from_singulars(svs, d0*D0, d1*D2, seed=14)
+    theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=14)
     A_in = _as_input_tensor(theta, d0, d1, D0, D2)
 
     # Use a very permissive relative threshold so we keep k=4 (full rank) here;
@@ -591,9 +603,8 @@ def test_split_truncation_distribution_reconstructs_optimal_rank(distr: str) -> 
     A0, A1 = split_mps_tensor(A_in, distr, sim_params, [d0, d1], dynamic=True)
     k = A0.shape[2]
 
-    # Recompose (d0*D0, k) @ (k, d1*D2)
-    L = A0.reshape(d0*D0, k)
-    R = A1.transpose(1, 0, 2).reshape(k, d1*D2)
+    L = A0.reshape(d0 * D0, k)
+    R = A1.transpose(1, 0, 2).reshape(k, d1 * D2)
     theta_recon = L @ R
 
     # Compare with best rank-k SVD approximation of the original theta

@@ -98,7 +98,7 @@ def split_mps_tensor(
         for idx, s in enumerate(reversed(s_vec)):
             discard += s**2
             if discard >= sim_params.threshold:
-                keep = max(len(s_vec) - (idx+1), min_keep)
+                keep = max(len(s_vec) - (idx + 1), min_keep)
                 break
     elif sim_params.trunc_mode == "relative":
         keep = min(sum(s_vec / max(s_vec) > sim_params.threshold), sim_params.max_bond_dim)
