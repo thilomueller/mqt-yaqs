@@ -54,10 +54,7 @@ def test_analog_simparams_basic() -> None:
     obs_list = [Observable(X(), 0)]
     elapsed_time = 1.0
     dt = 0.2
-    params = AnalogSimParams(observables=obs_list,
-                            elapsed_time=elapsed_time,
-                            dt=dt,
-                            num_traj=50)
+    params = AnalogSimParams(observables=obs_list, elapsed_time=elapsed_time, dt=dt, num_traj=50)
 
     assert params.observables == obs_list
     assert params.elapsed_time == elapsed_time
@@ -77,8 +74,7 @@ def test_analog_simparams_defaults() -> None:
     """
     obs_list: list[Observable] = []
     elapsed_time = 2.0
-    params = AnalogSimParams(observables=obs_list,
-                             elapsed_time=elapsed_time)
+    params = AnalogSimParams(observables=obs_list, elapsed_time=elapsed_time)
 
     assert params.observables == obs_list
     assert params.elapsed_time == 2.0

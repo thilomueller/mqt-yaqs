@@ -430,7 +430,10 @@ def test_noisy_digital_tjm_matches_reference() -> None:
     qc.rzz(0.5, 1, 2)
 
     sim_params = StrongSimParams(
-        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, num_mid_measurements=4, show_progress=False
+        observables=[Observable(Z(), i) for i in range(num_qubits)],
+        sample_layers=True,
+        num_mid_measurements=4,
+        show_progress=False,
     )
     state = MPS(num_qubits, state="zeros", pad=2)
     simulator.run(state, qc, sim_params, noise_model, parallel=False)
@@ -494,7 +497,10 @@ def test_digital_tjm_longrange_noise() -> None:
     )
 
     sim_params = StrongSimParams(
-        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, num_mid_measurements=num_layers - 1, show_progress=False
+        observables=[Observable(Z(), i) for i in range(num_qubits)],
+        sample_layers=True,
+        num_mid_measurements=num_layers - 1,
+        show_progress=False,
     )
 
     state = MPS(num_qubits, state="zeros", pad=2)
@@ -526,7 +532,9 @@ def test_no_mid_measurements_results_have_two_columns() -> None:
     qc.cx(0, 1)
     qc.rzz(0.1, 1, 2)
 
-    sim_params = StrongSimParams(observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, show_progress=False
+    )
     state = MPS(num_qubits, state="zeros")
 
     simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
@@ -559,7 +567,9 @@ def test_counts_multiple_mid_measurement_barriers() -> None:
     # Final segment
     qc.cx(2, 3)
 
-    sim_params = StrongSimParams(observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, show_progress=False
+    )
     state = MPS(num_qubits, state="zeros")
 
     simulator.run(state, qc, sim_params, noise_model=None, parallel=False)
@@ -588,7 +598,9 @@ def test_ignores_non_mid_barriers_and_handles_measures() -> None:
     qc.barrier(label="not-mid")  # ignored
     qc.rzz(0.2, 0, 1)
 
-    sim_params = StrongSimParams(observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), i) for i in range(num_qubits)], sample_layers=True, show_progress=False
+    )
     state = MPS(num_qubits, state="zeros")
 
     simulator.run(state, qc, sim_params, noise_model=None, parallel=False)

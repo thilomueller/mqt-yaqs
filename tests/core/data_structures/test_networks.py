@@ -778,8 +778,9 @@ def test_convert_to_vector_fidelity() -> None:
     state = MPS(num_qubits, state="zeros")
 
     # Define the simulation parameters
-    sim_params = StrongSimParams(observables=[Observable(Z(), site) for site in range(num_qubits)],
-                                  get_state=True, show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), site) for site in range(num_qubits)], get_state=True, show_progress=False
+    )
     simulator.run(state, circ, sim_params)
     assert sim_params.output_state is not None
     tdvp_state = sim_params.output_state.to_vec()
@@ -801,8 +802,9 @@ def test_convert_to_vector_fidelity_long_range() -> None:
     state = MPS(num_qubits, state="zeros")
 
     # Define the simulation parameters
-    sim_params = StrongSimParams(observables=[Observable(Z(), site) for site in range(num_qubits)],
-                                  get_state=True, show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), site) for site in range(num_qubits)], get_state=True, show_progress=False
+    )
     simulator.run(state, circ, sim_params)
     assert sim_params.output_state is not None
     tdvp_state = sim_params.output_state.to_vec()

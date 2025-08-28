@@ -156,7 +156,6 @@ def test_truncated_right_svd_maxbd() -> None:
         observables=[Observable(Z(), site) for site in range(0)],
         elapsed_time=0.2,
         dt=0.1,
-
         sample_timesteps=True,
         max_bond_dim=3,
         threshold=1e-4,

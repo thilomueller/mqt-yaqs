@@ -72,11 +72,7 @@ def test_split_mps_tensor_left_right_sqrt() -> None:
     A = rng.random(size=(4, 3, 5))
     # Placeholder
     sim_params = AnalogSimParams(
-        observables=[Observable(Z(), 0)],
-        elapsed_time=0.2,
-        dt=0.1,
-        sample_timesteps=True,
-        trunc_mode="relative"
+        observables=[Observable(Z(), 0)], elapsed_time=0.2, dt=0.1, sample_timesteps=True, trunc_mode="relative"
     )
     physical_dimensions = [A.shape[0] // 2, A.shape[0] // 2]
     for distr in ["left", "right", "sqrt"]:
@@ -377,9 +373,7 @@ def _rand_unitary_like(m: int, n: int, *, seed: int) -> NDArray[np.complex128]:
     return cast("NDArray[np.complex128]", Q[:, :n])
 
 
-def _theta_from_singulars(
-    s: NDArray[np.float64], m: int, n: int, *, seed: int
-) -> NDArray[np.complex128]:
+def _theta_from_singulars(s: NDArray[np.float64], m: int, n: int, *, seed: int) -> NDArray[np.complex128]:
     r = min(len(s), m, n)
     U = _rand_unitary_like(m, r, seed=seed)
     V = _rand_unitary_like(n, r, seed=seed + 1)
@@ -388,20 +382,23 @@ def _theta_from_singulars(
     return cast("NDArray[np.complex128]", theta)
 
 
-def _as_input_tensor(
-    theta: NDArray[np.complex128], d0: int, d1: int, d2: int, d3: int
-) -> NDArray[np.complex128]:
+def _as_input_tensor(theta: NDArray[np.complex128], d0: int, d1: int, d2: int, d3: int) -> NDArray[np.complex128]:
     t = theta.reshape(d0, d2, d1, d3).transpose(0, 2, 1, 3)  # (d0, d1, d2, d3)
     return cast("NDArray[np.complex128]", t.reshape(d0 * d1, d2, d3))
 
 
-@pytest.mark.parametrize(("svs", "threshold", "expected_keep"), [
-    # Tail power (sum of discarded s^2) crosses threshold exactly at the boundary.
-    (np.array([1.0, 0.5, 0.1, 0.01]), 1e-4, 3),                     # discard 0.01 -> 1e-4
-    (np.array([1.0, 0.5, 0.01, 0.001]), 1e-4, 2),                   # 1e-4 + 1e-6 >= 1e-4
-    (np.array([1.0, 0.2, 0.2, 0.2]), 0.2**2 + 0.2**2 + 0.2**2, 1),  # keep only the largest
-])
-def test_split_truncation_discarded_weight_kept_count(svs: NDArray[np.float64], threshold: float, expected_keep: int) -> None:
+@pytest.mark.parametrize(
+    ("svs", "threshold", "expected_keep"),
+    [
+        # Tail power (sum of discarded s^2) crosses threshold exactly at the boundary.
+        (np.array([1.0, 0.5, 0.1, 0.01]), 1e-4, 3),  # discard 0.01 -> 1e-4
+        (np.array([1.0, 0.5, 0.01, 0.001]), 1e-4, 2),  # 1e-4 + 1e-6 >= 1e-4
+        (np.array([1.0, 0.2, 0.2, 0.2]), 0.2**2 + 0.2**2 + 0.2**2, 1),  # keep only the largest
+    ],
+)
+def test_split_truncation_discarded_weight_kept_count(
+    svs: NDArray[np.float64], threshold: float, expected_keep: int
+) -> None:
     """discarded_weight: keep count matches tail-power threshold; shapes consistent."""
     d0, d1, D0, D2 = 2, 2, 3, 3
     theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=11)
@@ -431,13 +428,16 @@ def test_split_truncation_discarded_weight_kept_count(svs: NDArray[np.float64], 
     assert np.sum(tail**2) >= threshold or expected_keep == len(svs)
 
 
-@pytest.mark.parametrize(("svs", "rel_thr", "expected_keep"), [
-    # Keep all s_i strictly greater than rel_thr * s_max
-    (np.array([1.0, 0.6, 0.4, 0.1]), 0.5, 2),   # keep 1.0, 0.6
-    (np.array([1.0, 0.99, 0.98]), 0.95, 3),  # keep all
-    (np.array([1.0, 0.49, 0.3]), 0.5, 1),  # keep only 1.0
-])
-def test_split_truncation_relative_kept_count(svs: NDArray[np.float64], rel_thr: float, expected_keep: int) -> None:
+@pytest.mark.parametrize(
+    ("svs", "rel_the", "expected_keep"),
+    [
+        # Keep all s_i strictly greater than rel_the * s_max
+        (np.array([1.0, 0.6, 0.4, 0.1]), 0.5, 2),  # keep 1.0, 0.6
+        (np.array([1.0, 0.99, 0.98]), 0.95, 3),  # keep all
+        (np.array([1.0, 0.49, 0.3]), 0.5, 1),  # keep only 1.0
+    ],
+)
+def test_split_truncation_relative_kept_count(svs: NDArray[np.float64], rel_the: float, expected_keep: int) -> None:
     """relative: keep count matches s_i/s_max > threshold; shapes consistent."""
     d0, d1, D0, D2 = 2, 3, 2, 3
     theta = _theta_from_singulars(svs, d0 * D0, d1 * D2, seed=12)
@@ -448,7 +448,7 @@ def test_split_truncation_relative_kept_count(svs: NDArray[np.float64], rel_thr:
         elapsed_time=0.2,
         dt=0.1,
         min_bond_dim=1,
-        threshold=rel_thr,
+        threshold=rel_the,
         trunc_mode="relative",
         sample_timesteps=True,
         show_progress=False,
@@ -464,9 +464,9 @@ def test_split_truncation_relative_kept_count(svs: NDArray[np.float64], rel_thr:
     # Sanity around threshold boundary (strict >)
     smax = float(np.max(svs))
     if expected_keep > 0:
-        assert np.all(svs[:expected_keep] / smax > rel_thr)
+        assert np.all(svs[:expected_keep] / smax > rel_the)
     if expected_keep < len(svs):
-        assert not (svs[expected_keep] / smax > rel_thr)
+        assert not (svs[expected_keep] / smax > rel_the)
 
 
 def test_split_truncation_min_max_bond_enforced() -> None:

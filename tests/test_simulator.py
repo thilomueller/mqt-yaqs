@@ -98,7 +98,9 @@ def test_analog_simulation() -> None:
     for i, observable in enumerate(sim_params.observables):
         assert observable.results is not None, "Results was not initialized for AnalogSimParams."
         assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
-        assert len(observable.trajectories) == sim_params.num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.trajectories) == sim_params.num_traj, (
+            "Trajectories was not initialized for AnalogSimParams 2."
+        )
         assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
@@ -149,7 +151,9 @@ def test_analog_simulation_parallel_off() -> None:
     for i, observable in enumerate(sim_params.observables):
         assert observable.results is not None, "Results was not initialized for AnalogSimParams."
         assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
-        assert len(observable.trajectories) == sim_params.num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.trajectories) == sim_params.num_traj, (
+            "Trajectories was not initialized for AnalogSimParams 2."
+        )
         assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
@@ -219,10 +223,12 @@ def test_strong_simulation() -> None:
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=10)
     circuit.measure_all()
 
-    sim_params = StrongSimParams(observables=[Observable(Z(), site) for site in range(num_qubits)],
-                                 num_traj=10,
-                                 max_bond_dim=4,
-                                 show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), site) for site in range(num_qubits)],
+        num_traj=10,
+        max_bond_dim=4,
+        show_progress=False,
+    )
     # Use a noise model that is not None so that sim_params.num_traj remains unchanged.
     gamma = 1e-3
     noise_model = NoiseModel([
@@ -234,7 +240,9 @@ def test_strong_simulation() -> None:
     for i, observable in enumerate(sim_params.observables):
         assert observable.results is not None, "Results was not initialized for AnalogSimParams."
         assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
-        assert len(observable.trajectories) == sim_params.num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.trajectories) == sim_params.num_traj, (
+            "Trajectories was not initialized for AnalogSimParams 2."
+        )
         assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
@@ -259,10 +267,7 @@ def test_strong_simulation_no_noise() -> None:
 
     state = MPS(length=num_qubits)
 
-    sim_params = StrongSimParams(observables=[Observable(Z(), 0)],
-                                max_bond_dim=16,
-                                get_state=True,
-                                show_progress=False)
+    sim_params = StrongSimParams(observables=[Observable(Z(), 0)], max_bond_dim=16, get_state=True, show_progress=False)
 
     simulator.run(state, circ, sim_params)
     assert sim_params.output_state is not None
@@ -288,10 +293,12 @@ def test_strong_simulation_parallel_off() -> None:
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=10)
     circuit.measure_all()
 
-    sim_params = StrongSimParams(observables=[Observable(Z(), site) for site in range(num_qubits)],
-                                 num_traj=10,
-                                 max_bond_dim=4,
-                                 show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[Observable(Z(), site) for site in range(num_qubits)],
+        num_traj=10,
+        max_bond_dim=4,
+        show_progress=False,
+    )
     # Use a noise model that is not None so that sim_params.num_traj remains unchanged.
     gamma = 1e-3
     noise_model = NoiseModel([
@@ -303,7 +310,9 @@ def test_strong_simulation_parallel_off() -> None:
     for i, observable in enumerate(sim_params.observables):
         assert observable.results is not None, "Results was not initialized for AnalogSimParams."
         assert observable.trajectories is not None, "Trajectories was not initialized for AnalogSimParams 1."
-        assert len(observable.trajectories) == sim_params.num_traj, "Trajectories was not initialized for AnalogSimParams 2."
+        assert len(observable.trajectories) == sim_params.num_traj, (
+            "Trajectories was not initialized for AnalogSimParams 2."
+        )
         assert len(observable.results) == 1, "Results was not initialized for AnalogSimParams."
         if i == 0:
             assert np.isclose(observable.results[0], 0.70, atol=1e-1)
@@ -332,9 +341,7 @@ def test_weak_simulation_noise() -> None:
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=1)
     circuit.measure_all()
 
-    sim_params = WeakSimParams(shots=1024,
-                               max_bond_dim=4,
-                               show_progress=False)
+    sim_params = WeakSimParams(shots=1024, max_bond_dim=4, show_progress=False)
 
     gamma = 1e-3
     noise_model = NoiseModel([
@@ -362,9 +369,7 @@ def test_weak_simulation_no_noise() -> None:
 
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=1)
     circuit.measure_all()
-    sim_params = WeakSimParams(shots=1024,
-                               max_bond_dim=4,
-                               show_progress=False)
+    sim_params = WeakSimParams(shots=1024, max_bond_dim=4, show_progress=False)
 
     noise_model = None
 
@@ -392,10 +397,7 @@ def test_weak_simulation_get_state() -> None:
 
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=10)
     circuit.measure_all()
-    sim_params = WeakSimParams(shots=1,
-                               max_bond_dim=4,
-                               get_state=True,
-                               show_progress=False)
+    sim_params = WeakSimParams(shots=1, max_bond_dim=4, get_state=True, show_progress=False)
     noise_model = None
 
     simulator.run(initial_state, circuit, sim_params, noise_model)
@@ -419,10 +421,7 @@ def test_weak_simulation_get_state_noise() -> None:
 
     circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=10)
     circuit.measure_all()
-    sim_params = WeakSimParams(shots=1,
-                               max_bond_dim=4,
-                               get_state=True,
-                               show_progress=False)
+    sim_params = WeakSimParams(shots=1, max_bond_dim=4, get_state=True, show_progress=False)
 
     gamma = 1e-3
     noise_model = NoiseModel([
@@ -446,9 +445,7 @@ def test_mismatch() -> None:
     circuit = create_ising_circuit(L=num_qubits - 1, J=1, g=0.5, dt=0.1, timesteps=10)
     circuit.measure_all()
 
-    sim_params = WeakSimParams(shots=1024,
-                                max_bond_dim=4,
-                                show_progress=False)
+    sim_params = WeakSimParams(shots=1024, max_bond_dim=4, show_progress=False)
 
     noise_model = None
 
@@ -634,7 +631,11 @@ def test_two_site_correlator_center() -> None:
     state = MPS(L, state="zeros")
 
     sim_params = AnalogSimParams(
-        observables=[Observable(XX(), [L // 2, L // 2 + 1]), Observable(YY(), [L // 2, L // 2 + 1]), Observable(ZZ(), [L // 2, L // 2 + 1])],
+        observables=[
+            Observable(XX(), [L // 2, L // 2 + 1]),
+            Observable(YY(), [L // 2, L // 2 + 1]),
+            Observable(ZZ(), [L // 2, L // 2 + 1]),
+        ],
         elapsed_time=4,
         dt=0.1,
         max_bond_dim=4,
@@ -797,7 +798,11 @@ def test_two_site_correlator_right_boundary() -> None:
     state = MPS(L, state="zeros")
 
     sim_params = AnalogSimParams(
-        observables=[Observable(XX(), [L - 2, L - 1]), Observable(YY(), [L - 2, L - 1]), Observable(ZZ(), [L - 2, L - 1])],
+        observables=[
+            Observable(XX(), [L - 2, L - 1]),
+            Observable(YY(), [L - 2, L - 1]),
+            Observable(ZZ(), [L - 2, L - 1]),
+        ],
         elapsed_time=4,
         dt=0.1,
         max_bond_dim=4,
@@ -956,13 +961,15 @@ def test_two_site_correlator_center_circuit() -> None:
     circ = create_ising_circuit(L=L, J=J, g=g, dt=0.1, timesteps=10)
     state = MPS(L, state="zeros")
 
-    sim_params = StrongSimParams(observables=[
-        Observable(XX(), [L // 2, L // 2 + 1]),
-        Observable(YY(), [L // 2, L // 2 + 1]),
-        Observable(ZZ(), [L // 2, L // 2 + 1])
-    ],
-                                max_bond_dim=4,
-                                show_progress=False)
+    sim_params = StrongSimParams(
+        observables=[
+            Observable(XX(), [L // 2, L // 2 + 1]),
+            Observable(YY(), [L // 2, L // 2 + 1]),
+            Observable(ZZ(), [L // 2, L // 2 + 1]),
+        ],
+        max_bond_dim=4,
+        show_progress=False,
+    )
 
     simulator.run(state, circ, sim_params)
 
