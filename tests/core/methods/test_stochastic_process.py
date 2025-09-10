@@ -47,8 +47,8 @@ def crandn(
     elif isinstance(size, int):
         size = (size,)
     rng = np.random.default_rng(seed)
-    # 1/sqrt(2) is a normalization factor
-    return (rng.standard_normal(size) + 1j * rng.standard_normal(size)) / np.sqrt(2)
+    # 1 / sqrt(2) is a normalization factor
+    return np.asarray((rng.standard_normal(size) + 1j * rng.standard_normal(size)) / np.sqrt(2), dtype=np.complex128)
 
 
 def random_mps(shapes: list[tuple[int, int, int]], *, normalize: bool = True) -> MPS:
@@ -152,7 +152,7 @@ def test_stochastic_process_no_jump() -> None:
     # Should still be the same type
     assert isinstance(new_state, MPS)
     # Should not modify tensors (deepcopy not strictly guaranteed but should be unchanged)
-    for a, b in zip(new_state.tensors, state.tensors):
+    for a, b in zip(new_state.tensors, state.tensors, strict=False):
         np.testing.assert_allclose(a, b)
 
 
@@ -174,7 +174,7 @@ def test_stochastic_process_jump() -> None:
     # Should still be the same type
     assert isinstance(new_state, MPS)
     # Check that at least one tensor changed (jump applied)
-    different = any(not np.allclose(a, b) for a, b in zip(new_state.tensors, state.tensors))
+    different = any(not np.allclose(a, b) for a, b in zip(new_state.tensors, state.tensors, strict=False))
     assert different, "At least one tensor should have changed after jump."
 
 
