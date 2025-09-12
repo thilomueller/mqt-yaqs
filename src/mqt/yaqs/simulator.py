@@ -51,7 +51,6 @@ import multiprocessing
 from concurrent.futures import (
     FIRST_COMPLETED,
     CancelledError,
-    Future,
     ProcessPoolExecutor,
     wait,
 )
@@ -62,12 +61,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 threadpool_limits: Callable[..., Any] | None
 threadpool_info: Callable[[], Any] | None
 try:
-    from threadpoolctl import (  # type: ignore[import-not-found]
-        threadpool_info as _threadpool_info,
-    )
-    from threadpoolctl import (
-        threadpool_limits as _threadpool_limits,
-    )
+    from threadpoolctl import threadpool_info as _threadpool_info  # type: ignore[import-not-found]
+    from threadpoolctl import threadpool_limits as _threadpool_limits
 except ImportError:  # pragma: no cover - optional dependency
     threadpool_limits = None
     threadpool_info = None
@@ -96,6 +91,7 @@ from .digital.digital_tjm import digital_tjm
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
+    from concurrent.futures import Future
 
     import numpy as np
     from numpy.typing import NDArray
