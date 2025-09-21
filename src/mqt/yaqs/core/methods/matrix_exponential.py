@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -69,7 +69,7 @@ def lanczos_iteration(
         w_j = matrix_free_operator(lanczos_mat[j])
         alpha[j] = np.vdot(w_j, lanczos_mat[j]).real
         w_j -= alpha[j] * lanczos_mat[j] + (beta[j - 1] * lanczos_mat[j - 1] if j > 0 else 0)
-        beta[j] = np.linalg.norm(w_j)
+        beta[j] = np.linalg.norm(w_j).real
         if beta[j] < 100 * len(vec) * np.finfo(float).eps:
             # Terminate early if the next vector is (numerically) zero.
             lanczos_iterations = j + 1
@@ -117,4 +117,6 @@ def expm_krylov(
         w_hess, u_hess = eigh_tridiagonal(alpha, beta, lapack_driver="stebz")
     # Construct the approximation: scale the exponential of the eigenvalues by the norm of v,
     # and project back to the full space via the Lanczos basis V.
-    return lanczos_mat @ (u_hess @ (np.linalg.norm(vec) * np.exp(-1j * dt * w_hess) * u_hess[0]))
+    return np.asarray(
+        lanczos_mat @ (u_hess @ (np.linalg.norm(vec) * np.exp(-1j * dt * w_hess) * u_hess[0])), dtype=np.complex128
+    )

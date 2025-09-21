@@ -12,7 +12,7 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-# Weak Quantum Circuit Simulation (Shots)
+# Weak Circuit Simulation (Shots)
 
 This module demonstrates how to run a weak simulation using the YAQS simulator
 with a TwoLocal circuit generated via Qiskit's circuit library. An MPS is initialized
@@ -27,7 +27,7 @@ from qiskit.circuit.library.n_local import TwoLocal
 
 import numpy as np
 
-num_qubits = 10
+num_qubits = 5
 circuit = TwoLocal(num_qubits, ["rx"], ["rzz"], entanglement="linear", reps=num_qubits).decompose()
 num_pars = len(circuit.parameters)
 rng = np.random.default_rng()
@@ -51,7 +51,9 @@ Define the noise model
 from mqt.yaqs.core.data_structures.noise_model import NoiseModel
 
 gamma = 0.1
-noise_model = NoiseModel(["relaxation", "dephasing"], [gamma, gamma])
+noise_model = NoiseModel([
+    {"name": name, "sites": [i], "strength": gamma} for i in range(num_qubits) for name in ["lowering", "pauli_z"]
+])
 ```
 
 Define the simulation parameters
@@ -59,11 +61,7 @@ Define the simulation parameters
 ```{code-cell} ipython3
 from mqt.yaqs.core.data_structures.simulation_parameters import WeakSimParams
 
-shots = 1024
-max_bond_dim = 4
-threshold = 1e-6
-window_size = 0
-sim_params = WeakSimParams(shots, max_bond_dim, threshold, window_size)
+sim_params = WeakSimParams(shots=1024, max_bond_dim=4, threshold=1e-6)
 ```
 
 Run the simulation

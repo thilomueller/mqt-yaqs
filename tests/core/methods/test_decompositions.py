@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from mqt.yaqs.core.data_structures.simulation_parameters import Observable, PhysicsSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable
+from mqt.yaqs.core.libraries.gate_library import Z
 from mqt.yaqs.core.methods.decompositions import left_qr, right_qr, right_svd, truncated_right_svd
 
 if TYPE_CHECKING:
@@ -41,8 +42,8 @@ def crandn(
     elif isinstance(size, int):
         size = (size,)
     rng = np.random.default_rng(seed)
-    # 1/sqrt(2) is a normalization factor
-    return (rng.standard_normal(size) + 1j * rng.standard_normal(size)) / np.sqrt(2)
+    # 1 / sqrt(2) is a normalization factor
+    return np.asarray((rng.standard_normal(size) + 1j * rng.standard_normal(size)) / np.sqrt(2), dtype=np.complex128)
 
 
 def test_right_qr() -> None:
@@ -121,16 +122,15 @@ def test_right_svd() -> None:
 def test_truncated_right_svd_thresh() -> None:
     """Test that the tensor is correctly truncated."""
     # Placeholder
-    measurements = [Observable("z", site) for site in range(0)]
-    sim_params = PhysicsSimParams(
-        measurements,
+    sim_params = AnalogSimParams(
+        observables=[Observable(Z(), site) for site in range(0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
-        num_traj=1,
         max_bond_dim=4,
         threshold=0.2,
         order=1,
+        show_progress=False,
     )
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])
     u_tensor_i, _ = right_qr(crandn(2, 3, 4))
@@ -152,16 +152,15 @@ def test_truncated_right_svd_thresh() -> None:
 def test_truncated_right_svd_maxbd() -> None:
     """Test that the tensor is correctly truncated."""
     # Placeholder
-    measurements = [Observable("z", site) for site in range(0)]
-    sim_params = PhysicsSimParams(
-        measurements,
+    sim_params = AnalogSimParams(
+        observables=[Observable(Z(), site) for site in range(0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
-        num_traj=1,
         max_bond_dim=3,
         threshold=1e-4,
         order=1,
+        show_progress=False,
     )
 
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])

@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -24,7 +24,9 @@ nox.options.default_venv_backend = "uv"
 
 nox.options.sessions = ["lint", "tests", "minimums"]
 
-PYTHON_ALL_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+# TODO(denialhaag): Add 3.14 when all dependencies support it  # noqa: FIX002
+#   https://github.com/munich-quantum-toolkit/yaqs/issues/141
+PYTHON_ALL_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 
 if os.environ.get("CI", None):
     nox.options.error_on_missing_interpreters = True
@@ -46,6 +48,11 @@ def _run_tests(
     run_args: Sequence[str] = (),
 ) -> None:
     env = {"UV_PROJECT_ENVIRONMENT": session.virtualenv.location}
+
+    if "--cov" in session.posargs:
+        # try to use the lighter-weight `sys.monitoring` coverage core
+        env["COVERAGE_CORE"] = "sysmon"
+
     session.run(
         "uv",
         "run",
