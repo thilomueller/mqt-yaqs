@@ -173,8 +173,8 @@ class AnalogSimParams:
 
     def __init__(
         self,
-        observables: list[Observable],
-        elapsed_time: float,
+        observables: list[Observable] =  [],
+        elapsed_time: float = 0.1,
         dt: float = 0.1,
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
@@ -253,6 +253,7 @@ class AnalogSimParams:
         self.evolution_mode = evolution_mode
         self.get_state = get_state
         self.show_progress = show_progress
+        assert self.get_state or self.observables, "No output specified: either observables or get_state must be set."
 
     def aggregate_trajectories(self) -> None:
         """Aggregates trajectories for result.
@@ -427,7 +428,7 @@ class StrongSimParams:
 
     def __init__(
         self,
-        observables: list[Observable],
+        observables: list[Observable] = [],
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
@@ -487,6 +488,7 @@ class StrongSimParams:
         self.sample_layers = sample_layers
         self.num_mid_measurements = num_mid_measurements
         self.show_progress = show_progress
+        assert self.get_state or self.observables, "No output specified: either observables or get_state must be set."
 
     def aggregate_trajectories(self) -> None:
         """Aggregates trajectories for result.

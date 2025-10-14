@@ -123,7 +123,6 @@ def test_truncated_right_svd_thresh() -> None:
     """Test that the tensor is correctly truncated."""
     # Placeholder
     sim_params = AnalogSimParams(
-        observables=[Observable(Z(), site) for site in range(0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
@@ -131,6 +130,7 @@ def test_truncated_right_svd_thresh() -> None:
         threshold=0.2,
         order=1,
         show_progress=False,
+        get_state=True
     )
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])
     u_tensor_i, _ = right_qr(crandn(2, 3, 4))
@@ -153,7 +153,6 @@ def test_truncated_right_svd_maxbd() -> None:
     """Test that the tensor is correctly truncated."""
     # Placeholder
     sim_params = AnalogSimParams(
-        observables=[Observable(Z(), site) for site in range(0)],
         elapsed_time=0.2,
         dt=0.1,
         sample_timesteps=True,
@@ -161,6 +160,7 @@ def test_truncated_right_svd_maxbd() -> None:
         threshold=1e-4,
         order=1,
         show_progress=False,
+        get_state=True
     )
 
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])
