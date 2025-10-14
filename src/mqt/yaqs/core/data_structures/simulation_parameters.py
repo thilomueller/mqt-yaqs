@@ -221,18 +221,20 @@ class AnalogSimParams:
         show_progress:
             If True, a progress bar is printed as trajectories finish.
         """
-        if observables is None:
-            observables: list[Observable] = []
-        assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
+        obs_list: list[Observable] = [] if observables is None else list(observables)
+        assert all(n.gate.name == "pvm" for n in obs_list) or all(n.gate.name != "pvm" for n in obs_list), (
             "We currently have not implemented mixed observable and projective-measurement simulation."
         )
-        self.observables = observables
+        self.observables = obs_list
+
         if self.observables:
             sortable = [
-                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in self.observables
+                if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}
             ]
             unsorted = [
-                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in self.observables
+                if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond"}
             ]
             sorted_obs = sorted(
                 sortable,
@@ -241,6 +243,7 @@ class AnalogSimParams:
             self.sorted_observables = sorted_obs + unsorted
         else:
             self.sorted_observables = []
+
 
         self.elapsed_time = elapsed_time
         self.dt = dt
@@ -463,18 +466,20 @@ class StrongSimParams:
         show_progress:
             If True, a progress bar is printed as trajectories finish.
         """
-        if observables is None:
-            observables: list[Observable] = []
-        assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
+        obs_list: list[Observable] = [] if observables is None else list(observables)
+        assert all(n.gate.name == "pvm" for n in obs_list) or all(n.gate.name != "pvm" for n in obs_list), (
             "We currently have not implemented mixed observable and projective-measurement simulation."
         )
-        self.observables = observables
+        self.observables = obs_list
+
         if self.observables:
             sortable = [
-                obs for obs in observables if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in self.observables
+                if obs.gate.name not in {"pvm", "runtime_cost", "max_bond", "total_bond"}
             ]
             unsorted = [
-                obs for obs in observables if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond"}
+                obs for obs in self.observables
+                if obs.gate.name in {"pvm", "runtime_cost", "max_bond", "total_bond"}
             ]
             sorted_obs = sorted(
                 sortable,
@@ -483,6 +488,7 @@ class StrongSimParams:
             self.sorted_observables = sorted_obs + unsorted
         else:
             self.sorted_observables = []
+
         self.num_traj = num_traj
         self.max_bond_dim = max_bond_dim
         self.min_bond_dim = min_bond_dim
