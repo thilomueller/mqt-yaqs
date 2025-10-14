@@ -16,8 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams, Observable
-from mqt.yaqs.core.libraries.gate_library import Z
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams
 from mqt.yaqs.core.methods.decompositions import left_qr, right_qr, right_svd, truncated_right_svd
 
 if TYPE_CHECKING:
@@ -130,7 +129,7 @@ def test_truncated_right_svd_thresh() -> None:
         threshold=0.2,
         order=1,
         show_progress=False,
-        get_state=True
+        get_state=True,
     )
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])
     u_tensor_i, _ = right_qr(crandn(2, 3, 4))
@@ -160,7 +159,7 @@ def test_truncated_right_svd_maxbd() -> None:
         threshold=1e-4,
         order=1,
         show_progress=False,
-        get_state=True
+        get_state=True,
     )
 
     s_vector_i = np.array([1, 0.5, 0.1, 0.01])

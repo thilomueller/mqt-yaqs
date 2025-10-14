@@ -173,7 +173,7 @@ class AnalogSimParams:
 
     def __init__(
         self,
-        observables: list[Observable] =  [],
+        observables: list[Observable] | None = None,
         elapsed_time: float = 0.1,
         dt: float = 0.1,
         num_traj: int = 1000,
@@ -221,6 +221,8 @@ class AnalogSimParams:
         show_progress:
             If True, a progress bar is printed as trajectories finish.
         """
+        if observables is None:
+            observables: list[Observable] = []
         assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
             "We currently have not implemented mixed observable and projective-measurement simulation."
         )
@@ -428,7 +430,7 @@ class StrongSimParams:
 
     def __init__(
         self,
-        observables: list[Observable] = [],
+        observables: list[Observable] | None = None,
         num_traj: int = 1000,
         max_bond_dim: int = 4096,
         min_bond_dim: int = 2,
@@ -461,6 +463,8 @@ class StrongSimParams:
         show_progress:
             If True, a progress bar is printed as trajectories finish.
         """
+        if observables is None:
+            observables: list[Observable] = []
         assert all(n.gate.name == "pvm" for n in observables) or all(n.gate.name != "pvm" for n in observables), (
             "We currently have not implemented mixed observable and projective-measurement simulation."
         )
