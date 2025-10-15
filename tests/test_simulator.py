@@ -479,7 +479,7 @@ def test_two_site_correlator_left_boundary() -> None:
     simulator.run(state, H_0, sim_params)
 
     expected_xx = np.array([
-        0.00000000e+00,
+        0.00000000e00,
         6.66452664e-07,
         1.05502765e-05,
         5.26491078e-05,
@@ -503,7 +503,7 @@ def test_two_site_correlator_left_boundary() -> None:
     ])
 
     expected_yy = np.array([
-        0.00000000e+00,
+        0.00000000e00,
         3.93976077e-04,
         1.50510612e-03,
         3.13171916e-03,
@@ -527,7 +527,7 @@ def test_two_site_correlator_left_boundary() -> None:
     ])
 
     expected_zz = np.array([
-        1.00000000e+00,
+        1.00000000e00,
         9.99603371e-01,
         9.98453198e-01,
         9.96663218e-01,
@@ -593,7 +593,7 @@ def test_two_site_correlator_center() -> None:
     simulator.run(state, H_0, sim_params)
 
     expected_xx = np.array([
-        0.00000000e+00,
+        0.00000000e00,
         6.66452664e-07,
         1.05502765e-05,
         5.26491078e-05,
@@ -617,7 +617,7 @@ def test_two_site_correlator_center() -> None:
     ])
 
     expected_yy = np.array([
-        0.00000000e+00,
+        0.00000000e00,
         3.93976077e-04,
         1.50510612e-03,
         3.13171916e-03,
@@ -641,7 +641,7 @@ def test_two_site_correlator_center() -> None:
     ])
 
     expected_zz = np.array([
-        1.00000000e+00,
+        1.00000000e00,
         9.99603371e-01,
         9.98453198e-01,
         9.96663218e-01,
@@ -706,7 +706,7 @@ def test_two_site_correlator_right_boundary() -> None:
     simulator.run(state, H_0, sim_params)
 
     expected_xx = np.array([
-        0.00000000e+00,
+        0.00000000e00,
         6.66452664e-07,
         1.05502765e-05,
         5.26491078e-05,
@@ -730,7 +730,7 @@ def test_two_site_correlator_right_boundary() -> None:
     ])
 
     expected_yy = np.array([
-        0.00000000e+00,
+        0.00000000e00,
         3.93976077e-04,
         1.50510612e-03,
         3.13171916e-03,
@@ -754,7 +754,7 @@ def test_two_site_correlator_right_boundary() -> None:
     ])
 
     expected_zz = np.array([
-        1.00000000e+00,
+        1.00000000e00,
         9.99603371e-01,
         9.98453198e-01,
         9.96663218e-01,
