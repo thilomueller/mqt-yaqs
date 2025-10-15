@@ -12,9 +12,9 @@ mystnb:
 %config InlineBackend.figure_formats = ['svg']
 ```
 
-# Strong Quantum Circuit Simulation (Observable)
+# Strong Circuit Simulation (Observable)
 
-This example demonstrates how to run a Hamiltonian simulation using the YAQS simulator with an Ising model.
+This example demonstrates how to run a circuit simulation using the YAQS simulator.
 An Ising circuit is created and an initial MPS is prepared in the $\ket{0}$ state.
 A noise model is applied and simulation parameters (using StrongSimParams) are defined.
 The simulation is run for a range of noise strengths (gamma values), and the expectation values of the $Z$ observable are recorded and displayed as a heatmap.
@@ -24,7 +24,7 @@ Define the circuit
 ```{code-cell} ipython3
 from mqt.yaqs.core.libraries.circuit_library import create_ising_circuit
 
-num_qubits = 10
+num_qubits = 5
 circuit = create_ising_circuit(L=num_qubits, J=1, g=0.5, dt=0.1, timesteps=10)
 circuit.measure_all()
 circuit.draw(output="mpl")
@@ -34,6 +34,7 @@ Define the initial state
 
 ```{code-cell} ipython3
 from mqt.yaqs.core.data_structures.networks import MPS
+from mqt.yaqs.core.libraries.gate_library import Z
 
 state = MPS(num_qubits, state="zeros")
 ```
@@ -43,12 +44,7 @@ Define the simulation parameters
 ```{code-cell} ipython3
 from mqt.yaqs.core.data_structures.simulation_parameters import Observable, StrongSimParams
 
-num_traj = 100
-max_bond_dim = 4
-threshold = 1e-6
-window_size = 0
-measurements = [Observable("z", site) for site in range(num_qubits)]
-sim_params = StrongSimParams(measurements, num_traj, max_bond_dim, threshold, window_size)
+sim_params = StrongSimParams(observables=[Observable(Z(), site) for site in range(num_qubits)], num_traj=100, max_bond_dim=4, threshold=1e-6)
 ```
 
 Run the simulations for a range of noise strengths
@@ -66,7 +62,9 @@ gammas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1]
 heatmap = np.empty((num_qubits, len(gammas)))
 for j, gamma in enumerate(gammas):
     # Define the noise model
-    noise_model = NoiseModel(["relaxation"], [gamma])
+    noise_model = NoiseModel([
+        {"name": name, "sites": [i], "strength": gamma} for i in range(num_qubits) for name in ["lowering"]
+    ])
     simulator.run(state, circuit, sim_params, noise_model)
     for i, observable in enumerate(sim_params.observables):
         heatmap[i, j] = observable.results[0]

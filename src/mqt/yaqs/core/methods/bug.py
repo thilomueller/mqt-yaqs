@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from ..data_structures.networks import MPO, MPS
-    from ..data_structures.simulation_parameters import PhysicsSimParams
+    from ..data_structures.simulation_parameters import AnalogSimParams
 
 
 def prepare_canonical_site_tensors(
@@ -48,7 +48,7 @@ def prepare_canonical_site_tensors(
     # This will merely do a shallow copy of the MPS.
     canon_tensors = copy(state.tensors)
     left_end_dimension = state.tensors[0].shape[1]
-    left_blocks = [np.eye(left_end_dimension).reshape(left_end_dimension, 1, left_end_dimension)]
+    left_blocks = [np.eye(left_end_dimension, dtype=np.complex128).reshape(left_end_dimension, 1, left_end_dimension)]
     for i, old_local_tensor in enumerate(canon_tensors[1:], start=1):
         left_tensor = canon_tensors[i - 1]
         left_q, left_r = right_qr(left_tensor)
@@ -136,7 +136,7 @@ def local_update(
     canon_center_tensors: list[NDArray[np.complex128]],
     site: int,
     right_m_block: NDArray[np.complex128],
-    sim_params: PhysicsSimParams | WeakSimParams | StrongSimParams,
+    sim_params: AnalogSimParams | WeakSimParams | StrongSimParams,
     numiter_lanczos: int,
 ) -> tuple[NDArray[np.complex128], NDArray[np.complex128]]:
     """Single Site bug algorithm update.
@@ -173,7 +173,7 @@ def local_update(
 
 
 def bug(
-    state: MPS, mpo: MPO, sim_params: PhysicsSimParams | WeakSimParams | StrongSimParams, numiter_lanczos: int = 25
+    state: MPS, mpo: MPO, sim_params: AnalogSimParams | WeakSimParams | StrongSimParams, numiter_lanczos: int = 25
 ) -> None:
     """Performs the Basis-Update and Galerkin Method for an MPS.
 
@@ -201,8 +201,8 @@ def bug(
 
     canon_center_tensors, left_envs = prepare_canonical_site_tensors(state, mpo)
     right_end_dimension = state.tensors[-1].shape[2]
-    right_block = np.eye(right_end_dimension).reshape(right_end_dimension, 1, right_end_dimension)
-    right_m_block = np.eye(right_end_dimension)
+    right_block = np.eye(right_end_dimension, dtype=np.complex128).reshape(right_end_dimension, 1, right_end_dimension)
+    right_m_block = np.eye(right_end_dimension, dtype=np.complex128)
     # Sweep from right to left.
     for site in range(num_sites - 1, 0, -1):
         right_m_block, right_block = local_update(

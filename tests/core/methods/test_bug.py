@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -16,7 +16,7 @@ import numpy as np
 from scipy.linalg import expm
 
 from mqt.yaqs.core.data_structures.networks import MPO, MPS
-from mqt.yaqs.core.data_structures.simulation_parameters import PhysicsSimParams
+from mqt.yaqs.core.data_structures.simulation_parameters import AnalogSimParams
 from mqt.yaqs.core.methods.bug import (
     bug,
     build_basis_change_tensor,
@@ -38,31 +38,30 @@ def crandn(
     """Draw random samples from the standard complex normal distribution.
 
     Args:
-        size (int |Tuple[int,...]): The size/shape of the output array.
-        *args (int): Additional dimensions for the output array.
-        seed (Generator | int): The seed for the random number generator.
+        size: The size/shape of the output array.
+        args: Additional dimensions for the output array.
+        seed: The seed for the random number generator.
 
     Returns:
-        NDArray[np.complex128]: The array of random complex numbers.
+        The array of random complex numbers.
     """
     if isinstance(size, int) and len(args) > 0:
         size = (size, *list(args))
     elif isinstance(size, int):
         size = (size,)
     rng = np.random.default_rng(seed)
-    # 1/sqrt(2) is a normalization factor
-    return (rng.standard_normal(size) + 1j * rng.standard_normal(size)) / np.sqrt(2)
+    # 1 / sqrt(2) is a normalization factor
+    return np.asarray(rng.standard_normal(size) + 1j * rng.standard_normal(size) / np.sqrt(2), dtype=np.complex128)
 
 
 def random_mps(shapes: list[tuple[int, int, int]]) -> MPS:
     """Create a random MPS with the given shapes.
 
     Args:
-        shapes (List[Tuple[int, int, int]]): The shapes of the tensors in the
-            MPS.
+        shapes: The shapes of the tensors in the MPS.
 
     Returns:
-        MPS: The random MPS.
+        The random MPS.
     """
     tensors = [crandn(shape) for shape in shapes]
     mps = MPS(len(shapes), tensors=tensors)
@@ -128,7 +127,7 @@ def test_prepare_canonical_site_tensors_three_sites() -> None:
     assert len(canon_sites) == 3
     # Correct envs and canon sites
     # Site 0
-    correct_env = np.eye(3).reshape(3, 1, 3)
+    correct_env = np.eye(3, dtype=np.complex128).reshape(3, 1, 3)
     correct_canon = mps_tensors[0]
     assert np.allclose(correct_env, left_envs[0])
     assert np.allclose(correct_canon, canon_sites[0])
@@ -228,10 +227,10 @@ def test_local_update() -> None:
     mpo = random_mpo([(2, 2, 1, 3), (2, 2, 3, 4), (2, 2, 4, 1)])
     canon_sites, left_envs = prepare_canonical_site_tensors(mps, mpo)
     ref_canon_sites = deepcopy(canon_sites)
-    right_block = np.eye(5).reshape(5, 1, 5)
+    right_block = np.eye(5, dtype=np.complex128).reshape(5, 1, 5)
     site = 2
-    right_m_block = np.eye(5)
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=1)
+    right_m_block = np.eye(5, dtype=np.complex128)
+    sim_params = AnalogSimParams(get_state=True, elapsed_time=1, show_progress=False)
     # Perform the local update
     result = local_update(
         mps, mpo, left_envs, right_block, canon_sites, site, right_m_block, sim_params, numiter_lanczos=25
@@ -256,7 +255,7 @@ def test_bug_single_site() -> None:
     mpo = MPO()
     mpo.init_ising(1, 1, 0.5)
     ref_mpo = deepcopy(mpo)
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=1, threshold=1e-16, max_bond_dim=10)
+    sim_params = AnalogSimParams(get_state=True, elapsed_time=1, threshold=1e-16, max_bond_dim=10, show_progress=False)
     # Perform BUG
     bug(mps, mpo, sim_params, numiter_lanczos=25)
     # Check against exact evolution
@@ -274,7 +273,7 @@ def test_bug_three_sites() -> None:
     mpo = MPO()
     mpo.init_ising(3, 1, 0.5)
     ref_mpo = deepcopy(mpo)
-    sim_params = PhysicsSimParams(observables=[], elapsed_time=1, threshold=1e-16, max_bond_dim=10)
+    sim_params = AnalogSimParams(get_state=True, elapsed_time=1, threshold=1e-16, max_bond_dim=10, show_progress=False)
     # Perform BUG
     bug(mps, mpo, sim_params, numiter_lanczos=25)
     # Check against exact evolution
@@ -282,4 +281,6 @@ def test_bug_three_sites() -> None:
     ham_matrix = ref_mpo.to_matrix()
     time_evo_op = expm(-1j * sim_params.dt * ham_matrix)
     new_state_vec = time_evo_op @ state_vec
+    # Check the result
+    assert mps.check_canonical_form() == [0]
     assert np.allclose(mps.to_vec(), new_state_vec)

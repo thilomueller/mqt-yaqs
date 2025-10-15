@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Chair for Design Automation, TUM
+# Copyright (c) 2023 - 2025 Chair for Design Automation, TUM
 # All rights reserved.
 #
 # SPDX-License-Identifier: MIT
@@ -24,13 +24,13 @@ import numpy as np
 import opt_einsum as oe
 from tqdm import tqdm
 
-from ..libraries.observables_library import ObservablesLibrary
-from ..methods.decompositions import right_qr, truncated_right_svd
+from ..libraries.gate_library import Destroy, X, Y, Z
+from ..methods.decompositions import right_qr, two_site_svd
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from .simulation_parameters import Observable
+    from .simulation_parameters import AnalogSimParams, Observable, StrongSimParams
 
 
 class MPS:
@@ -51,7 +51,7 @@ class MPS:
         Initializes the MPS with given length, tensors, physical dimensions, and initial state.
     pad_bond_dimension():
         Pads bond dimension with zeros
-    write_max_bond_dim() -> int:
+    get_max_bond() -> int:
         Returns the maximum bond dimension in the MPS.
     flip_network() -> None:
         Flips the bond dimensions in the network to allow operations from right to left.
@@ -79,41 +79,38 @@ class MPS:
         self,
         length: int,
         tensors: list[NDArray[np.complex128]] | None = None,
-        physical_dimensions: list[int] | None = None,
+        physical_dimensions: list[int] | int | None = None,
         state: str = "zeros",
         pad: int | None = None,
+        basis_string: str | None = None,
     ) -> None:
         """Initializes a Matrix Product State (MPS).
 
-        Parameters
-        ----------
-        length : int
-            Number of sites (qubits) in the MPS.
-        tensors : list[NDArray[np.complex128]], optional
-            Predefined tensors representing the MPS. Must match `length` if provided.
-            If None, tensors are initialized according to `state`.
-        physical_dimensions : list[int], optional
-            Physical dimension for each site. Defaults to qubit systems (dimension 2) if None.
-        state : str, optional
-            Initial state configuration. Valid options include:
-            - "zeros": Initializes all qubits to |0⟩.
-            - "ones": Initializes all qubits to |1⟩.
-            - "x+": Initializes each qubit to (|0⟩ + |1⟩)/√2.
-            - "x-": Initializes each qubit to (|0⟩ - |1⟩)/√2.
-            - "y+": Initializes each qubit to (|0⟩ + i|1⟩)/√2.
-            - "y-": Initializes each qubit to (|0⟩ - i|1⟩)/√2.
-            - "Neel": Alternating pattern |0101...⟩.
-            - "wall": Domain wall at given site |000111>
-            - "random": Initializes each qubit randomly.
-            Default is "zeros".
+        Args:
+            length: Number of sites (qubits) in the MPS.
+            tensors: Predefined tensors representing the MPS. Must match `length` if provided.
+                If None, tensors are initialized according to `state`.
+            physical_dimensions: Physical dimension for each site. Defaults to qubit systems (dimension 2) if None.
+            state: Initial state configuration. Valid options include:
+                - "zeros": Initializes all qubits to |0⟩.
+                - "ones": Initializes all qubits to |1⟩.
+                - "x+": Initializes each qubit to (|0⟩ + |1⟩)/√2.
+                - "x-": Initializes each qubit to (|0⟩ - |1⟩)/√2.
+                - "y+": Initializes each qubit to (|0⟩ + i|1⟩)/√2.
+                - "y-": Initializes each qubit to (|0⟩ - i|1⟩)/√2.
+                - "Neel": Alternating pattern |0101...⟩.
+                - "wall": Domain wall at given site |000111>
+                - "random": Initializes each qubit randomly.
+                - "basis": Initializes a qubit in an input computational basis.
+                Default is "zeros".
+            pad: Pads the state with extra zeros to increase bond dimension. Can increase numerical stability.
+            basis_string: String used to initialize the state in a specific computational basis.
+                This should generally be in the form of 0s and 1s, e.g., "0101" for a 4-qubit state.
+                For mixed-dimensional systems, this can be increased to 2, 3, ... etc.
 
         Raises:
-        ------
-        AssertionError
-            If `tensors` is provided and its length does not match `length`.
-        ValueError
-            If the provided `state` parameter does not match any valid initialization string.
-        """  # noqa: DOC501
+            ValueError: If the provided `state` parameter does not match any valid initialization string.
+        """
         self.flipped = False
         if tensors is not None:
             assert len(tensors) == length
@@ -126,6 +123,10 @@ class MPS:
             self.physical_dimensions = []
             for _ in range(self.length):
                 self.physical_dimensions.append(2)
+        elif isinstance(physical_dimensions, int):
+            self.physical_dimensions = []
+            for _ in range(self.length):
+                self.physical_dimensions.append(physical_dimensions)
         else:
             self.physical_dimensions = physical_dimensions
         assert len(self.physical_dimensions) == length
@@ -172,6 +173,10 @@ class MPS:
                     rng = np.random.default_rng()
                     vector[0] = rng.random()
                     vector[1] = 1 - vector[0]
+                elif state == "basis":
+                    assert basis_string is not None, "basis_string must be provided for 'basis' state initialization."
+                    self.init_mps_from_basis(basis_string, self.physical_dimensions)
+                    break
                 else:
                     msg = "Invalid state string"
                     raise ValueError(msg)
@@ -186,42 +191,68 @@ class MPS:
         if pad is not None:
             self.pad_bond_dimension(pad)
 
+    def init_mps_from_basis(self, basis_string: str, physical_dimensions: list[int]) -> None:
+        """Initialize a list of MPS tensors representing a product state from a basis string.
+
+        Args:
+            basis_string: A string like "0101" indicating the computational basis state.
+            physical_dimensions: The physical dimension of each site (e.g. 2 for qubits, 3+ for qudits).
+        """
+        assert len(basis_string) == len(physical_dimensions)
+        for site, char in enumerate(basis_string):
+            idx = int(char)
+            tensor = np.zeros((physical_dimensions[site], 1, 1), dtype=complex)
+            tensor[idx, 0, 0] = 1.0
+            self.tensors.append(tensor)
+
     def pad_bond_dimension(self, target_dim: int) -> None:
-        """Pad bond dimension.
+        """Pad MPS with extra zeros to increase bond dims.
 
-        Pads the bond dimensions of each tensor in the MPS so that the internal bond
-        dimensions are at least target_dim. For the first tensor the left bond dimension
-        remains 1, and for the last tensor the right bond dimension remains 1.
+        Enlarge every internal bond up to
+            min(target_dim, 2**exp)
+        where exp = min(bond_index+1, L-1-bond_index).
+        The first tensor keeps a left bond of 1, the last tensor a right bond of 1.
+        After padding the state is renormalised (canonicalised).
 
-        Parameters
-        ----------
+        Args:
         target_dim : int
             The desired bond dimension for the internal bonds.
 
         Raises:
-        ------
-        ValueError: If target_dim is smaller than any existing bond dimension.
+        ValueError: target_dim must be at least current bond dim.
         """
+        length = self.length
+
+        # enlarge tensors
         for i, tensor in enumerate(self.tensors):
-            # Tensor shape is (physical_dim, chi_left, chi_right)
-            phys, chi_left, chi_right = tensor.shape
+            phys, chi_l, chi_r = tensor.shape
 
-            # Determine desired bond dimensions
-            new_left = chi_left if i == 0 else target_dim
-            new_right = chi_right if i == self.length - 1 else target_dim
+            # compute the desired dimension for the bond left of site i
+            if i == 0:
+                left_target = 1
+            else:
+                exp_left = min(i, length - i)  # bond index = i - 1
+                left_target = min(target_dim, 2**exp_left)
 
-            # Check if the target dimensions are valid
-            if chi_left > new_left or chi_right > new_right:
-                msg = "Target bond dim must be at least as large as the current bond dim."
+            if i == length - 1:
+                right_target = 1
+            else:
+                exp_right = min(i + 1, length - 1 - i)  # bond index = i
+                right_target = min(target_dim, 2**exp_right)
+
+            # sanity-check — we must never shrink an existing bond
+            if chi_l > left_target or chi_r > right_target:
+                msg = "Target bond dim must be at least current bond dim."
                 raise ValueError(msg)
 
-            # Create a new tensor with zeros and copy the original data into the appropriate block
-            new_tensor = np.zeros((phys, new_left, new_right), dtype=tensor.dtype)
-            new_tensor[:, :chi_left, :chi_right] = tensor
-
+            # allocate new tensor and copy original data
+            new_tensor = np.zeros((phys, left_target, right_target), dtype=tensor.dtype)
+            new_tensor[:, :chi_l, :chi_r] = tensor
             self.tensors[i] = new_tensor
+        # renormalise the state
+        self.normalize()
 
-    def write_max_bond_dim(self) -> int:
+    def get_max_bond(self) -> int:
         """Write max bond dim.
 
         Calculate and return the maximum bond dimension of the tensors in the network.
@@ -238,6 +269,108 @@ class MPS:
             global_max = max(global_max, local_max)
 
         return global_max
+
+    def get_total_bond(self) -> int:
+        """Compute total bond dimension.
+
+        Calculates the sum of all internal bond dimensions of the network.
+        Specifically, this sums the second index (left bond dimension)
+        of each tensor except for the first tensor.
+
+        Returns:
+            int: The total bond dimension across all internal bonds.
+        """
+        bonds = [tensor.shape[1] for tensor in self.tensors[1:]]
+        return sum(bonds)
+
+    def get_cost(self) -> int:
+        """Estimate contraction cost.
+
+        Approximates the computational cost of simulating the network
+        by summing the cube of each internal bond dimension. This is a
+        heuristic metric for the cost of tensor contractions.
+
+        Returns:
+            int: The estimated contraction cost of the network.
+        """
+        cost = [tensor.shape[1] ** 3 for tensor in self.tensors[1:]]
+        return sum(cost)
+
+    def get_entropy(self, sites: list[int]) -> np.float64:
+        """Compute bipartite entanglement entropy.
+
+        Calculates the von Neumann entropy of the reduced density matrix
+        across the bond between two adjacent sites. The entropy is obtained
+        from the Schmidt spectrum of the two-site state.
+
+        Args:
+            sites (list[int]): A list of exactly two adjacent site indices (i, i+1).
+
+        Returns:
+            np.float64: The entanglement entropy across the specified bond.
+
+        """
+        assert len(sites) == 2, "Entropy is defined on a bond (two adjacent sites)."
+        i, j = sites
+        assert i + 1 == j, "Entropy is only defined for nearest-neighbor cut."
+
+        a, b = self.tensors[i], self.tensors[j]
+
+        if a.shape[2] == 1:
+            return np.float64(0.0)
+
+        theta = np.tensordot(a, b, axes=(2, 1))
+        phys_i, left = a.shape[0], a.shape[1]
+        phys_j, right = b.shape[0], b.shape[2]
+        theta_mat = theta.reshape(left * phys_i, phys_j * right)
+
+        s = np.linalg.svd(theta_mat, full_matrices=False, compute_uv=False)
+        s2 = (s.astype(np.float64)) ** 2
+        norm: np.float64 = np.sum(s2, dtype=np.float64)
+        if norm == np.float64(0.0):
+            return np.float64(0.0)
+
+        p = s2 / norm
+        eps = np.finfo(np.float64).tiny
+        ent = -1 * np.sum(p * np.log(p + eps), dtype=np.float64)
+
+        return np.float64(ent)
+
+    def get_schmidt_spectrum(self, sites: list[int]) -> NDArray[np.float64]:
+        """Compute Schmidt spectrum.
+
+        Calculates the singular values of the bipartition between two
+        adjacent sites (the Schmidt coefficients). The spectrum is padded
+        or truncated to length 500 for consistent output size.
+
+        Args:
+            sites (list[int]): A list of exactly two adjacent site indices (i, i+1).
+
+        Returns:
+            NDArray[np.float64]: The Schmidt spectrum (length 500),
+            with unused entries filled with NaN.
+        """
+        assert len(sites) == 2, "Schmidt spectrum is defined on a bond (two adjacent sites)."
+        assert sites[0] + 1 == sites[1], "Schmidt spectrum only defined for nearest-neighbor cut."
+        top_schmidt_vals = 500
+        i, j = sites
+        a, b = self.tensors[i], self.tensors[j]
+
+        if a.shape[2] == 1:
+            padded = np.full(top_schmidt_vals, np.nan)
+            padded[0] = 1.0
+            return padded
+
+        theta = np.tensordot(a, b, axes=(2, 1))
+        phys_i, left = a.shape[0], a.shape[1]
+        phys_j, right = b.shape[0], b.shape[2]
+        theta_mat = theta.reshape(left * phys_i, phys_j * right)
+
+        _, s_vec, _ = np.linalg.svd(theta_mat, full_matrices=False)
+
+        padded = np.full(top_schmidt_vals, np.nan)
+        padded[: min(top_schmidt_vals, len(s_vec))] = s_vec[:top_schmidt_vals]
+        return padded
 
     def flip_network(self) -> None:
         """Flip MPS.
@@ -286,29 +419,32 @@ class MPS:
                            Default is QR.
         """
         tensor = self.tensors[current_orthogonality_center]
-        if decomposition == "QR":
+        if decomposition == "QR" or current_orthogonality_center == self.length - 1:
             site_tensor, bond_tensor = right_qr(tensor)
+            self.tensors[current_orthogonality_center] = site_tensor
+
+            # If normalizing, we just throw away the R
+            if current_orthogonality_center + 1 < self.length:
+                self.tensors[current_orthogonality_center + 1] = oe.contract(
+                    "ij, ajc->aic", bond_tensor, self.tensors[current_orthogonality_center + 1]
+                )
         elif decomposition == "SVD":
-            site_tensor, s_vec, v_mat = truncated_right_svd(tensor, threshold=1e-12, max_bond_dim=None)
-            bond_tensor = np.diag(s_vec) @ v_mat
-        self.tensors[current_orthogonality_center] = site_tensor
+            a, b = self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1]
+            a_new, b_new = two_site_svd(a, b, threshold=1e-12, max_bond_dim=None)
+            self.tensors[current_orthogonality_center], self.tensors[current_orthogonality_center + 1] = a_new, b_new
 
-        # If normalizing, we just throw away the R
-        if current_orthogonality_center + 1 < self.length:
-            self.tensors[current_orthogonality_center + 1] = oe.contract(
-                "ij, ajc->aic", bond_tensor, self.tensors[current_orthogonality_center + 1]
-            )
-
-    def shift_orthogonality_center_left(self, current_orthogonality_center: int) -> None:
+    def shift_orthogonality_center_left(self, current_orthogonality_center: int, decomposition: str = "QR") -> None:
         """Shifts orthogonality center left.
 
         This function flips the network, performs a right shift, then flips the network again.
 
         Args:
             current_orthogonality_center (int): current center
+            decomposition: Decides between QR or SVD decomposition. QR is faster, SVD allows bond dimension to reduce
+                Default is QR.
         """
         self.flip_network()
-        self.shift_orthogonality_center_right(self.length - current_orthogonality_center - 1)
+        self.shift_orthogonality_center_right(self.length - current_orthogonality_center - 1, decomposition)
         self.flip_network()
 
     def set_canonical_form(self, orthogonality_center: int, decomposition: str = "QR") -> None:
@@ -354,36 +490,34 @@ class MPS:
             self.flip_network()
 
         self.set_canonical_form(orthogonality_center=self.length - 1, decomposition=decomposition)
-        self.shift_orthogonality_center_right(self.length - 1)
+        self.shift_orthogonality_center_right(self.length - 1, decomposition)
 
         if form == "B":
             self.flip_network()
 
     def truncate(self, threshold: float = 1e-12, max_bond_dim: int | None = None) -> None:
-        """Truncates the MPS in place.
+        """In-place MPS truncation via repeated two-site SVDs."""
+        orth_center = self.check_canonical_form()[0]
+        if self.length == 1:
+            return
 
-        Args:
-            state: The MPS.
-            sim_params: The truncation parameters.
-            threshold: The truncation threshold. Default
-            max_bond_dim: The maximum bond dimension allowed. Default None.
+        # ——— left­-to-­center sweep ———
+        for i in range(orth_center):
+            a, b = self.tensors[i], self.tensors[i + 1]
+            a_new, b_new = two_site_svd(a, b, threshold, max_bond_dim)
+            self.tensors[i], self.tensors[i + 1] = a_new, b_new
 
-        """
-        if self.length != 1:
-            for i, tensor in enumerate(self.tensors[:-1]):
-                _, _, v_mat = truncated_right_svd(tensor, threshold, max_bond_dim)
-                # Pull v into left leg of next tensor.
-                new_next = np.tensordot(v_mat, self.tensors[i + 1], axes=(1, 1))
-                new_next = new_next.transpose(1, 0, 2)
-                self.tensors[i + 1] = new_next
-                # Pull v^dag into current tensor.
-                self.tensors[i] = np.tensordot(
-                    self.tensors[i],
-                    v_mat.conj(),  # No transpose, put correct axes instead
-                    axes=(2, 1),
-                )
+        # flip the network and sweep back
+        self.flip_network()
+        orth_flipped = self.length - 1 - orth_center
+        for i in range(orth_flipped):
+            a, b = self.tensors[i], self.tensors[i + 1]
+            a_new, b_new = two_site_svd(a, b, threshold, max_bond_dim)
+            self.tensors[i], self.tensors[i + 1] = a_new, b_new
 
-    def scalar_product(self, other: MPS, site: int | None = None) -> np.complex128:
+        self.flip_network()
+
+    def scalar_product(self, other: MPS, sites: int | list[int] | None = None) -> np.complex128:
         """Compute the scalar (inner) product between two Matrix Product States (MPS).
 
         The function contracts the corresponding tensors of two MPS objects. If no specific site is
@@ -392,27 +526,58 @@ class MPS:
 
         Args:
             other (MPS): The second Matrix Product State.
-            site (int | None): Optional site index at which to compute the contraction. If None, the
+            sites: Optional site indices at which to compute the contraction. If None, the
                 contraction is performed over all sites.
 
         Returns:
             np.complex128: The resulting scalar product as a complex number.
+
+        Raises:
+            ValueError: Invalid sites input
         """
         a_copy = copy.deepcopy(self)
         b_copy = copy.deepcopy(other)
         for i, tensor in enumerate(a_copy.tensors):
             a_copy.tensors[i] = np.conj(tensor)
 
-        result = np.array(np.inf)
-        if site is None:
+        if sites is None:
+            result = None
             for idx in range(self.length):
-                tensor = oe.contract("abc, ade->bdce", a_copy.tensors[idx], b_copy.tensors[idx])
-                result = tensor if idx == 0 else oe.contract("abcd, cdef->abef", result, tensor)
-        else:
-            result = oe.contract("ijk, ijk", a_copy.tensors[site], b_copy.tensors[site])
-        return np.complex128(np.squeeze(result))
+                # contract at each site into a 4-leg tensor
+                theta = oe.contract("abc,ade->bdce", a_copy.tensors[idx], b_copy.tensors[idx])
+                result = theta if idx == 0 else oe.contract("abcd,cdef->abef", result, theta)
+            # squeeze down to scalar
+            assert result is not None
+            return np.complex128(np.squeeze(result))
 
-    def local_expval(self, operator: NDArray[np.complex128], site: int) -> np.complex128:
+        if isinstance(sites, int) or len(sites) == 1:
+            if isinstance(sites, int):
+                i = sites
+            elif len(sites) == 1:
+                i = sites[0]
+            a = a_copy.tensors[i]
+            b = b_copy.tensors[i]
+            # sum over all three legs (p,l,r):
+            val = oe.contract("ijk,ijk", a, b)
+            return np.complex128(val)
+
+        if len(sites) == 2:
+            i, j = sites
+            assert j == i + 1, "Only nearest-neighbor two-site overlaps supported."
+
+            a_1 = a_copy.tensors[i]  # (p_i, l_i, r_i)
+            b_1 = b_copy.tensors[i]  # (p_i, l_i, r'_i)
+            a_2 = a_copy.tensors[j]  # (p_j, l_j=r_i, r_j)
+            b_2 = b_copy.tensors[j]  # (p_j, l'_j=r'_i, r_j)
+
+            # Contraction: a_1(a,b,c), a_2(d,c,e), b_1(a,b,f), b_2(d,f,e)
+            val = oe.contract("abc,dce,abf,dfe->", a_1, a_2, b_1, b_2)
+            return np.complex128(val)
+
+        msg = f"Invalid `sites` argument: {sites!r}"
+        raise ValueError(msg)
+
+    def local_expect(self, operator: Observable, sites: int | list[int]) -> np.complex128:
         """Compute the local expectation value of an operator on an MPS.
 
         The function applies the given operator to the tensor at the specified site of a deep copy of the
@@ -420,8 +585,8 @@ class MPS:
         This effectively calculates the expectation value of the operator at the specified site.
 
         Args:
-            operator (NDArray[np.complex128]): The local operator (matrix) to be applied.
-            site (int): The index of the site at which to evaluate the expectation value.
+            operator: The local operator to be applied.
+            sites: The indices of the sites at which to evaluate the expectation value.
 
         Returns:
             np.complex128: The computed expectation value (typically, its real part is of interest).
@@ -430,24 +595,141 @@ class MPS:
             A deep copy of the state is used to prevent modifications to the original MPS.
         """
         temp_state = copy.deepcopy(self)
-        temp_state.tensors[site] = oe.contract("ab, bcd->acd", operator, temp_state.tensors[site])
-        return self.scalar_product(temp_state, site)
+        if operator.gate.matrix.shape[0] == 2:  # Local observable
+            i = None
+            if isinstance(sites, list):
+                i = sites[0]
+            elif isinstance(sites, int):
+                i = sites
 
-    def measure_expectation_value(self, observable: Observable) -> np.float64:
+            if isinstance(operator.sites, list):
+                assert operator.sites[0] == i, f"Operator sites mismatch {operator.sites[0]}, {i}"
+            elif isinstance(operator.sites, int):
+                assert operator.sites == i, f"Operator sites mismatch {operator.sites}, {i}"
+
+            assert i is not None, f"Invalid type for 'sites': expected int or list[int], got {type(sites).__name__}"
+            a = temp_state.tensors[i]
+            temp_state.tensors[i] = oe.contract("ab, bcd->acd", operator.gate.matrix, a)
+
+        elif operator.gate.matrix.shape[0] == 4:  # Two-site correlator
+            assert isinstance(sites, list)
+            assert isinstance(operator.sites, list)
+            i, j = sites
+
+            assert operator.sites[0] == i, "Observable sites mismatch"
+            assert operator.sites[1] == j, "Observable sites mismatch"
+            assert operator.sites[0] < operator.sites[1], "Observable sites must be in ascending order."
+            assert operator.sites[1] - operator.sites[0] == 1, (
+                "Only nearest-neighbor observables are currently implemented."
+            )
+            a = temp_state.tensors[i]
+            b = temp_state.tensors[j]
+            d_i, left, _ = a.shape
+            d_j, _, right = b.shape
+
+            # 1) merge A,B into theta of shape (l, d_i*d_j, r)
+            theta = np.tensordot(a, b, axes=(2, 1))  # (d_i, l, d_j, r)
+            theta = theta.transpose(1, 0, 2, 3)  # (l, d_i, d_j, r)
+            theta = theta.reshape(left, d_i * d_j, right)  # (l, d_i*d_j, r)
+
+            # 2) apply operator on the combined phys index
+            theta = oe.contract("ab, cbd->cad", operator.gate.matrix, theta)  # (l, d_i*d_j, r)
+            theta = theta.reshape(left, d_i, d_j, right)  # back to (l, d_i, d_j, r)
+
+            # 3) split via SVD
+            theta_mat = theta.reshape(left * d_i, d_j * right)
+            u_mat, s_vec, v_mat = np.linalg.svd(theta_mat, full_matrices=False)
+
+            chi_new = len(s_vec)  # keep all singular values
+
+            # build new A, B in (p, l, r) order
+            u_tensor = u_mat.reshape(left, d_i, chi_new)  # (l, d_i, r_new)
+            a_new = u_tensor.transpose(1, 0, 2)  # → (d_i, l, r_new)
+
+            v_tensor = (np.diag(s_vec) @ v_mat).reshape(chi_new, d_j, right)  # (l_new, d_j, r)
+            b_new = v_tensor.transpose(1, 0, 2)  # → (d_j, l_new, r)
+
+            temp_state.tensors[i] = a_new
+            temp_state.tensors[j] = b_new
+
+        return self.scalar_product(temp_state, sites)
+
+    def evaluate_observables(
+        self, sim_params: AnalogSimParams | StrongSimParams, results: NDArray[np.float64], column_index: int = 0
+    ) -> None:
+        """Evaluate and record expectation values of observables for a given MPS state.
+
+        This method performs a deep copy of the current MPS (`self`) and iterates over
+        the observables defined in the `sim_params` object. For each observable, it ensures
+        the orthogonality center of the MPS is correctly positioned before computing the
+        expectation value, which is then stored in the corresponding column of the `results` array.
+
+        Parameters:
+            sim_params: Simulation parameters containing a list of sorted observables.
+            results: 2D array where results[observable_index, column_index] stores expectation values.
+            column_index: The time or trajectory index indicating which column of the result array to fill.
+        """
+        temp_state = copy.deepcopy(self)
+        last_site = 0
+        for obs_index, observable in enumerate(sim_params.sorted_observables):
+            if observable.gate.name == "runtime_cost":
+                results[obs_index, column_index] = self.get_cost()
+            elif observable.gate.name == "max_bond":
+                results[obs_index, column_index] = self.get_max_bond()
+            elif observable.gate.name == "total_bond":
+                results[obs_index, column_index] = self.get_total_bond()
+            elif observable.gate.name in {"entropy", "schmidt_spectrum"}:
+                assert isinstance(observable.sites, list), "Given metric requires a list of sites"
+                assert len(observable.sites) == 2, "Given metric requires 2 sites to act on."
+                max_site = max(observable.sites)
+                min_site = min(observable.sites)
+                assert max_site - min_site == 1, "Entropy and Schmidt cuts must be nearest neighbor."
+                for s in observable.sites:
+                    assert s in range(self.length), f"Observable acting on non-existing site: {s}"
+                if observable.gate.name == "entropy":
+                    results[obs_index, column_index] = self.get_entropy(observable.sites)
+                elif observable.gate.name == "schmidt_spectrum":
+                    results[obs_index, column_index] = self.get_schmidt_spectrum(observable.sites)
+
+            elif observable.gate.name == "pvm":
+                assert hasattr(observable.gate, "bitstring"), "Gate does not have attribute bitstring."
+                results[obs_index, column_index] = self.project_onto_bitstring(observable.gate.bitstring)
+
+            else:
+                idx = observable.sites[0] if isinstance(observable.sites, list) else observable.sites
+                if idx > last_site:
+                    for site in range(last_site, idx):
+                        temp_state.shift_orthogonality_center_right(site)
+                    last_site = idx
+                results[obs_index, column_index] = temp_state.expect(observable)
+
+    def expect(self, observable: Observable) -> np.float64:
         """Measurement of expectation value.
 
         Measure the expectation value of a given observable.
 
         Parameters:
-        observable (Observable): The observable to measure. It must have a 'site' attribute indicating
-        the site to measure and a 'name' attribute corresponding to a gate in the GateLibrary.
+            observable (Observable): The observable to measure. It must have a 'site' attribute indicating
+            the site to measure and a 'name' attribute corresponding to a gate in the GateLibrary.
 
         Returns:
-        np.float64: The real part of the expectation value of the observable.
+            np.float64: The real part of the expectation value of the observable.
         """
-        assert observable.site in range(self.length), "State is shorter than selected site for expectation value."
-        # Copying done to stop the state from messing up its own canonical form
-        exp = self.local_expval(ObservablesLibrary[observable.name], observable.site)
+        sites_list = None
+        if isinstance(observable.sites, int):
+            sites_list = [observable.sites]
+        elif isinstance(observable.sites, list):
+            sites_list = observable.sites
+
+        assert sites_list is not None, f"Invalid type in expect {type(observable.sites).__name__}"
+
+        assert len(sites_list) < 3, "Only one- and two-site observables are currently implemented."
+
+        for s in sites_list:
+            assert s in range(self.length), f"Observable acting on non-existing site: {s}"
+
+        exp = self.local_expect(observable, sites_list)
+
         assert exp.imag < 1e-13, f"Measurement should be real, '{exp.real:16f}+{exp.imag:16f}i'."
         return exp.real
 
@@ -519,6 +801,50 @@ class MPS:
         results[basis_state] = results.get(basis_state, 0) + 1
         return results
 
+    def project_onto_bitstring(self, bitstring: str) -> np.complex128:
+        """Projection-valued measurement.
+
+        Project the MPS onto a given bitstring in the computational basis
+        and return the squared norm (i.e., probability of that outcome).
+
+        This is equivalent to computing ⟨bitstring|ψ⟩⟨ψ|bitstring⟩.
+
+        Args:
+            bitstring (str): Bitstring to project onto (little-endian: site 0 is first char).
+
+        Returns:
+            float: Probability of obtaining the given bitstring under projective measurement.
+        """
+        assert len(bitstring) == self.length, "Bitstring length must match number of sites"
+        temp_state = copy.deepcopy(self)
+        total_norm = 1.0
+
+        for site, char in enumerate(bitstring):
+            state_index = int(char)
+            tensor = temp_state.tensors[site]
+            local_dim = self.physical_dimensions[site]
+            assert 0 <= state_index < local_dim, f"Invalid state index {state_index} at site {site}"
+
+            selected_state = np.zeros(local_dim)
+            selected_state[state_index] = 1
+
+            # Project tensor
+            projected_tensor = oe.contract("a, acd->cd", selected_state, tensor)
+
+            # Compute norm of projected tensor
+            norm = float(np.linalg.norm(projected_tensor))
+            if norm == 0:
+                return np.complex128(0.0)
+            total_norm *= norm
+
+            # Normalize and propagate
+            if site != self.length - 1:
+                temp_state.tensors[site + 1] = (
+                    1 / norm * oe.contract("ab, cbd->cad", projected_tensor, temp_state.tensors[site + 1])
+                )
+
+        return np.complex128(total_norm**2)
+
     def norm(self, site: int | None = None) -> np.float64:
         """Norm calculation.
 
@@ -560,6 +886,9 @@ class MPS:
         - [index] if the MPS is in mixed-canonical form, where `index` is the position where the form changes.
         - [-1] if the MPS is not in any canonical form.
 
+        Parameters:
+        epsilon (float): Tolerance for numerical comparisons. Default is 1e-12.
+
         Returns:
             list[int]: A list indicating the canonical form status of the MPS.
         """
@@ -567,43 +896,36 @@ class MPS:
         for i, tensor in enumerate(self.tensors):
             a[i] = np.conj(tensor)
         b = self.tensors
+        a_truth = [False for _ in range(self.length)]
+        b_truth = [False for _ in range(self.length)]
 
-        a_truth = []
-        b_truth = []
-        epsilon = 1e-12
-        for i in range(len(a)):
+        # Find the first index where the left canonical form is not satisfied.
+        # We choose the rightmost index in case even that one fulfills the condition
+        for i in range(self.length):
             mat = oe.contract("ijk, ijl->kl", a[i], b[i])
-            mat[epsilon > mat] = 0
             test_identity = np.eye(mat.shape[0], dtype=complex)
-            a_truth.append(np.allclose(mat, test_identity))
+            if np.allclose(mat, test_identity):
+                a_truth[i] = True
 
-        for i in range(len(a)):
+        # Find the last index where the right canonical form is not satisfied.
+        # We choose the leftmost index in case even that one fulfills the condition
+        for i in reversed(range(self.length)):
             mat = oe.contract("ijk, ilk->jl", b[i], a[i])
-            mat[epsilon > mat] = 0
             test_identity = np.eye(mat.shape[0], dtype=complex)
-            b_truth.append(np.allclose(mat, test_identity))
+            if np.allclose(mat, test_identity):
+                b_truth[i] = True
 
-        if all(b_truth):
-            return [0]
-        if all(a_truth):
-            return [self.length - 1]
+        mixed_truth = [False for _ in range(self.length)]
+        for i in range(self.length):
+            if all(a_truth[:i]) and all(b_truth[i + 1 :]):
+                mixed_truth[i] = True
 
-        if not (all(a_truth) and all(b_truth)):
-            sites = []
-            for i, _truth_value in enumerate(a_truth):
-                if _truth_value:
-                    sites.append(i)
-                else:
-                    break
-
-            for i, _truth_value in enumerate(b_truth[len(sites) :], start=len(sites)):
+        sites = []
+        for i, val in enumerate(mixed_truth):
+            if val:
                 sites.append(i)
-            if False in sites:
-                return [sites.index(False)]
-            for i, value in enumerate(a_truth):
-                if not value:
-                    return [i - 1, i]
-        return [-1]
+
+        return sites
 
     def to_vec(self) -> NDArray[np.complex128]:
         r"""Converts the MPS to a full state vector representation.
@@ -690,16 +1012,15 @@ class MPO:
             g (float): The coupling constant for the field.
         """
         physical_dimension = 2
-        np.zeros((physical_dimension, physical_dimension), dtype=complex)
         identity = np.eye(physical_dimension, dtype=complex)
-        x = ObservablesLibrary["x"]
+        x = X().matrix
         if length == 1:
             tensor: NDArray[np.complex128] = np.reshape(x, (2, 2, 1, 1))
             self.tensors = [tensor]
             self.length = length
             self.physical_dimension = physical_dimension
             return
-        z = ObservablesLibrary["z"]
+        z = Z().matrix
 
         left_bound = np.array([identity, -J * z, -g * x])[np.newaxis, :]
 
@@ -750,9 +1071,9 @@ class MPO:
         physical_dimension = 2
         zero = np.zeros((physical_dimension, physical_dimension), dtype=complex)
         identity = np.eye(physical_dimension, dtype=complex)
-        x = ObservablesLibrary["x"]
-        y = ObservablesLibrary["y"]
-        z = ObservablesLibrary["z"]
+        x = X().matrix
+        y = Y().matrix
+        z = Z().matrix
 
         left_bound = np.array([identity, -Jx * x, -Jy * y, -Jz * z, -h * z])[np.newaxis, :]
 
@@ -777,6 +1098,121 @@ class MPO:
         self.length = length
         self.physical_dimension = physical_dimension
 
+    def init_coupled_transmon(
+        self,
+        length: int,
+        qubit_dim: int,
+        resonator_dim: int,
+        qubit_freq: float,
+        resonator_freq: float,
+        anharmonicity: float,
+        coupling: float,
+    ) -> None:
+        """Coupled Transmon MPO.
+
+        Initializes an MPO representation of a 1D chain of coupled transmon qubits
+        and resonators.
+
+        The chain alternates between transmon qubits (even indices) and resonators
+        (odd indices), with each qubit coupled to its neighboring resonators via
+        dipole-like interaction terms.
+
+        Parameters:
+            length: Total number of sites in the chain (should be even).
+                        Qubit sites are placed at even indices, resonators at odd.
+            qubit_dim: Local Hilbert space dimension of each transmon qubit.
+            resonator_dim: Local Hilbert space dimension of each resonator.
+            qubit_freq: Bare frequency of the transmon qubits.
+            resonator_freq: Bare frequency of the resonators.
+            anharmonicity: Strength of the anharmonic (nonlinear) term
+                                for each transmon, typically negative.
+            coupling : Strength of the qubit-resonator coupling term.
+
+        Notes:
+            - The Hamiltonian for each qubit is modeled as a Duffing oscillator:
+                H_q = ω_q * n_q + (alpha/2) * n_q (n_q - 1)
+            - Each resonator is a harmonic oscillator:
+                H_r = ω_r * n_r
+            - The interaction is implemented via dipole coupling:
+                H_int = g * (b + b†)(a + a†)
+            - The MPO bond dimension is 4.
+        """
+        b = Destroy(qubit_dim)
+        b_dag = b.dag()
+        a = Destroy(resonator_dim)
+        a_dag = a.dag()
+
+        id_q = np.eye(qubit_dim, dtype=complex)
+        id_r = np.eye(resonator_dim, dtype=complex)
+        zero_q = np.zeros_like(id_q)
+        zero_r = np.zeros_like(id_r)
+
+        n_q = b_dag.matrix @ b.matrix
+        n_r = a_dag.matrix @ a.matrix
+        h_q = qubit_freq * n_q + (anharmonicity / 2) * n_q @ (n_q - id_q)
+        h_r = resonator_freq * n_r
+
+        x_q = b_dag.matrix + b.matrix
+        x_r = a_dag.matrix + a.matrix
+
+        self.tensors = []
+
+        for i in range(length):
+            if i % 2 == 0:
+                # Qubit site
+                if i == 0:
+                    # Qubit 0: left edge
+                    tensor = np.array(
+                        [
+                            [
+                                h_q,  # (0,0): on-site Hamiltonian
+                                id_q,  # (0,1): pass identity right
+                                coupling * x_q,  # (0,2): pass coupling operator right
+                                id_q,  # (0,3): tail end (unused)
+                            ]
+                        ],
+                        dtype=object,
+                    )  # shape (1, 4, d, d)
+
+                elif i == length - 1:
+                    # Qubit 1: right edge
+                    tensor = np.array(
+                        [
+                            [id_q],  # (0,0): tail end
+                            [coupling * x_q],  # (1,0): coupled input from resonator
+                            [id_q],  # (2,0): pass-through
+                            [h_q],  # (3,0): on-site Hamiltonian
+                        ],
+                        dtype=object,
+                    )  # shape (4, 1, d, d)
+
+                else:
+                    tensor = np.empty((4, 4, qubit_dim, qubit_dim), dtype=object)
+                    tensor[:, :] = [[zero_q for _ in range(4)] for _ in range(4)]
+                    tensor[0, 0] = h_q
+                    tensor[0, 1] = id_q
+                    tensor[0, 2] = coupling * x_q  # right resonator
+                    tensor[1, 3] = coupling * x_q  # left resonator
+                    tensor[0, 3] = id_q
+                    tensor[3, 3] = id_q
+            else:
+                # Resonator site
+                tensor = np.empty((4, 4, resonator_dim, resonator_dim), dtype=object)
+                tensor[:, :] = [[zero_r for _ in range(4)] for _ in range(4)]
+
+                tensor[0, 0] = id_r
+                tensor[1, 2] = h_r
+                tensor[2, 0] = x_r
+                tensor[3, 1] = x_r
+                tensor[3, 3] = id_r
+
+            # Transpose to (phys_out, phys_in, left, right)
+            tensor = np.transpose(tensor, (2, 3, 0, 1))
+            self.tensors.append(tensor)
+
+        self.length = length
+        self.physical_dimension = qubit_dim
+
     def init_identity(self, length: int, physical_dimension: int = 2) -> None:
         """Initialize identity MPO.
 
@@ -785,7 +1221,7 @@ class MPO:
         length (int): The number of identity matrices to initialize.
         physical_dimension (int, optional): The physical dimension of the identity matrices. Default is 2.
         """
-        mat = np.eye(2)
+        mat = np.eye(2, dtype=np.complex128)
         mat = np.expand_dims(mat, (2, 3))
         self.length = length
         self.physical_dimension = physical_dimension
@@ -825,22 +1261,14 @@ class MPO:
         """Custom MPO from tensors.
 
         Initialize the custom MPO (Matrix Product Operator) with the given tensors.
-        Parameters.
-        ----------
-        tensors : list[NDArray[np.complex128]]
-            A list of tensors to initialize the MPO.
-        transpose : bool, optional
-            If True, transpose each tensor to the order (2, 3, 0, 1). Default is True.
 
-        Raises:
-        ------
-        AssertionError
-            If the MPO is initialized incorrectly.
+        Args:
+            tensors: A list of tensors to initialize the MPO.
+            transpose: If True, transpose each tensor to the order (2, 3, 0, 1). Default is True.
 
         Notes:
-        -----
-        This method sets the tensors, optionally transposes them, checks if the MPO is valid,
-        and initializes the length and physical dimension of the MPO.
+            This method sets the tensors, optionally transposes them, checks if the MPO is valid,
+            and initializes the length and physical dimension of the MPO.
         """
         self.tensors = tensors
         if transpose:
@@ -1000,7 +1428,7 @@ class MPO:
         right bonds are 1.
 
         Returns:
-            NDArray[np.complex128]: The resulting matrix after tensor contractions and reshaping.
+            The resulting matrix after tensor contractions and reshaping.
         """
         for i, tensor in enumerate(self.tensors):
             if i == 0:
