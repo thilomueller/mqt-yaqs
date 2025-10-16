@@ -241,8 +241,9 @@ def test_init_1d_fermi_hubbard() -> None:
 
     assert mpo.to_matrix().shape == (4**length, 4**length)
 
+
 def test_init_1d_fermi_hubbard_jw() -> None:
-    """Test that init_1d_fermi_hubbard_jw creates the correct MPO for the 1D JW-tranformed Fermi-Hubbard model.
+    """Test that init_1d_fermi_hubbard_jw creates the correct MPO for the 1D JW-transformed Fermi-Hubbard model.
 
     This test initializes a 1D Fermi-Hubbard MPO after Jordan-Wigner transformation with given parameters (u, t).
     It verifies that:
