@@ -72,16 +72,14 @@ def test_analog_simparams_defaults() -> None:
     and verifies that default values for dt, sample_timesteps, number of trajectories (num_traj), max_bond_dim,
     threshold, and order are correctly assigned.
     """
-    obs_list: list[Observable] = []
-    elapsed_time = 2.0
-    params = AnalogSimParams(observables=obs_list, elapsed_time=elapsed_time)
+    obs_list = [Observable(X(), 0)]
+    params = AnalogSimParams(observables=obs_list)
 
-    assert params.observables == obs_list
-    assert params.elapsed_time == 2.0
+    assert params.elapsed_time == 0.1
     assert params.dt == 0.1
     assert params.sample_timesteps is True
     # times should be np.arange(0, elapsed_time+dt, dt)
-    assert np.isclose(params.times[-1], 2.0)
+    assert np.isclose(params.times[-1], 0.1)
     assert params.num_traj == 1000
     assert params.max_bond_dim == 4096
     assert params.threshold == 1e-9
