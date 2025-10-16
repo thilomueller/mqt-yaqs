@@ -1443,6 +1443,10 @@ class MPO:
             list[np.ndarray]: A list of length L containing the MPO tensors for the sum R = A + B.
         """
         length = len(A)
+        assert length == len(B), "MPO lengths must match for sum."
+        # Special case: single-site MPO - just add the site tensors
+        if length == 1:
+            return [A[0] + B[0]]
         out: list[np.ndarray] = []
         for k in range(length):
             a = A[k]
