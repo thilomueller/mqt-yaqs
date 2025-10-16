@@ -311,8 +311,6 @@ def test_init_from_terms() -> None:
     assert len(mpo.tensors) == L
 
     # Validate on small N by comparing to reconstructed matrix
-    H_matrix = mpo.to_matrix()
-
     PAULI_OPS = {
         "I": np.array([[1, 0], [0, 1]], dtype=complex),
         "X": np.array([[0, 1], [1, 0]], dtype=complex),
