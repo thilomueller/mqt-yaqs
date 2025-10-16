@@ -1489,9 +1489,12 @@ class MPO:
         out: list[np.ndarray] = []
         for k in range(length):
             a = A[k]  # (sa, ta, la, ra)
-            b = B[k]  # (sb, tb, lb, rb)
-            # C_{s,u,(lL),(rR)} = sum_t A_{s,t,l,r} B_{t,u,L,R}
-            c = oe.contract("stlr, t u L R -> s u (l L) (r R)", a, b)
+            b = B[k]  # (tb, ub, lb, rb)
+            # Contract over A.t with B.s (tb)
+            theta = np.tensordot(a, b, axes=([1], [0]))  # (sa, la, ra, ub, lb, rb)
+            theta = np.transpose(theta, (0, 3, 1, 4, 2, 5))  # (sa, ub, la, lb, ra, rb)
+            sa, ub, la, lb, ra, rb = theta.shape
+            c = theta.reshape(sa, ub, la * lb, ra * rb)
             out.append(c)
         return out
 
