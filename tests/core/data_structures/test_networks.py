@@ -241,6 +241,38 @@ def test_init_1d_fermi_hubbard() -> None:
 
     assert mpo.to_matrix().shape == (4**length, 4**length)
 
+def test_init_1d_fermi_hubbard_jw() -> None:
+    """Test that init_1d_fermi_hubbard_jw creates the correct MPO for the 1D JW-tranformed Fermi-Hubbard model.
+
+    This test initializes a 1D Fermi-Hubbard MPO after Jordan-Wigner transformation with given parameters (u, t).
+    It verifies that:
+      - The MPO has the expected length and physical dimension.
+      - Inner and right boundary tensors have the expected shapes.
+      - After contracting the MPO, the resulting matrix will have the correct shape.
+    """
+    mpo = MPO()
+    length = 6
+    u, t = 0.5, 1.0
+
+    mpo.init_1d_fermi_hubbard_jw_pauli(length, t, u)
+
+    assert mpo.length == length
+    assert mpo.physical_dimension == 2
+    assert len(mpo.tensors) == length
+
+    left_block = untranspose_block(mpo.tensors[0])
+    assert left_block.shape == (1, 7, 2, 2)
+
+    for i, tensor in enumerate(mpo.tensors):
+        if i == 0:
+            assert tensor.shape == (2, 2, 1, 7)
+        elif i == length - 1:
+            assert tensor.shape == (2, 2, 7, 1)
+        else:
+            assert tensor.shape == (2, 2, 7, 7)
+
+    assert mpo.to_matrix().shape == (2**length, 2**length)
+
 
 def test_init_identity() -> None:
     """Test that init_identity initializes an identity MPO correctly.
