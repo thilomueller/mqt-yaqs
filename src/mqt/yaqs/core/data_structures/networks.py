@@ -1396,21 +1396,16 @@ class MPO:
             ValueError: If physical_dimension != 2 or an unsupported label is encountered.
         """
         tensors: list[np.ndarray] = []
-        for i, label in enumerate(labels):
+        for _, label in enumerate(labels):
             if physical_dimension == 2:
                 op = self._label_to_op(label)
             else:
                 msg = "Only operators with physical dimension = 2 are supported by _bond1_mpo_from_labels"
                 raise ValueError(msg)
 
-            if i == 0:
-                # left boundary bond is 1
-                tens = np.zeros((physical_dimension, physical_dimension, 1, 1), dtype=complex)
-                tens[:, :, 0, 0] = op
-            else:
-                tens = np.zeros((physical_dimension, physical_dimension, 1, 1), dtype=complex)
-                tens[:, :, 0, 0] = op
-            tensors.append(tens)
+            tensor = np.zeros((physical_dimension, physical_dimension, 1, 1), dtype=complex)
+            tensor[:, :, 0, 0] = op
+            tensors.append(tensor)
 
         # Apply the term coefficient on the first site to avoid overflow
         tensors[0] = tensors[0].copy()
