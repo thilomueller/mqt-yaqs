@@ -1098,7 +1098,7 @@ class MPO:
         self.length = length
         self.physical_dimension = physical_dimension
 
-    def init_1d_fermi_hubbard(self, length: int, t: float, u: float) -> None:  # noqa: N803
+    def init_1d_fermi_hubbard(self, length: int, t: float, u: float) -> None:
         """1D Fermi-Hubbard MPO.
 
         Initialize the 1D Fermi-Hubbard model as a Matrix Product Operator (MPO).
@@ -1123,7 +1123,7 @@ class MPO:
         u (float): The onsite interaction.
         """
         physical_dimension = 4
-        zero = np.zeros((physical_dimension, physical_dimension), dtype=complex)
+        np.zeros((physical_dimension, physical_dimension), dtype=complex)
         identity = np.eye(physical_dimension, dtype=complex)
         # fermionic creation and annihilation operators
         c = np.array([[0, 1], [0, 0]])
@@ -1136,7 +1136,7 @@ class MPO:
         n_down = np.kron(np.eye(2), c__d @ c)
         d = u * n_up @ n_down
 
-        left_bound = np.array([d, t*c_up, t*c_down, -t*c_up__d, -t*c_down__d, identity])[np.newaxis, :]
+        left_bound = np.array([d, t * c_up, t * c_down, -t * c_up__d, -t * c_down__d, identity])[np.newaxis, :]
 
         inner = np.zeros((6, 6, physical_dimension, physical_dimension), dtype=complex)
         inner[0, 0] = identity
@@ -1192,7 +1192,7 @@ class MPO:
 
         Right boundary: shape (7, 1, d, d)
         [I, -(t/2)*X, 0, -(t/2)*Y, 0, (u/4)*Z, 0]^T
-        
+
         Parameters:
         length (int): The number of sites in the chain.
         t (float): The hopping strength.
@@ -1201,26 +1201,24 @@ class MPO:
         import numpy as np
 
         if length % 2 != 0 or length < 2:
-            raise ValueError("length must be an even integer ≥ 2 (ordering: 1↑,1↓,2↑,2↓,...).")
+            msg = "length must be an even integer ≥ 2 (ordering: 1↑,1↓,2↑,2↓,...)."
+            raise ValueError(msg)
 
         # Local 2x2 Pauli operators on each spin site
         d = 2
         I = np.eye(2, dtype=complex)
-        X = np.array([[0, 1],
-                      [1, 0]], dtype=complex)
-        Y = np.array([[0, -1j],
-                      [1j, 0]], dtype=complex)
-        Z = np.array([[1, 0],
-                      [0, -1]], dtype=complex)
+        X = np.array([[0, 1], [1, 0]], dtype=complex)
+        Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
+        Z = np.array([[1, 0], [0, -1]], dtype=complex)
 
         zero = np.zeros((d, d), dtype=complex)
 
         W_up = np.zeros((7, 7, d, d), dtype=complex)
         W_up[0, 0] = I
         W_up[1, 0] = zero
-        W_up[2, 0] = -(t/2) * X
-        W_up[4, 0] = -(t/2) * Y
-        W_up[6, 1] = (u/4) * Z
+        W_up[2, 0] = -(t / 2) * X
+        W_up[4, 0] = -(t / 2) * Y
+        W_up[6, 1] = (u / 4) * Z
         W_up[3, 2] = Z
         W_up[6, 3] = X
         W_up[5, 4] = Z
@@ -1230,8 +1228,8 @@ class MPO:
         W_down = np.zeros((7, 7, d, d), dtype=complex)
         W_down[0, 0] = I
         W_down[1, 0] = Z
-        W_down[2, 0] = -(t/2) * X
-        W_down[4, 0] = -(t/2) * Y
+        W_down[2, 0] = -(t / 2) * X
+        W_down[4, 0] = -(t / 2) * Y
         W_down[6, 1] = zero
         W_down[3, 2] = Z
         W_down[6, 3] = X
@@ -1241,13 +1239,13 @@ class MPO:
 
         tensors = []
 
-        left_bound = np.array([zero, (u/4) * Z, zero, X, zero, Y, I])[np.newaxis, :]
-        right_bound = np.array([I, Z, -(t/2) * X, zero, -(t/2) * Y, zero, zero])[:, np.newaxis]
+        left_bound = np.array([zero, (u / 4) * Z, zero, X, zero, Y, I])[np.newaxis, :]
+        right_bound = np.array([I, Z, -(t / 2) * X, zero, -(t / 2) * Y, zero, zero])[:, np.newaxis]
 
         # Construct the MPO
         tensors = []
         for s in range(length):
-            is_even = (s % 2 == 0)  # 0-based: 0,2,4,... are ↑ sites
+            is_even = s % 2 == 0  # 0-based: 0,2,4,... are ↑ sites
             if s == 0:
                 T = left_bound
             elif s == length - 1:
@@ -1255,14 +1253,13 @@ class MPO:
             else:
                 T = W_up if is_even else W_down
             tensors.append(T)
-            
+
         self.tensors = tensors
         for i, tensor in enumerate(self.tensors):
             self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
 
         self.length = length
         self.physical_dimension = d
-
 
     def init_coupled_transmon(
         self,
