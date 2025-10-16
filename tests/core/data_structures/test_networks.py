@@ -19,6 +19,7 @@ These tests ensure that the MPS class functions as expected in various simulatio
 from __future__ import annotations
 
 import copy
+import re
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -250,6 +251,7 @@ def test_init_1d_fermi_hubbard_jw() -> None:
       - The MPO has the expected length and physical dimension.
       - Inner and right boundary tensors have the expected shapes.
       - After contracting the MPO, the resulting matrix will have the correct shape.
+      - The function raises an exception when the given length is not even.
     """
     mpo = MPO()
     length = 6
@@ -273,6 +275,9 @@ def test_init_1d_fermi_hubbard_jw() -> None:
             assert tensor.shape == (2, 2, 7, 7)
 
     assert mpo.to_matrix().shape == (2**length, 2**length)
+
+    with pytest.raises(ValueError, match=re.escape("length must be an even integer ≥ 2 (ordering: 1↑,1↓,2↑,2↓,...).")):
+        mpo.init_1d_fermi_hubbard_jw_pauli(length=5, t=t, u=u)  # odd length - must fail
 
 
 def test_init_identity() -> None:
