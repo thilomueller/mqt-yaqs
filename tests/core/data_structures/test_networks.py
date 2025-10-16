@@ -19,6 +19,7 @@ These tests ensure that the MPS class functions as expected in various simulatio
 from __future__ import annotations
 
 import copy
+from functools import reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -287,49 +288,44 @@ def test_init_custom() -> None:
         assert np.allclose(original, created)
 
 
-def test_init_from_full_matrix() -> None:
-    """Test that init_from_full_matrix correctly sets up an MPO from a full matrix.
-
-    This test generates a full matrix representation of a random Hamiltonian,
-    initializes an MPO from that, and verifies that the reconstructed matrix matches
-    the original one.
-    """
-    L = 4
-    n = 2**L
-    # Generates a random Hermitian (Hamiltonian) matrix of size n x n.
-    A = np.random.randn(n, n) + 1j * np.random.randn(n, n)
-    H = (A + A.conj().T) / 2  # Ensure Hermitian (H = H†)
-
-    mpo = MPO()
-    mpo.init_from_full_matrix(H, L)
-
-    assert mpo.length == L
-    assert mpo.physical_dimension == 2
-    assert len(mpo.tensors) == L
-    assert np.allclose(mpo.to_matrix(), H)
-
-
-def test_init_from_sum_op() -> None:
-    """Test that init_from_sum_op correctly sets up an MPO from a sum of operators.
+def test_init_from_terms() -> None:
+    """Test that init_from_terms correctly sets up an MPO from a sum of Pauli strings.
 
     This test generates a Hamiltonian from a list of sum operators, initializes an MPO from
     that list, and verifies that the reconstructed matrix matches the original one.
     """
     H_terms = [
-        (1.0, ['Z', 'Z', 'I', 'I']),
-        (0.5, ['X', 'I', 'X', 'I']),
-        (-0.2, ['I', 'Y', 'Y', 'I']),
+        (1.0 + 0j, ["Z", "Z", "I", "I"]),
+        (0.5 + 0j, ["X", "I", "X", "I"]),
+        (-0.2 + 0j, ["I", "Y", "Y", "I"]),
     ]
     L = len(H_terms[0][1])
 
     mpo = MPO()
-    H = mpo.build_full_hamiltonian(H_terms, L=L)
-    mpo.init_from_sum_op(terms=H_terms, L=L)
+    mpo.init_from_terms(length=L, terms=H_terms, physical_dimension=2, tol=1e-10, max_bond_dim=None, n_sweeps=2)
+    H_matrix = mpo.to_matrix()
 
+    # Static tests
     assert mpo.length == L
     assert mpo.physical_dimension == 2
     assert len(mpo.tensors) == L
-    assert np.allclose(mpo.to_matrix(), H)
+
+    # Validate on small N by comparing to reconstructed matrix
+    H_matrix = mpo.to_matrix()
+
+    PAULI_OPS = {
+        "I": np.array([[1, 0], [0, 1]], dtype=complex),
+        "X": np.array([[0, 1], [1, 0]], dtype=complex),
+        "Y": np.array([[0, -1j], [1j, 0]], dtype=complex),
+        "Z": np.array([[1, 0], [0, -1]], dtype=complex),
+    }
+
+    H_ref = np.zeros_like(H_matrix)
+    for coeff, s in H_terms:
+        matrices = [PAULI_OPS[ch] for ch in s]
+        H_ref += coeff * reduce(np.kron, matrices)
+
+    assert np.allclose(H_matrix, H_ref)
 
 
 def test_to_mps() -> None:

@@ -1279,126 +1279,284 @@ class MPO:
         self.length = len(self.tensors)
         self.physical_dimension = tensors[0].shape[0]
 
-    def build_full_hamiltonian(
-            self,
-            terms: list[tuple[float, list[str]]],
-            L: int
-        ) -> NDArray[np.complex128]:
-        """Build full Hamiltonian matrix from term list.
+    def init_from_terms(
+        self,
+        length: int,
+        terms: list[tuple[complex | float, list[str]]],
+        *,
+        physical_dimension: int = 2,
+        tol: float = 1e-12,
+        max_bond_dim: int | None = None,
+        n_sweeps: int = 2,
+    ) -> None:
+        """Generic MPO construction from a sum of Pauli strings.
 
-        This method creates the full matrix representation of a Hamiltonian that is given by a
-        list of terms of Pauli matrix tensor products.
-
-        Example:
-
-        terms = [
-            (1.0, ['Z', 'Z', 'I', 'I']),
-            (0.5, ['X', 'I', 'X', 'I']),
-            (-0.2, ['I', 'Y', 'Y', 'I']),
-        ]
+        Initializes the MPO representation of any arbitrary Hamiltonian that is a sum of Pauli strings.
 
         Args:
-            terms (list[tuple[float, list[str]]]): The list of weighted terms.
-            L (int): The number of sites in the Hamiltonian.
-        Returns:
-            NDArray[np.complex128]: The full matrix representation of the Hamiltonian.
+            terms: List of (coefficient, [op_0, op_1, ..., op_{L-1}]) where each op_i is one of {"I","X","Y","Z"}.
+            length: Number of sites.
+            physical_dimension: Physical dimension for each site. Defaults to qubit systems (dimension 2).
+            tol: SVD truncation threshold for compression.
+            max_bond_dim: Optional cap on virtual bond dimension.
+            n_sweeps: Number of left <-> right compression sweeps.
+
+        Notes:
+            This method builds each term as a bond-1 MPO from single-site blocks, then sums
+            them by block-diagonal stacking and performs local SVD compression. This follows
+            the approach introduced by Hubig et al.
+
+        Reference:
+            Hubig, C., McCulloch, I. P., and Schollwöck, U. (2017).
+            Generic construction of efficient matrix product operators. Phys. Rev. B, 95:035129.
         """
-        ops = {
-            'I': np.eye(2),
-            'X': np.array([[0, 1], [1, 0]]),
-            'Y': np.array([[0, -1j], [1j, 0]]),
-            'Z': np.array([[1, 0], [0, -1]])
-        }
-        dim = 2**L
-        H = np.zeros((dim, dim), dtype=complex)
+        assert length >= 1
+        self.length = length
+        self.physical_dimension = physical_dimension
 
-        for coeff, term_ops in terms:
-            full_op = 1
-            for op_label in term_ops:
-                full_op = np.kron(full_op, ops[op_label])
-            H += coeff * full_op
+        # Build a bond-1 MPO for each term
+        mpo_terms: list[list[np.ndarray]] = []
+        for coeff, labels in terms:
+            assert len(labels) == length, "Each term must specify an operator label for every site."
+            single = self._bond1_mpo_from_labels(labels, coeff, physical_dimension)
+            mpo_terms.append(single)
 
-        return H
-    
-    def init_from_full_matrix(
-            self,
-            H: NDArray[np.complex128],
-            L: int,
-            d: int = 2,
-            max_bond_dim = None,
-            tol = 1e-10
-        ) -> None:
-        """Custom Hamiltonian from full matrix.
+        # Sum all term-MPOs together (block-diagonal on virtual bonds)
+        if not mpo_terms:
+            # Empty -> zero operator
+            self.tensors = [
+                np.zeros((physical_dimension, physical_dimension, 1, 1), dtype=complex) for _ in range(length)
+            ]
+        else:
+            acc = mpo_terms[0]
+            for next_term in mpo_terms[1:]:
+                acc = self._mpo_sum(acc, next_term)
+            self.tensors = acc
 
-        Initialize a custom Hamiltonian as a Matrix Product Operator (MPO).
-        This method sets up the Hamiltonian using a matrix received in form of a numpy array.
-        Note that this method is exact but not very efficient for large L.
+        # Local SVD compression sweeps
+        for _ in range(max(1, n_sweeps)):
+            self._compress_svd_sweep(direction="lr", tol=tol, max_bond_dim=max_bond_dim)
+            self._compress_svd_sweep(direction="rl", tol=tol, max_bond_dim=max_bond_dim)
 
-        Args:
-            H (NDArray)
-            L (int): The number of tensors in the MPO.
-            d (int): The physical bond dimension of the MPO (default is d=2).
-            max_bond_dim (int, optional): The maximum virtual bond dimension of the MPO.
-            tol (float, optional): The tolerance for truncation.
-        """
-        T = H.reshape((d,) * (2 * L))  # shape: (i1, i2, ..., iL, j1, j2, ..., jL)
-        T = np.transpose(T, [i for pair in zip(range(L), range(L, 2*L)) for i in pair])  # shape: (i1, j1, i2, j2, ..., iL, jL)
-        T = T.reshape(2**L, 2**L)  # (i1,j1) x (i2,j2)
-
-        mpo_tensors = []
-        right_prev = 1  # initial bond dimension
-
-        for n in range(L - 1):
-            # Group together to merge the right part
-            T = T.reshape((right_prev, d, d, -1))
-            T = T.transpose(1, 2, 0, 3).reshape(d * d * right_prev, -1)
-
-            # SVD decomposition
-            U, S, Vh = np.linalg.svd(T, full_matrices=False)
-
-            right = np.sum(S > 1e-10)
-            # Truncate
-            if max_bond_dim is not None:
-                right = min(np.sum(S > tol), max_bond_dim)
-            else:
-                right = np.sum(S > tol)
-            U = U[:, :right]
-            S = S[:right]
-            Vh = Vh[:right, :]
-
-            # Extract MPO tensor
-            W = U.reshape(d, d, right_prev, right)
-            mpo_tensors.append(W)
-
-            # Absorb singular values into Vh
-            # This is more efficient than np.dot(np.diag(S), Vh)
-            T = (S[:, None] * Vh)
-
-            right_prev = right
-
-        W_last = T.reshape(right_prev, d, d)
-        W_last = np.transpose(W_last, (1, 2, 0)).reshape(d, d, right_prev, 1)
-        mpo_tensors.append(W_last)
-        self.tensors = mpo_tensors
         assert self.check_if_valid_mpo(), "MPO initialized wrong"
-        self.length = L
-        self.physical_dimension = d
 
+    @staticmethod
+    def _label_to_op(label: str) -> np.ndarray:
+        """Map a string label to the corresponding single-qubit Pauli operator.
 
-    def init_from_sum_op(self, terms: list[tuple[float, list[str]]], L: int) -> None:
-        """Initialize MPO from sum of operators.
-
-        Initialize the custom MPO (Matrix Product Operator) from terms. Each term is a sum of
-        tensor products of local operators (local ops).
+        This helper function converts a symbolic label representing the Pauli matrices
+        into its associated 2x2 complex NumPy array. It is used internally
+        when constructing MPOs from lists of operator labels.
 
         Args:
-            terms : list[tuple[float, list[str]]]
-                A list of operator terms.        
-        """
-        H = self.build_full_hamiltonian(terms, L)
-        self.init_from_full_matrix(H, L)
-        assert self.check_if_valid_mpo(), "MPO initialized wrong" 
+            label (str): Single-character operator label representing a Pauli matrix.
 
+        Returns:
+            np.ndarray: A 2x2 complex NumPy array representing the operator.
+
+        Raises:
+            ValueError: If the label is not one of 'X', 'Y', 'Z', or 'I'.
+        """
+        if label == "I":
+            return np.eye(2, dtype=complex)
+        if label == "X":
+            return np.array([[0, 1], [1, 0]], dtype=complex)
+        if label == "Y":
+            return np.array([[0, -1j], [1j, 0]], dtype=complex)
+        if label == "Z":
+            return np.array([[1, 0], [0, -1]], dtype=complex)
+        msg = f"Unknown local operator label: {label!r}"
+        raise ValueError(msg)
+
+    def _bond1_mpo_from_labels(self, labels: list[str], coeff: complex, physical_dimension: int) -> list[np.ndarray]:
+        """Create a bond-1 MPO for a single tensor-product operator term.
+
+        This helper function constructs the Matrix Product Operator (MPO) representation
+        of a single product term of local operators acting on each site,
+        with bond dimension 1 (i.e., a simple tensor product). It is used
+        as the basic building block in the (Hubig et al.) generic MPO construction.
+
+        Given a list of per-site operator labels, e.g. ["Z", "Z", "I", "I"] with coefficient J, the resulting MPO
+        represents the operator J * Z_1 ⊗ Z_2 ⊗ I_3 ⊗ I_4.
+
+        Each local tensor has shape (d, d, 1, 1), where d is the local
+        physical dimension (currently only d=2 is supported). The coefficient
+        is applied to the tensor of the first site to avoid overflow when summing many terms.
+
+        Args:
+            labels (list[str]): List of single-site operator labels of same length L. Each element must be one of
+                                {"I", "X", "Y", "Z"} for qubits.
+            coeff (complex): Overall scalar coefficient multiplying the operator term.
+            physical_dimension (int): Local Hilbert space dimension. Currently must be 2.
+
+        Returns:
+            list[np.ndarray]: A list of L rank-4 tensors, each with shape (d, d, 1, 1), representing the bond-1 MPO.
+
+        Raises:
+            ValueError: If physical_dimension != 2 or an unsupported label is encountered.
+        """
+        tensors: list[np.ndarray] = []
+        for i, label in enumerate(labels):
+            if physical_dimension == 2:
+                op = self._label_to_op(label)
+            else:
+                msg = "Only operators with physical dimension = 2 are supported by _bond1_mpo_from_labels"
+                raise ValueError(msg)
+
+            if i == 0:
+                # left boundary bond is 1
+                tens = np.zeros((physical_dimension, physical_dimension, 1, 1), dtype=complex)
+                tens[:, :, 0, 0] = op
+            else:
+                tens = np.zeros((physical_dimension, physical_dimension, 1, 1), dtype=complex)
+                tens[:, :, 0, 0] = op
+            tensors.append(tens)
+
+        # Apply the term coefficient on the first site to avoid overflow
+        tensors[0] = tensors[0].copy()
+        tensors[0][:, :, 0, 0] *= coeff
+        return tensors
+
+    @staticmethod
+    def _mpo_sum(A: list[np.ndarray], B: list[np.ndarray]) -> list[np.ndarray]:  # noqa: N803
+        """Block-diagonal sum of two MPOs of equal length and physical dimension.
+
+        This function implements the MPO addition rule described by Hubig et al.,
+        by forming the block-diagonal (direct-sum) combination of two MPO networks A
+        and B that act on the same number of sites with the same local physical dimension.
+
+        For each site k, the local tensor of the resulting MPO R is
+        constructed as:
+
+        - Left boundary (k = 0): concatenate along the right virtual bond: R[1] = (A[1] B[1])
+        This corresponds to horizontal stacking of the two boundary row vectors.
+
+        - Bulk sites (0 < k < L-1): create a block-diagonal matrix in the virtual bond space: R[k] = (A[k], 0; 0, B[k])
+        This increases both the left and right bond dimensions additively.
+
+        - Right boundary (k = L-1): concatenate along the left virtual bond: R[L] = (A[L]; B[L])
+        This corresponds to vertical stacking of the column vectors.
+
+        The physical legs remain unchanged. This operation exactly corresponds to
+        building the MPO for the sum of two operators, i.e. R = A + B
+
+        Args:
+            A (list[np.ndarray]): List of length L containing the MPO tensors for operator A.
+            B (list[np.ndarray]): List of length L containing the MPO tensors for operator B
+
+        Returns:
+            list[np.ndarray]: A list of length L containing the MPO tensors for the sum R = A + B.
+        """
+        length = len(A)
+        out: list[np.ndarray] = []
+        for k in range(length):
+            a = A[k]
+            b = B[k]
+            phys_dim_a, phys_dim_b = a.shape[0], b.shape[0]
+            assert phys_dim_a == phys_dim_b, "Physical dimensions must match for MPO sum."
+            phys_dim = phys_dim_a
+            bond_dim_left_a, bond_dim_right_a = a.shape[2], a.shape[3]
+            bond_dim_left_b, bond_dim_right_b = b.shape[2], b.shape[3]
+
+            if k == 0:
+                # Left boundary: Concatenate along the right bond, i.e. R[0] = [ A[0]  B[0] ]
+                c = np.zeros((phys_dim, phys_dim, 1, bond_dim_right_a + bond_dim_right_b), dtype=complex)
+                c[:, :, 0, :bond_dim_right_a] = a[:, :, 0, :]
+                c[:, :, 0, bond_dim_right_a:] = b[:, :, 0, :]
+            elif k == length - 1:
+                # Right boundary: Concatenate along the left bond, R[L] = [ A[L] ; B[L] ]
+                c = np.zeros((phys_dim, phys_dim, bond_dim_left_a + bond_dim_left_b, 1), dtype=complex)
+                c[:, :, :bond_dim_left_a, 0] = a[:, :, :, 0]
+                c[:, :, bond_dim_left_a:, 0] = b[:, :, :, 0]
+            else:
+                # Bulk sites: Create a block-diagonal matrix R = [[A 0]; [0, B]]
+                c = np.zeros(
+                    (phys_dim, phys_dim, bond_dim_left_a + bond_dim_left_b, bond_dim_right_a + bond_dim_right_b),
+                    dtype=complex,
+                )
+                c[:, :, :bond_dim_left_a, :bond_dim_right_a] = a
+                c[:, :, bond_dim_left_a:, bond_dim_right_a:] = b
+            out.append(c)
+        return out
+
+    @staticmethod
+    def _mpo_product(A: list[np.ndarray], B: list[np.ndarray]) -> list[np.ndarray]:  # noqa: N803
+        """Sitewise product R = A @ B while merging virtual bonds..
+
+        Args:
+            A (list[np.ndarray]): List of length L containing the MPO tensors for operator A.
+            B (list[np.ndarray]): List of length L containing the MPO tensors for operator B
+
+        Returns:
+            list[np.ndarray]: A list of length L containing the MPO tensors for the product R = A @ B.
+        """
+        length = len(A)
+        out: list[np.ndarray] = []
+        for k in range(length):
+            a = A[k]  # (sa, ta, la, ra)
+            b = B[k]  # (sb, tb, lb, rb)
+            # C_{s,u,(lL),(rR)} = sum_t A_{s,t,l,r} B_{t,u,L,R}
+            c = oe.contract("stlr, t u L R -> s u (l L) (r R)", a, b)
+            out.append(c)
+        return out
+
+    def _compress_svd_sweep(self, *, direction: str, tol: float, max_bond_dim: int | None) -> None:
+        """Perform one local-SVD compression sweep (left->right or right->left).
+
+        This function reduces virtual bond dimensions by applying the SVD to each
+        neighboring tensor pair along the chain, truncating small singular values,
+        and redistributing factors back into the left/right site tensors.
+
+        Args:
+            direction (str): Sweep direction, either "lr" (left->right) or "rl" (right->left).
+            tol (float): Truncation threshold. Singular values S_i with S_i <= tol are discarded.
+            max_bond_dim (int | None): Optional hard cap on the kept rank after SVD.
+                                       If None, no explicit cap is applied.
+        """
+        assert direction in {"lr", "rl"}
+        length = len(self.tensors)
+        rng = range(length - 1) if direction == "lr" else range(length - 2, -1, -1)
+
+        for k in rng:
+            # Shape of matrix A: (s,t,l,r)
+            # Shape of matrix B: (u,v,l',r') with l'==r
+            A = self.tensors[k]  # noqa: N806
+            B = self.tensors[k + 1]  # noqa: N806
+
+            phys_dim = A.shape[0]
+            bond_dim_left = A.shape[2]
+            bond_dim_right = B.shape[3]
+
+            # Contract on the shared virtual bond (A.r with B.l)
+            # result shape: (s,t,u,v,l,w)
+            theta = oe.contract("stlr,uvrw->stuvlw", A, B)
+
+            # Permute to make left group be next to each other: (l,s,t | u,v,w)
+            theta = np.transpose(theta, (4, 0, 1, 2, 3, 5))
+
+            # Reshape to matrix
+            matrix = theta.reshape(bond_dim_left * phys_dim * phys_dim, phys_dim * phys_dim * bond_dim_right)
+
+            # Apply SVD + truncation
+            U, S, Vh = np.linalg.svd(matrix, full_matrices=False)  # noqa: N806
+            keep = int(np.sum(tol < S))
+            if max_bond_dim is not None:
+                keep = min(keep, max_bond_dim)
+            keep = max(1, keep)  # keep at least one
+
+            U = U[:, :keep]  # noqa: N806 # (bond_dim_L phys_dim^2) x bond_dim_trim
+            S = S[:keep]  # noqa: N806 # bond_dim_trim
+            Vh = Vh[:keep, :]  # noqa: N806 # bond_dim_trim x (phys_dim^2 bond_dim_R)
+
+            # Rebuild left tensor
+            UL = U.reshape(bond_dim_left, phys_dim, phys_dim, keep).transpose(1, 2, 0, 3)  # noqa: N806
+
+            # Rebuild right tensor
+            SVh = (S[:, None] * Vh).reshape(keep, phys_dim, phys_dim, bond_dim_right)  # noqa: N806
+            VR = SVh.transpose(1, 2, 0, 3)  # noqa: N806
+
+            self.tensors[k] = UL
+            self.tensors[k + 1] = VR
 
     def to_mps(self) -> MPS:
         """MPO to MPS conversion.
