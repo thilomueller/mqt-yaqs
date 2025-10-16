@@ -1176,14 +1176,14 @@ class MPO:
         [0, (u/4)*Z, 0, X, 0, Y, I]
 
         Inner tensor: shape (7, 7, d, d)
-        W_up = [ [ I,           0,    0,    0,    0,    0,    0],
+        inner_up = [ [ I,           0,    0,    0,    0,    0,    0],
                  [ Z,           0,    0,    0,    0,    0,    0],
                  [ -(t/2)*X,    0,    0,    0,    0,    0,    0],
                  [ 0,           0,    0,    0,    0,    0,    0],
                  [ -(t/2)*Y,    0,    0,    0,    0,    0,    0],
                  [ 0,           0,    0,    X,    0,    Y,    I] ]
 
-        W_down = [ [ I,           0,    0,    0,    0,    0,    0],
+        inner_down = [ [ I,           0,    0,    0,    0,    0,    0],
                    [ -(t/2)*X,    0,    0,    0,    0,    0,    0],
                    [ 0,           0,    0,    0,    0,    0,    0],
                    [ -(t/2)*Y,    0,    0,    0,    0,    0,    0],
@@ -1206,61 +1206,58 @@ class MPO:
             raise ValueError(msg)
 
         # Local 2x2 Pauli operators on each spin site
-        d = 2
-        I = np.eye(2, dtype=complex)
-        X = np.array([[0, 1], [1, 0]], dtype=complex)
-        Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
-        Z = np.array([[1, 0], [0, -1]], dtype=complex)
+        physical_dimension = 2
+        zero = np.zeros((physical_dimension, physical_dimension), dtype=complex)
+        identity = np.eye(physical_dimension, dtype=complex)
+        x = X().matrix
+        y = Y().matrix
+        z = Z().matrix
 
-        zero = np.zeros((d, d), dtype=complex)
+        inner_up = np.zeros((7, 7, physical_dimension, physical_dimension), dtype=complex)
+        inner_up[0, 0] = identity
+        inner_up[1, 0] = zero
+        inner_up[2, 0] = -(t / 2) * x
+        inner_up[4, 0] = -(t / 2) * y
+        inner_up[6, 1] = (u / 4) * z
+        inner_up[3, 2] = z
+        inner_up[6, 3] = x
+        inner_up[5, 4] = z
+        inner_up[6, 5] = y
+        inner_up[6, 6] = identity
 
-        W_up = np.zeros((7, 7, d, d), dtype=complex)
-        W_up[0, 0] = I
-        W_up[1, 0] = zero
-        W_up[2, 0] = -(t / 2) * X
-        W_up[4, 0] = -(t / 2) * Y
-        W_up[6, 1] = (u / 4) * Z
-        W_up[3, 2] = Z
-        W_up[6, 3] = X
-        W_up[5, 4] = Z
-        W_up[6, 5] = Y
-        W_up[6, 6] = I
+        inner_down = np.zeros((7, 7, physical_dimension, physical_dimension), dtype=complex)
+        inner_down[0, 0] = identity
+        inner_down[1, 0] = z
+        inner_down[2, 0] = -(t / 2) * x
+        inner_down[4, 0] = -(t / 2) * y
+        inner_down[6, 1] = zero
+        inner_down[3, 2] = z
+        inner_down[6, 3] = x
+        inner_down[5, 4] = z
+        inner_down[6, 5] = y
+        inner_down[6, 6] = identity
 
-        W_down = np.zeros((7, 7, d, d), dtype=complex)
-        W_down[0, 0] = I
-        W_down[1, 0] = Z
-        W_down[2, 0] = -(t / 2) * X
-        W_down[4, 0] = -(t / 2) * Y
-        W_down[6, 1] = zero
-        W_down[3, 2] = Z
-        W_down[6, 3] = X
-        W_down[5, 4] = Z
-        W_down[6, 5] = Y
-        W_down[6, 6] = I
-
-        tensors = []
-
-        left_bound = np.array([zero, (u / 4) * Z, zero, X, zero, Y, I])[np.newaxis, :]
-        right_bound = np.array([I, Z, -(t / 2) * X, zero, -(t / 2) * Y, zero, zero])[:, np.newaxis]
+        left_bound = np.array([zero, (u / 4) * z, zero, x, zero, y, identity])[np.newaxis, :]
+        right_bound = np.array([identity, z, -(t / 2) * x, zero, -(t / 2) * y, zero, zero])[:, np.newaxis]
 
         # Construct the MPO
         tensors = []
         for s in range(length):
             is_even = s % 2 == 0  # 0-based: 0,2,4,... are ↑ sites
             if s == 0:
-                T = left_bound
+                inner_tensor = left_bound
             elif s == length - 1:
-                T = right_bound
+                inner_tensor = right_bound
             else:
-                T = W_up if is_even else W_down
-            tensors.append(T)
+                inner_tensor = inner_up if is_even else inner_down
+            tensors.append(inner_tensor)
 
         self.tensors = tensors
         for i, tensor in enumerate(self.tensors):
             self.tensors[i] = np.transpose(tensor, (2, 3, 0, 1))
 
         self.length = length
-        self.physical_dimension = d
+        self.physical_dimension = physical_dimension
 
     def init_coupled_transmon(
         self,
