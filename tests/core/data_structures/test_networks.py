@@ -332,9 +332,7 @@ def test_init_from_terms_single_site() -> None:
     This test generates MPO from a single Pauli matrix and verifies that the reconstructed
     matrix matches exactly the input.
     """
-    H_terms = [
-        (2.0 + 0j, ["Z"])
-    ]
+    H_terms = [(2.0 + 0j, ["Z"])]
     L = 1
 
     mpo = MPO()
@@ -347,7 +345,7 @@ def test_init_from_terms_single_site() -> None:
     assert len(mpo.tensors) == L
 
     Z = np.array([[1, 0], [0, -1]], dtype=complex)
-    assert np.allclose(H_matrix, 2*Z)
+    assert np.allclose(H_matrix, 2 * Z)
 
 
 def test_to_mps() -> None:

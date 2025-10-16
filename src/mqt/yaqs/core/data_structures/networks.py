@@ -1396,7 +1396,7 @@ class MPO:
             ValueError: If physical_dimension != 2 or an unsupported label is encountered.
         """
         tensors: list[np.ndarray] = []
-        for _, label in enumerate(labels):
+        for label in labels:
             if physical_dimension == 2:
                 op = self._label_to_op(label)
             else:
