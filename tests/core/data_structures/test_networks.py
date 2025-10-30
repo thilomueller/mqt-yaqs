@@ -288,6 +288,22 @@ def test_init_custom() -> None:
         assert np.allclose(original, created)
 
 
+def _dense_matrix_from_terms(length, terms):
+    """Utility function to build the dense operator matrix from full label lists."""
+    PAULI_OPS = {
+        "I": np.array([[1, 0], [0, 1]], dtype=complex),
+        "X": np.array([[0, 1], [1, 0]], dtype=complex),
+        "Y": np.array([[0, -1j], [1j, 0]], dtype=complex),
+        "Z": np.array([[1, 0], [0, -1]], dtype=complex),
+    }
+    dim = 2**length
+    H_ref = np.zeros((dim, dim), dtype=complex)
+    for coeff, s in terms:
+        matrices = [PAULI_OPS[ch] for ch in s]
+        H_ref += coeff * reduce(np.kron, matrices)
+    return H_ref
+
+
 def test_init_from_terms_sum_of_pauli_strings() -> None:
     """Test that init_from_terms correctly sets up an MPO from a sum of Pauli strings.
 
@@ -311,18 +327,7 @@ def test_init_from_terms_sum_of_pauli_strings() -> None:
     assert len(mpo.tensors) == L
 
     # Validate on small N by comparing to reconstructed matrix
-    PAULI_OPS = {
-        "I": np.array([[1, 0], [0, 1]], dtype=complex),
-        "X": np.array([[0, 1], [1, 0]], dtype=complex),
-        "Y": np.array([[0, -1j], [1j, 0]], dtype=complex),
-        "Z": np.array([[1, 0], [0, -1]], dtype=complex),
-    }
-
-    H_ref = np.zeros_like(H_matrix)
-    for coeff, s in H_terms:
-        matrices = [PAULI_OPS[ch] for ch in s]
-        H_ref += coeff * reduce(np.kron, matrices)
-
+    H_ref = _dense_matrix_from_terms(L, H_terms)
     assert np.allclose(H_matrix, H_ref)
 
 
@@ -346,6 +351,84 @@ def test_init_from_terms_single_site() -> None:
 
     Z = np.array([[1, 0], [0, -1]], dtype=complex)
     assert np.allclose(H_matrix, 2 * Z)
+
+
+def test_parse_pauli_string_basic() -> None:
+    """Test that the parser accepts spaces/commas, is case-insensitive, and maps to uppercase labels."""
+    parsed = MPO._parse_pauli_string("X0 Y2, z5  i7")
+    assert parsed == {0: "X", 2: "Y", 5: "Z", 7: "I"}
+
+
+def test_parse_pauli_string_errors() -> None:
+    """Tests that the parser raises ValueError on invalid tokens and duplicate sites."""
+    with pytest.raises(ValueError):
+        _ = MPO._parse_pauli_string("X0 Ybad")
+    with pytest.raises(ValueError):
+        _ = MPO._parse_pauli_string("X0 X0")
+    with pytest.raises(ValueError):
+        _ = MPO._parse_pauli_string("X")  # missing index
+
+
+def test_init_from_sparse_pauli_terms_equivalence_to_dense() -> None:
+    """Tests that the sparse initializer matches the dense init_from_terms for the same Hamiltonian."""
+    L = 5
+    # H = 0.7 X0 + 1.2 Z3 Y4 + 0.5 X1 X2
+    sparse_terms = [
+        (0.7, "X0"),
+        (1.2, "Z3 Y4"),
+        (0.5, [(1, "X"), (2, "X")]),
+    ]
+
+    mpo_sparse = MPO()
+    mpo_sparse.init_from_sparse_pauli_terms(sparse_terms)
+    A = mpo_sparse.to_matrix()
+
+    dense_terms = [
+        (0.7, ["X", "I", "I", "I", "I"]),
+        (1.2, ["I", "I", "I", "Z", "Y"]),
+        (0.5, ["I", "X", "X", "I", "I"]),
+    ]
+    mpo_dense = MPO()
+    mpo_dense.init_from_terms(length=L, terms=dense_terms, physical_dimension=2)
+    B = mpo_dense.to_matrix()
+
+    assert A.shape == B.shape == (2**L, 2**L)
+    assert np.allclose(A, B, atol=1e-10)
+
+
+def test_init_from_sparse_pauli_terms_infer_length() -> None:
+    """Tests that the correct length is inferred from the maximum site index when the length itself is not provided."""
+    mpo = MPO()
+    mpo.init_from_sparse_pauli_terms([(2.0, "X0 Y3")])  # infers L=4
+    assert mpo.length == 4
+    assert mpo.to_matrix().shape == (16, 16)
+
+
+def test_init_from_sparse_pauli_terms_default_op() -> None:
+    """Tests that unspecified sites are filled with the default operator and that invalid labels raise errors.
+    
+    This test initializes an MPO with a specified default operator ('Z') for unspecified sites. Also, it checks
+    that providing an invalid default operator raises a ValueError.
+    """
+    mpo = MPO()
+    mpo.init_from_sparse_pauli_terms([(1.0, "X0")], length=2, default_op="Z")
+    gt = _dense_matrix_from_terms(2, [(1.0, ["X", "Z"])])
+    assert np.allclose(mpo.to_matrix(), gt, atol=1e-12)
+
+    with pytest.raises(ValueError):
+        MPO().init_from_sparse_pauli_terms([(1.0, "X0")], length=2, default_op="Q")  # invalid label
+
+
+def test_init_from_sparse_pauli_terms_validation_errors() -> None:
+    """Tests that invalid inputs to init_from_sparse_pauli_terms raise ValueErrors."""
+    with pytest.raises(ValueError):
+        MPO().init_from_sparse_pauli_terms([(1.0, {5: "X"})], length=4)  # site 5 out of range
+
+    with pytest.raises(ValueError):
+        MPO().init_from_sparse_pauli_terms([(1.0, "X0 X0")], length=2)  # duplicate site
+
+    with pytest.raises(ValueError):
+        MPO().init_from_sparse_pauli_terms([])  # cannot infer length
 
 
 def test_to_mps() -> None:

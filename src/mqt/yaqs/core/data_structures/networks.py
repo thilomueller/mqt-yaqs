@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import copy
+import re
 import multiprocessing
 from typing import TYPE_CHECKING
 
@@ -1557,6 +1558,138 @@ class MPO:
 
             self.tensors[k] = UL
             self.tensors[k + 1] = VR
+
+    def init_from_sparse_pauli_terms(
+        self,
+        terms: list[tuple[complex | float, dict[int, str] | list[tuple[int, str]] | str]],
+        *,
+        length: int | None = None,
+        physical_dimension: int = 2,
+        tol: float = 1e-12,
+        max_bond_dim: int | None = None,
+        n_sweeps: int = 2,
+        default_op: str = "I",
+    ) -> None:
+        """Generic MPO construction from sparse Pauli strings.
+
+        This initializer can be used to conviniently build an arbitrary Pauli-sum MPO
+        without writing out all the identity operators.
+
+        Each term is (coefficient, sparse_spec), where sparse_spec can be:
+        - dict {site: "X|Y|Z|I"}
+        - list of (site, "X|Y|Z|I")
+        - string like "X0 Y2 Z5" (case-insensitive, spaces optional)
+
+        Unspecified sites are set to identity by default. If the length is not specified, it's
+        inferred from the largest site index seen across all terms.
+
+        Args:
+            terms: Pauli-sum specification without having to write identities explicitly.
+            length: Number of sites.
+            physical_dimension: Physical dimension for each site. Defaults to qubit systems (dimension 2).
+            tol: SVD truncation threshold for compression.
+            max_bond_dim: Optional cap on virtual bond dimension.
+            n_sweeps: Number of left <-> right compression sweeps.
+            default_op: Operator to place on unspecified sites. Default is "I" (identity).
+
+        Raises:
+            ValueError: If length cannot be inferred, or invalid operator labels are provided.
+
+        """
+        valid = {"I", "X", "Y", "Z"}
+
+        def _normalize_sparse(sparse_ops: dict[int, str] | list[tuple[int, str]] | str) -> dict[int, str]:
+            if isinstance(sparse_ops, str):
+                return self._parse_pauli_string(sparse_ops)
+            if isinstance(sparse_ops, dict):
+                return {int(k): str(v).upper() for k, v in sparse_ops.items()}
+            # list of tuples
+            out: dict[int, str] = {}
+            for site, lab in sparse_ops:
+                out[int(site)] = str(lab).upper()
+            return out
+
+        # infer length
+        if length is None:
+            max_site = -1
+            for _, sparse in terms:
+                norm = _normalize_sparse(sparse)
+                if norm:
+                    max_site = max(max_site, max(norm.keys()))
+            if max_site < 0:
+                raise ValueError("Cannot infer length from empty terms. Provide 'length'.")
+            length = max_site + 1
+
+        if length <= 0:
+            raise ValueError("length must be positive.")
+
+        # build dense per-term labels and delegate to generic constructor
+        dense_terms: list[tuple[complex | float, list[str]]] = []
+        default_op = default_op.upper()
+        if default_op not in valid:
+            raise ValueError(f"Invalid default_op '{default_op}'. Expected one of {valid}.")
+
+        for coeff, sparse in terms:
+            norm = _normalize_sparse(sparse)
+            labels = [default_op] * length
+            seen_sites: set[int] = set()
+            for site, lab in norm.items():
+                if not (0 <= site < length):
+                    raise ValueError(f"Site index {site} outside [0, {length-1}].")
+                lab_up = lab.upper()
+                if lab_up not in valid:
+                    raise ValueError(f"Invalid local op '{lab}' at site {site}; expected one of {valid}.")
+                if site in seen_sites:
+                    raise ValueError(f"Duplicate site {site} in a single term.")
+                seen_sites.add(site)
+                labels[site] = lab_up
+            dense_terms.append((coeff, labels))
+
+        self.init_from_terms(
+            length=length,
+            terms=dense_terms,
+            physical_dimension=physical_dimension,
+            tol=tol,
+            max_bond_dim=max_bond_dim,
+            n_sweeps=n_sweeps,
+        )
+
+    @staticmethod
+    def _parse_pauli_string(spec: str) -> dict[int, str]:
+        """Parse strings like 'X0 Y2 Z5' (case-insensitive) into {site: 'X|Y|Z|I'}.
+
+        Args:
+            spec: A compact Pauli-string specification such as "X0 Y2 Z5".
+
+        Returns:
+            dict[int, str]: Mapping from site index to operator label.
+
+        Raises:
+            ValueError: If the spec contains invalid tokens or repeated sites.
+
+        Notes:
+            - Separators can be spaces or commas. Repeated sites are an error.
+            - Valid operators are I, X, Y, Z (case-insensitive).        
+        """
+        # allow commas or multiple spaces
+        s = spec.replace(",", " ").strip()
+        if not s:
+            return {}
+        # match tokens like X0, y12, I7
+        pattern = re.compile(r"\b([ixyzIXYZ])\s*(\d+)\b")
+        out: dict[int, str] = {}
+        for op, idx in pattern.findall(s):
+            site = int(idx)
+            opU = op.upper()
+            if site in out:
+                raise ValueError(f"Duplicate site {site} in spec '{spec}'.")
+            out[site] = opU
+        # Ensure the whole string consists of valid tokens (ignoring whitespace)
+        # Remove matched tokens and whitespace, anything left is invalid.
+        cleaned = pattern.sub("", s)
+        if cleaned.split():  # remaining non-empty chunks -> invalid
+            raise ValueError(f"Invalid token(s) in spec '{spec}'. Use forms like 'X0 Y2 Z5'.")
+        return out
 
     def to_mps(self) -> MPS:
         """MPO to MPS conversion.
