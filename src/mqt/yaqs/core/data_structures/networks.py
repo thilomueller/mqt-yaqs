@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import concurrent.futures
 import copy
-import re
 import multiprocessing
+import re
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -1572,7 +1572,7 @@ class MPO:
     ) -> None:
         """Generic MPO construction from sparse Pauli strings.
 
-        This initializer can be used to conviniently build an arbitrary Pauli-sum MPO
+        This initializer can be used to conveniently build an arbitrary Pauli-sum MPO
         without writing out all the identity operators.
 
         Each term is (coefficient, sparse_spec), where sparse_spec can be:
@@ -1615,19 +1615,22 @@ class MPO:
             for _, sparse in terms:
                 norm = _normalize_sparse(sparse)
                 if norm:
-                    max_site = max(max_site, max(norm.keys()))
+                    max_site = max(max_site, *norm.keys())
             if max_site < 0:
-                raise ValueError("Cannot infer length from empty terms. Provide 'length'.")
+                msg = "Cannot infer length from empty terms. Provide 'length'."
+                raise ValueError(msg)
             length = max_site + 1
 
         if length <= 0:
-            raise ValueError("length must be positive.")
+            msg = "length must be positive."
+            raise ValueError(msg)
 
         # build dense per-term labels and delegate to generic constructor
         dense_terms: list[tuple[complex | float, list[str]]] = []
         default_op = default_op.upper()
         if default_op not in valid:
-            raise ValueError(f"Invalid default_op '{default_op}'. Expected one of {valid}.")
+            msg = f"Invalid default_op '{default_op}'. Expected one of {sorted(valid)}."
+            raise ValueError(msg)
 
         for coeff, sparse in terms:
             norm = _normalize_sparse(sparse)
@@ -1635,12 +1638,15 @@ class MPO:
             seen_sites: set[int] = set()
             for site, lab in norm.items():
                 if not (0 <= site < length):
-                    raise ValueError(f"Site index {site} outside [0, {length-1}].")
+                    msg = f"Site index {site} outside [0, {length - 1}]."
+                    raise ValueError(msg)
                 lab_up = lab.upper()
                 if lab_up not in valid:
-                    raise ValueError(f"Invalid local op '{lab}' at site {site}; expected one of {valid}.")
+                    msg = f"Invalid local op '{lab}' at site {site}; expected one of {sorted(valid)}."
+                    raise ValueError(msg)
                 if site in seen_sites:
-                    raise ValueError(f"Duplicate site {site} in a single term.")
+                    msg = f"Duplicate site {site} in a single term."
+                    raise ValueError(msg)
                 seen_sites.add(site)
                 labels[site] = lab_up
             dense_terms.append((coeff, labels))
@@ -1669,7 +1675,7 @@ class MPO:
 
         Notes:
             - Separators can be spaces or commas. Repeated sites are an error.
-            - Valid operators are I, X, Y, Z (case-insensitive).        
+            - Valid operators are I, X, Y, Z (case-insensitive).
         """
         # allow commas or multiple spaces
         s = spec.replace(",", " ").strip()
@@ -1680,15 +1686,17 @@ class MPO:
         out: dict[int, str] = {}
         for op, idx in pattern.findall(s):
             site = int(idx)
-            opU = op.upper()
+            op_up = op.upper()
             if site in out:
-                raise ValueError(f"Duplicate site {site} in spec '{spec}'.")
-            out[site] = opU
+                msg = f"Duplicate site {site} in spec '{spec}'."
+                raise ValueError(msg)
+            out[site] = op_up
         # Ensure the whole string consists of valid tokens (ignoring whitespace)
         # Remove matched tokens and whitespace, anything left is invalid.
         cleaned = pattern.sub("", s)
         if cleaned.split():  # remaining non-empty chunks -> invalid
-            raise ValueError(f"Invalid token(s) in spec '{spec}'. Use forms like 'X0 Y2 Z5'.")
+            msg = f"Invalid token(s) in spec '{spec}'. Use forms like 'X0 Y2 Z5'."
+            raise ValueError(msg)
         return out
 
     def to_mps(self) -> MPS:
